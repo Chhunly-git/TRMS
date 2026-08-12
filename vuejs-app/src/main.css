@@ -2,3 +2,32 @@
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 @import 'icheck-bootstrap/icheck-bootstrap.min.css';
 @import 'admin-lte/dist/css/adminlte.min.css';
+
+/* Fix AdminLTE Vue Router Layout */
+.wrapper .content-wrapper {
+  margin-left: 250px !important;
+  min-height: calc(100vh - calc(3.5rem + 1px) - 57px) !important;
+}
+
+.wrapper .main-header {
+  margin-left: 250px !important;
+}
+
+.wrapper .main-footer {
+  margin-left: 250px !important;
+}
+
+/* ពេល Collapse Sidebar ឬលើទូរស័ព្ទ */
+body.sidebar-collapse .wrapper .content-wrapper,
+body.sidebar-collapse .wrapper .main-header,
+body.sidebar-collapse .wrapper .main-footer {
+  margin-left: 4.6rem !important;
+}
+
+@media (max-width: 767.98px) {
+  .wrapper .content-wrapper,
+  .wrapper .main-header,
+  .wrapper .main-footer {
+    margin-left: 0 !important;
+  }
+}

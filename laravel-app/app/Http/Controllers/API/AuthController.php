@@ -7,7 +7,7 @@ use App\Http\Requests\User\SendResetPasswordEmailRequest;
 use App\Http\Requests\User\SendVerificationEmailRequest;
 use App\Http\Requests\User\SetNewPasswordRequest;
 use App\Http\Requests\User\SigninRequest;
-use App\Http\Requests\User\SignupRequest;
+// use App\Http\Requests\User\SignupRequest;
 use App\Http\Resources\User\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -17,21 +17,21 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    function signup(SignupRequest $request)
-    {
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-        ]);
+    // function signup(SignupRequest $request)
+    // {
+    //     $user = User::create([
+    //         'name' => $request->name,
+    //         'email' => $request->email,
+    //         'password' => $request->password,
+    //     ]);
 
-        $user->sendEmailVerificationNotification($request->callback_url);
+    //     $user->sendEmailVerificationNotification($request->callback_url);
 
-        return response([
-            'message' => 'User signed up.',
-            'user' => new UserResource($user)
-        ], 201);
-    }
+    //     return response([
+    //         'message' => 'User signed up.',
+    //         'user' => new UserResource($user)
+    //     ], 201);
+    // }
 
     function signin(SigninRequest $request)
     {
