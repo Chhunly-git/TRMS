@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\ChangePasswordRequest;
+use App\Http\Requests\User\CreatePasswordRequest;
 use App\Http\Requests\User\SendResetPasswordEmailRequest;
 use App\Http\Requests\User\SendVerificationEmailRequest;
 use App\Http\Requests\User\SetNewPasswordRequest;
 use App\Http\Requests\User\SigninRequest;
-// use App\Http\Requests\User\SignupRequest;
+use App\Http\Requests\User\SignupRequest;
+use App\Http\Requests\User\UpdateProfileImageRequest;
 use App\Http\Resources\User\UserResource;
 use App\Models\User;
+use App\Services\ImageClassService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -17,21 +22,21 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // function signup(SignupRequest $request)
-    // {
-    //     $user = User::create([
-    //         'name' => $request->name,
-    //         'email' => $request->email,
-    //         'password' => $request->password,
-    //     ]);
+    function signup(SignupRequest $request)
+    {
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $request->password,
+        ]);
 
-    //     $user->sendEmailVerificationNotification($request->callback_url);
+        $user->sendEmailVerificationNotification($request->callback_url);
 
-    //     return response([
-    //         'message' => 'User signed up.',
-    //         'user' => new UserResource($user)
-    //     ], 201);
-    // }
+        return response([
+            'message' => 'User signed up.',
+            'user' => new UserResource($user)
+        ], 201);
+    }
 
     function signin(SigninRequest $request)
     {
@@ -40,6 +45,12 @@ class AuthController extends Controller
         if (!$user->hasVerifiedEmail()) {
             throw ValidationException::withMessages([
                 'email' => 'Email is not verified.',
+            ]);
+        }
+
+        if ($user->status === 'DISABLED') {
+            throw ValidationException::withMessages([
+                'email' => 'Your account has been disabled. Please contact support.',
             ]);
         }
 
@@ -160,6 +171,87 @@ class AuthController extends Controller
 
         return response([
             'message' => 'Password has been reset successfully.'
+        ], 200);
+    }
+
+    function createPassword(CreatePasswordRequest $request)
+    {
+        $user = $request->user();
+        if (!empty($user->password)) {
+            throw ValidationException::withMessages([
+                'new_password' => 'Password is already set.',
+            ]);
+        }
+        $user->password = $request->new_password;
+        $user->save();
+        $user->tokens()->delete();
+        return response([
+            'message' => 'Password created successfully.'
+        ], 200);
+    }
+
+    function changePassword(ChangePasswordRequest $request)
+    {
+        $user = $request->user();
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Current password does not match.',
+            ]);
+        }
+        if ($request->current_password === $request->new_password) {
+            throw ValidationException::withMessages([
+                'new_password' => 'New password must be different from current password.',
+            ]);
+        }
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+        $user->tokens()->delete();
+        return response([
+            'message' => 'Password changed successfully.'
+        ], 200);
+    }
+
+    function updateProfileImage(UpdateProfileImageRequest $request)
+    {
+        $imageClass = ImageClassService::forUserModel();
+        $user = $request->user();
+        $oldImage = $user->getRawOriginal('profile_image');
+        $newImage = null;
+
+        try {
+            $newImage = $imageClass->store($request->file('profile_image'));
+            $user->profile_image = $newImage;
+            $user->save();
+        } catch (Exception $e) {
+            // Save failed - delete the newly stored file so no orphan is left.
+            $imageClass->delete($newImage);
+            throw $e;
+        }
+
+        // Save succeeded — safe to delete the old file now.
+        $imageClass->delete($oldImage);
+
+        return response([
+            'message' => 'User profile image updated successfully.',
+            'profile_image' => $user->profile_image,
+            'profile_thumbnail' => $user->profile_thumbnail,
+        ], 200);
+    }
+
+    function deleteProfileImage(Request $request)
+    {
+        $imageClass = ImageClassService::forUserModel();
+        $user = $request->user();
+        $oldImage = $user->getRawOriginal('profile_image');
+
+        $user->profile_image = null;
+        $user->save();
+
+        // Save succeeded — safe to delete the file now.
+        $imageClass->delete($oldImage);
+
+        return response([
+            'message' => 'User profile image deleted successfully.',
         ], 200);
     }
 }

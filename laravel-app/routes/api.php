@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\BackupController;
 use App\Http\Controllers\API\GoogleOAuthController;
+use App\Http\Controllers\API\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Route::post('/signup', [AuthController::class, 'signup']);
+Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/signin', [AuthController::class, 'signin']);
 Route::get('/verify/email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware('signed')
@@ -19,7 +21,28 @@ Route::prefix('google')->group(function () {
     Route::post('/oauth/exchange/token', [GoogleOAuthController::class, 'googleOAuthExchangeToken'])->middleware('auth:sanctum');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/signout', [AuthController::class, 'signout']);
     Route::get('/verify', [AuthController::class, 'verify']);
+    Route::put('/create/password', [AuthController::class, 'createPassword']);
+    Route::put('/change/password', [AuthController::class, 'changePassword']);
+    Route::put('/update/profile-image', [AuthController::class, 'updateProfileImage']);
+    Route::delete('/delete/profile-image', [AuthController::class, 'deleteProfileImage']);
+
+    Route::middleware('admin')->prefix('manage')->group(function () {
+        Route::prefix('users')->group(function () {
+            Route::get('/', [UserController::class, 'getUsers']);
+            Route::get('/read/{id}', [UserController::class, 'readUser']);
+            Route::post('/create', [UserController::class, 'createUser']);
+            Route::put('/update/{id}', [UserController::class, 'updateUser']);
+            Route::patch('/toggle-status/{id}', [UserController::class, 'toggleUserStatus']);
+            Route::delete('/delete/{id}', [UserController::class, 'deleteUser']);
+        });
+        Route::prefix('backups')->group(function () {
+            Route::get('/', [BackupController::class, 'getBackups']);
+            Route::post('/create', [BackupController::class, 'createBackup']);
+            Route::get('/download/{filename}', [BackupController::class, 'downloadBackup']);
+            Route::delete('/delete/{filename}', [BackupController::class, 'deleteBackup']);
+        });
+    });
 });

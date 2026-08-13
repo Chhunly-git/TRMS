@@ -3,10 +3,12 @@ import ResetPassword from '@/components/auth/ResetPassword.vue';
 import SetNewPassword from '@/components/auth/SetNewPassword.vue';
 import Signin from '@/components/auth/Signin.vue';
 import Signout from '@/components/auth/Signout.vue';
-// import Signup from '@/components/auth/Signup.vue';
+import Signup from '@/components/auth/Signup.vue';
 import VerifyEmail from '@/components/auth/VerifyEmail.vue';
 import GoogleOAuth from '@/components/google-oauth/GoogleOAuth.vue';
 import Dashboard from '@/components/pages/Dashboard.vue';
+import User from '@/components/pages/User.vue';
+import Backup from '@/components/pages/Backup.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
 
@@ -31,12 +33,12 @@ const router = createRouter({
       // This route has no guarded meta because it use for both authenticated and unauthenticated users.
       // The authentication state will be handled in the Signout component.
     },
-    // {
-    //   path: '/signup',
-    //   name: 'auth.signup',
-    //   component: Signup,
-    //   meta: { guarded: false },
-    // },
+    {
+      path: '/signup',
+      name: 'auth.signup',
+      component: Signup,
+      meta: { guarded: false },
+    },
     {
       path: '/verify/email',
       name: 'auth.verify.email',
@@ -78,6 +80,30 @@ const router = createRouter({
       name: 'profile',
       components: {
         default: Profile,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    {
+      path: '/users',
+      name: 'users',
+      components: {
+        default: User,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    {
+      path: '/backups',
+      name: 'backups',
+      components: {
+        default: Backup,
         navbar: Navbar,
         left_sidebar: LeftSidebar,
         right_sidebar: RightSidebar,
