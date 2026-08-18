@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -37,6 +38,14 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * ទំនាក់ទំនង One-to-One ទៅកាន់ Model Employee
+     */
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
     public function sendEmailVerificationNotification($callback_url = null)
     {
         $this->notify(new EmailVerificationNotification($callback_url));
@@ -54,7 +63,7 @@ class User extends Authenticatable
         );
     }
 
-    // profile image related methods and attributes
+    // Profile image related methods and attributes
     protected function profileImage(): Attribute
     {
         return Attribute::make(
@@ -76,9 +85,9 @@ class User extends Authenticatable
             },
         );
     }
-    // end profile image related methods and attributes
+    // End profile image related methods and attributes
 
-
+    // Scopes
     protected function scopeIsAdmin(Builder $query): void
     {
         $query->where('level', 'ADMIN');

@@ -9,13 +9,17 @@ import GoogleOAuth from '@/components/google-oauth/GoogleOAuth.vue';
 import Dashboard from '@/components/pages/Dashboard.vue';
 import User from '@/components/pages/User.vue';
 import Backup from '@/components/pages/Backup.vue';
+import Employee from '@/components/pages/Employee.vue';
+import Department from '@/components/pages/Department.vue';
+import Division from '@/components/pages/Division.vue';
+import Position from '@/components/pages/Position.vue';// 👈 Import Officers Index
 import { createRouter, createWebHistory } from 'vue-router';
-
 
 import Navbar from "@/components/includes/Navbar.vue";
 import LeftSidebar from "@/components/includes/LeftSidebar.vue";
 import RightSidebar from "@/components/includes/RightSidebar.vue";
 import Footer from "@/components/includes/Footer.vue";
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,8 +34,6 @@ const router = createRouter({
       path: '/signout',
       name: 'auth.signout',
       component: Signout,
-      // This route has no guarded meta because it use for both authenticated and unauthenticated users.
-      // The authentication state will be handled in the Signout component.
     },
     {
       path: '/signup',
@@ -100,6 +102,56 @@ const router = createRouter({
       meta: { guarded: true },
     },
     {
+      path: '/employees',
+      name: 'employees',
+      components: {
+        default: Employee,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    {
+      path: '/departments',
+      name: 'departments',
+      components: {
+        default: Department,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    {
+      path: '/divisions',
+      name: 'divisions',
+      components: {
+        default: Division,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    {
+      path: '/positions',
+      name: 'positions',
+      components: {
+        default: Position,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+        footer: Footer,
+      },
+      meta: { guarded: true },
+    },
+    // Route សម្រាប់គ្រប់គ្រងមន្ត្រី (Officers)
+    
+    {
       path: '/backups',
       name: 'backups',
       components: {
@@ -116,6 +168,6 @@ const router = createRouter({
       redirect: '/dashboard',
     }
   ],
-})
+});
 
-export default router
+export default router;

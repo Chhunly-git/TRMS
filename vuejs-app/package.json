@@ -12,6 +12,7 @@
     "@fortawesome/fontawesome-free": "^5.15.4",
     "@tanstack/table-core": "^8.21.3",
     "@tanstack/vue-table": "^8.21.3",
+    "@vuepic/vue-datepicker": "^14.0.0",
     "admin-lte": "^3.2.0",
     "axios": "^1.19.0",
     "bootstrap": "^4.6.2",

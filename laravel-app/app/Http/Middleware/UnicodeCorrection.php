@@ -15,7 +15,6 @@ class UnicodeCorrection
      */
     public function handle(Request $request, Closure $next): Response
     {
-
         $data = $request->all();
 
         $data = $this->replaceUnicodeRecursive($data);
@@ -76,10 +75,9 @@ class UnicodeCorrection
     private function replaceUnicode($text)
     {
         $text = trim($text);
-        $text = preg_replace('/[\s]+/u', '\s', $text);
-        $text = preg_replace('/[\t]+/u', '\t', $text);
-        $text = preg_replace('/[\n]+/u', '\n', $text);
-        $text = preg_replace('/[\r]+/u', '\r', $text);
+
+        // ✅ បង្រួម Space ច្រើនជាន់ឱ្យនៅត្រឹម Space ' ' មួយធម្មតា (លែងចេញ \s)
+        $text = preg_replace('/\s+/u', ' ', $text);
         $text = preg_replace('/\x{200B}+/u', "\x{200B}", $text);
 
         $salabpi = ['ង', 'ញ', 'ប', 'ម', 'យ', 'រ', 'វ'];
@@ -87,7 +85,7 @@ class UnicodeCorrection
         $chars = array_merge($salabpi, $treysab);
         $vowels = ['ិ', 'ី', 'ឹ', 'ឺ', 'ើ'];
 
-        // Direct replacements
+        // Direct replacements (Khmer Unicode Normalization)
         $text = str_replace('្' . 'ដ', '្' . 'ត', $text);
         $text = str_replace('ា' . 'ំ', 'ាំ', $text);
         $text = str_replace('េ' . 'ី', 'ើ', $text);

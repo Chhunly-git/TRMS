@@ -1,4 +1,6 @@
-<script setup></script>
+<script setup>
+
+</script>
 
 <template>
   <router-view name="navbar"></router-view>
@@ -8,4 +10,12 @@
   <router-view name="footer"></router-view>
 </template>
 
-<style scoped></style>
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Battambang:wght@100;300;400;700;900&display=swap');
+.battambang-bold {
+  font-family: "Battambang", system-ui;
+  font-weight: 700;
+  font-style: normal;
+}
+
+</style>

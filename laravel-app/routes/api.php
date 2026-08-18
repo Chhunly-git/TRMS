@@ -4,6 +4,11 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\BackupController;
 use App\Http\Controllers\API\GoogleOAuthController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\API\EmployeeController;
+use App\Http\Controllers\API\GeoController;
+use App\Http\Controllers\API\DepartmentController;
+use App\Http\Controllers\API\OfficeController;
+use App\Http\Controllers\API\PositionController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/signup', [AuthController::class, 'signup']);
@@ -20,6 +25,11 @@ Route::prefix('google')->group(function () {
     Route::get('/oauth/callback', [GoogleOAuthController::class, 'googleOAuthCallback']);
     Route::post('/oauth/exchange/token', [GoogleOAuthController::class, 'googleOAuthExchangeToken'])->middleware('auth:sanctum');
 });
+
+Route::get('/provinces', [GeoController::class, 'getProvinces']);
+Route::get('/districts/by/province/{id}', [GeoController::class, 'getDistrictsByProvince']);
+Route::get('/communes/by/district/{id}', [GeoController::class, 'getCommunesByDistrict']);
+Route::get('/villages/by/commune/{id}', [GeoController::class, 'getVillagesByCommune']);
 
 Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/signout', [AuthController::class, 'signout']);
@@ -43,6 +53,43 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::post('/create', [BackupController::class, 'createBackup']);
             Route::get('/download/{filename}', [BackupController::class, 'downloadBackup']);
             Route::delete('/delete/{filename}', [BackupController::class, 'deleteBackup']);
+        });
+
+// Employee Resource Endpoints matching frontend services (employee.js)
+    Route::prefix('employees')->group(function () {
+        Route::get('/', [EmployeeController::class, 'index']);                        // GET  /api/manage/employees
+        Route::get('/read/{id}', [EmployeeController::class, 'show']);                // GET  /api/manage/employees/read/{id}
+        Route::post('/create', [EmployeeController::class, 'store']);                 // POST /api/manage/employees/create
+        Route::put('/update/{id}', [EmployeeController::class, 'update']);            // PUT  /api/manage/employees/update/{id}
+        Route::patch('/toggle-status/{id}', [EmployeeController::class, 'toggleStatus']); // PATCH /api/manage/employees/toggle-status/{id}
+        Route::delete('/delete/{id}', [EmployeeController::class, 'destroy']);        // DELETE /api/manage/employees/delete/{id}
+    });
+
+    // 2. Departments (គ្រប់គ្រងនាយកដ្ឋាន)
+    Route::prefix('departments')->group(function () {
+        Route::get('/', [DepartmentController::class, 'getDepartments']);
+        Route::get('/read/{id}', [DepartmentController::class, 'readDepartment']);
+        Route::post('/create', [DepartmentController::class, 'createDepartment']);
+        Route::put('/update/{id}', [DepartmentController::class, 'updateDepartment']);
+        Route::delete('/delete/{id}', [DepartmentController::class, 'deleteDepartment']);
+    });
+
+    // 3. Offices (គ្រប់គ្រងការិយាល័យ)
+    Route::prefix('offices')->group(function () {
+        Route::get('/', [OfficeController::class, 'getOffices']);
+        Route::get('/by-department/{department_id}', [OfficeController::class, 'getOfficesByDepartment']); // សម្រាប់ Cascading Dropdown
+        Route::post('/create', [OfficeController::class, 'createOffice']);
+        Route::put('/update/{id}', [OfficeController::class, 'updateOffice']);
+        Route::delete('/delete/{id}', [OfficeController::class, 'deleteOffice']);
+    });
+
+    // 4. Positions (គ្រប់គ្រងតួនាទី)
+   Route::prefix('positions')->group(function () {
+            Route::get('/', [PositionController::class, 'getPositions']);
+            Route::post('/create', [PositionController::class, 'createPosition']);
+            Route::get('/read/{id}', [PositionController::class, 'readPosition']);
+            Route::put('/update/{id}', [PositionController::class, 'updatePosition']);
+            Route::delete('/delete/{id}', [PositionController::class, 'deletePosition']);
         });
     });
 });

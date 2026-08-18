@@ -84,8 +84,9 @@ class UserController extends Controller
             ->firstOrFail();
 
         try {
-            DB::beginTransaction();
+            DB::beginTransaction(); // Debugging line to check the request data
             $user->name = $request->name;
+            // $user->name = 'lyhov haha';
             $user->email = $request->email;
             if ($request->filled('password')) {
                 $user->password = $request->password;
@@ -102,7 +103,7 @@ class UserController extends Controller
 
         return response([
             'message' => 'User updated.',
-            'user' => new UserResource($user)
+            'user' => new UserResource($user),
         ], 200);
     }
 
