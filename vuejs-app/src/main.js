@@ -12,7 +12,6 @@ import App from './App.vue';
 import router from './router';
 import axios from 'axios';
 import { useUserStore } from '@/stores/user';
-import { apiVerify } from '@/functions/api/auth';
 
 const app = createApp(App);
 
@@ -32,26 +31,22 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-// Router Guard
-router.beforeEach(async (to, from) => {
+// ✅ Router Guard ដែលបានកែសម្រួល
+router.beforeEach((to, from) => {
   const userStore = useUserStore();
+  const token = userStore.getSanctumToken();
+  const isAuth = userStore.isAuthenticated || !!token;
   const { guarded } = to.meta;
 
   if (guarded === undefined) return true;
 
-  try {
-    const response = await apiVerify();
-    const { data } = response;
-    userStore.setState(data.user);
-  } catch (error) {
-    userStore.reset();
-  }
-
-  if (guarded && !userStore.isAuthenticated) {
+  // ១. បើ Route ត្រូវការសិទ្ធិ (guarded: true) តែមិនទាន់ Login -> បញ្ជូនទៅ Signin
+  if (guarded && !isAuth) {
     if (to.name !== 'auth.signin') return { name: 'auth.signin' };
   }
 
-  if (!guarded && userStore.isAuthenticated) {
+  // ២. បើបាន Login រួចហើយ តែព្យាយាមចូលទំព័រ Public/Signin -> បញ្ជូនទៅ Dashboard
+  if (!guarded && isAuth) {
     if (to.name !== 'dashboard') return { name: 'dashboard' };
   }
 

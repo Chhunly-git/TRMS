@@ -148,27 +148,27 @@ function resetAllState() {
   Object.assign(departmentError, defaultDepartmentError);
 }
 
-// Clean text helper
+// Clean text helper (កែប្រើ Regex)
 function cleanText(str) {
   if (!str || typeof str !== "string") return str;
-  return str.replaceAll('\\s', ' ').trim();
+  return str.replace(/\s+/g, ' ').trim();
 }
 
-// Input Handlers
+// Input Handlers (កែប្រើ Regex)
 function handleInputCode(event) {
-  const val = event.target.value.replaceAll('\\s', ' ').toUpperCase();
+  const val = event.target.value.replace(/\s+/g, ' ').toUpperCase();
   department.code = val;
   event.target.value = val;
 }
 
 function handleInputNameKH(event) {
-  const val = event.target.value.replaceAll('\\s', ' ');
+  const val = event.target.value.replace(/\s+/g, ' ');
   department.name_kh = val;
   event.target.value = val;
 }
 
 function handleInputNameEN(event) {
-  const val = event.target.value.replaceAll('\\s', ' ');
+  const val = event.target.value.replace(/\s+/g, ' ');
   department.name_en = val;
   event.target.value = val;
 }
@@ -332,17 +332,22 @@ async function saveDepartment() {
   }
 }
 
+// កែសម្រួលការចាប់យកទិន្នន័យ (ID) ត្រង់នេះ
 async function viewDepartment(id) {
   try {
     LoadingModal();
     const response = await apiReadDepartment(id);
-    const item = response.data;
+    
+    // បន្ថែមការឆែក response.data.data 
+    const item = response.data.data || response.data;
+    
     Object.assign(department, {
       id: item.id,
       code: cleanText(item.code),
       name_kh: cleanText(item.name_kh),
       name_en: cleanText(item.name_en),
     });
+    
     showModal();
     return CloseModal();
   } catch (error) {

@@ -10,7 +10,10 @@ class PositionController extends Controller
     public function getPositions()
     {
         $positions = Position::orderBy('level', 'asc')->get();
-        return response()->json($positions);
+        return response()->json([
+            'success' => true,
+            'data' => $positions // វេចខ្ចប់ក្នុង key 'data' សម្រាប់ VueJS
+        ]);
     }
 
     // POST: /manage/positions/create
@@ -25,10 +28,12 @@ class PositionController extends Controller
         $position = Position::create($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'បង្កើតតួនាទីជោគជ័យ',
             'data' => $position
         ], 201);
     }
+    
     // PUT: /manage/positions/update/{id}
     public function updatePosition(Request $request, $id)
     {
@@ -43,6 +48,7 @@ class PositionController extends Controller
         $position->update($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'ធ្វើបច្ចុប្បន្នភាពតួនាទីជោគជ័យ',
             'data' => $position
         ]);
@@ -54,6 +60,9 @@ class PositionController extends Controller
         $position = Position::findOrFail($id);
         $position->delete();
 
-        return response()->json(['message' => 'លុបតួនាទីជោគជ័យ']);
+        return response()->json([
+            'success' => true,
+            'message' => 'លុបតួនាទីជោគជ័យ'
+        ]);
     }
 }

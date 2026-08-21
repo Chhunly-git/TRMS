@@ -69,19 +69,12 @@
           <span>ឬ / OR</span>
         </div>
 
-        <!-- Google Login
-        <button @click="googleSignIn()" type="button" class="btn btn-google btn-block w-100 mb-4">
-          <i class="fab fa-google mr-2"></i> Sign in with Google
-        </button> -->
-
-        <!-- Links -->
+       
         <div class="text-center auth-links">
           <router-link :to="{ name: 'auth.reset-password' }" class="d-block mb-1 link-item">
             ភ្លេចពាក្យសម្ងាត់? (Forgot password?)
           </router-link>
-          <!-- <router-link :to="{ name: 'auth.signup' }" class="d-block link-item">
-            ចុះឈ្មោះគណនីថ្មី (Register membership)
-          </router-link> -->
+          
         </div>
       </div>
     </div>

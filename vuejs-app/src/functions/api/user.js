@@ -11,11 +11,16 @@ export function apiReadUser(id) {
 }
 
 export function apiCreateUser(data) {
-  return axios.post(APP_API_URL + `/manage/users/create`, data);
+  return axios.post(APP_API_URL + `/manage/users/create`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 }
 
 export function apiUpdateUser(id, data) {
-  return axios.put(APP_API_URL + `/manage/users/update/${id}`, data);
+  // ✅ ប្រើ POST ជាមួយ multipart/form-data ដើម្បីឱ្យ PHP/Laravel ទទួល FormData ពេល PUT បានត្រឹមត្រូវ
+  return axios.post(APP_API_URL + `/manage/users/update/${id}`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 }
 
 export function apiToggleUserStatus(id) {

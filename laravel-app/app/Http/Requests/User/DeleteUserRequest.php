@@ -12,7 +12,16 @@ class DeleteUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->id !== (int) $this->route('id');
+        $currentUser = $this->user();
+        $targetId = (int) $this->route('id');
+
+        // ១. ត្រូវតែជា ADMIN ទើបមានសិទ្ធិលុប
+        if (!$currentUser || $currentUser->level !== 'ADMIN') {
+            return false;
+        }
+
+        // ២. មិនអនុញ្ញាតឱ្យ ADMIN លុបគណនីរបស់ខ្លួនឯងឡើយ
+        return $currentUser->id !== $targetId;
     }
 
     /**

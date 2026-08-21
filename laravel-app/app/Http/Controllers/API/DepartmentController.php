@@ -10,14 +10,20 @@ class DepartmentController extends Controller
     public function getDepartments()
     {
         $departments = Department::withCount('offices')->latest()->get();
-        return response()->json($departments);
+        return response()->json([
+            'success' => true,
+            'data' => $departments // វេចខ្ចប់ក្នុង key 'data' ដើម្បីឱ្យស៊ីគ្នាជាមួយ Vue
+        ]);
     }
 
     // GET: /manage/departments/read/{id}
     public function readDepartment($id)
     {
         $department = Department::with('offices')->findOrFail($id);
-        return response()->json($department);
+        return response()->json([
+            'success' => true,
+            'data' => $department
+        ]);
     }
 
     // POST: /manage/departments/create
@@ -32,6 +38,7 @@ class DepartmentController extends Controller
         $department = Department::create($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'បង្កើតនាយកដ្ឋានជោគជ័យ',
             'data' => $department
         ], 201);
@@ -51,6 +58,7 @@ class DepartmentController extends Controller
         $department->update($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'ធ្វើបច្ចុប្បន្នភាពនាយកដ្ឋានជោគជ័យ',
             'data' => $department
         ]);
@@ -62,6 +70,9 @@ class DepartmentController extends Controller
         $department = Department::findOrFail($id);
         $department->delete();
 
-        return response()->json(['message' => 'លុបនាយកដ្ឋានជោគជ័យ']);
+        return response()->json([
+            'success' => true,
+            'message' => 'លុបនាយកដ្ឋានជោគជ័យ'
+        ]);
     }
 }

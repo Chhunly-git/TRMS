@@ -10,14 +10,20 @@ class OfficeController extends Controller
     public function getOffices()
     {
         $offices = Office::with('department')->latest()->get();
-        return response()->json($offices);
+        return response()->json([
+            'success' => true,
+            'data' => $offices
+        ]);
     }
 
     // GET: /manage/offices/by-department/{department_id} (សម្រាប់ Cascading Dropdown)
     public function getOfficesByDepartment($department_id)
     {
         $offices = Office::where('department_id', $department_id)->get();
-        return response()->json($offices);
+        return response()->json([
+            'success' => true,
+            'data' => $offices // វេចខ្ចប់ក្នុង key 'data' ដើម្បីឱ្យ Vue អានបាន
+        ]);
     }
 
     // POST: /manage/offices/create
@@ -33,6 +39,7 @@ class OfficeController extends Controller
         $office = Office::create($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'បង្កើតការិយាល័យជោគជ័យ',
             'data' => $office->load('department')
         ], 201);
@@ -53,6 +60,7 @@ class OfficeController extends Controller
         $office->update($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'ធ្វើបច្ចុប្បន្នភាពការិយាល័យជោគជ័យ',
             'data' => $office->load('department')
         ]);
@@ -64,6 +72,9 @@ class OfficeController extends Controller
         $office = Office::findOrFail($id);
         $office->delete();
 
-        return response()->json(['message' => 'លុបការិយាល័យជោគជ័យ']);
+        return response()->json([
+            'success' => true,
+            'message' => 'លុបការិយាល័យជោគជ័យ'
+        ]);
     }
 }

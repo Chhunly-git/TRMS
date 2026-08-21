@@ -4,19 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Position extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title_kh', 'title_en', 'level'];
+    protected $guarded = [];
 
-    /**
-     * ទំនាក់ទំនងទៅកាន់បុគ្គលិកដែលមានមុខតំណែងនេះ (Employees)
-     */
-    public function employees(): HasMany
-    {
-        return $this->hasMany(Employee::class);
-    }
+    // ទំនាក់ទំនងទៅកាន់មន្ត្រី
+     public function users()
+{
+    // តារាង users ឥឡូវនេះមាន department_id
+    return $this->hasMany(User::class, 'department_id');
+}
 }

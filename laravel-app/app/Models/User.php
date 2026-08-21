@@ -2,28 +2,63 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Notifications\EmailVerificationNotification;
 use App\Notifications\ResetPasswordNotification;
 use App\Services\ImageClassService;
 use Database\Factories\UserFactory;
-use Illuminate\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'profile_image', 'level', 'status'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, MustVerifyEmail;
+    use HasFactory, Notifiable, HasApiTokens;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'name_kh',
+        'name_en',
+        'email',
+        'password',
+        'profile_image',
+        'level',
+        'status',
+        'department_id',
+        'office_id',
+        'position_id',
+        'employee_code',
+        'mef_card_number',
+        'employee_type',
+        'gender',
+        'marital_status',
+        'dob',
+        'birth_place',
+        'current_address',
+        'phone',
+        'national_id_number',
+        'national_id_expired_date',
+        'passport_number',
+        'passport_expired_date',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -35,27 +70,47 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'dob' => 'date',
+            'national_id_expired_date' => 'date',
+            'passport_expired_date' => 'date',
         ];
     }
 
     /**
-     * ទំនាក់ទំនង One-to-One ទៅកាន់ Model Employee
+     * ទំនាក់ទំនងទៅកាន់តារាង Department (នាយកដ្ឋាន)
      */
-    public function employee(): HasOne
+    public function department(): BelongsTo
     {
-        return $this->hasOne(Employee::class);
+        return $this->belongsTo(Department::class, 'department_id');
     }
 
-    public function sendEmailVerificationNotification($callback_url = null)
+    /**
+     * ទំនាក់ទំនងទៅកាន់តារាង Office (ការិយាល័យ)
+     */
+    public function office(): BelongsTo
     {
-        $this->notify(new EmailVerificationNotification($callback_url));
+        return $this->belongsTo(Office::class, 'office_id');
     }
 
+    /**
+     * ទំនាក់ទំនងទៅកាន់តារាង Position (តួនាទី)
+     */
+    public function position(): BelongsTo
+    {
+        return $this->belongsTo(Position::class, 'position_id');
+    }
+
+    /**
+     * Send Password Reset Notification
+     */
     public function sendPasswordResetNotification($token, $callback_url = null)
     {
         $this->notify(new ResetPasswordNotification($token, $callback_url));
     }
 
+    /**
+     * ពិនិត្យមើលថាតើ Password ទំនេរឬអត់
+     */
     protected function passwordNull(): Attribute
     {
         return Attribute::make(
@@ -63,31 +118,57 @@ class User extends Authenticatable
         );
     }
 
-    // Profile image related methods and attributes
+    /**
+     * ទាញយក Full URL នៃ Profile Image (Safe Null Checking)
+     */
     protected function profileImage(): Attribute
     {
         return Attribute::make(
             get: function () {
-                $imageClass = ImageClassService::forUserModel();
                 $imagePath = $this->getRawOriginal('profile_image');
-                return $imageClass->fullUrl($imagePath);
+                if (empty($imagePath)) {
+                    return null;
+                }
+
+                try {
+                    $imageClass = ImageClassService::forUserModel();
+                    return $imageClass ? $imageClass->fullUrl($imagePath) : $imagePath;
+                } catch (\Throwable $e) {
+                    return $imagePath;
+                }
             },
         );
     }
 
+    /**
+     * ទាញយក Full URL នៃ Profile Thumbnail (Safe Null Checking)
+     */
     protected function profileThumbnail(): Attribute
     {
         return Attribute::make(
             get: function () {
-                $imageClass = ImageClassService::forUserModel();
-                $thumbnailPath = $imageClass->thumbnailPath($this->getRawOriginal('profile_image'));
-                return $imageClass->fullUrl($thumbnailPath);
+                $imagePath = $this->getRawOriginal('profile_image');
+                if (empty($imagePath)) {
+                    return null;
+                }
+
+                try {
+                    $imageClass = ImageClassService::forUserModel();
+                    if ($imageClass) {
+                        $thumbnailPath = $imageClass->thumbnailPath($imagePath);
+                        return $imageClass->fullUrl($thumbnailPath);
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback បើ ImageClassService មានបញ្ហា
+                }
+
+                return str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $imagePath);
             },
         );
     }
-    // End profile image related methods and attributes
 
-    // Scopes
+    // --- Query Scopes ---
+
     protected function scopeIsAdmin(Builder $query): void
     {
         $query->where('level', 'ADMIN');

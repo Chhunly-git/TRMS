@@ -23,9 +23,13 @@ class GetUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'keyword' => 'nullable|string|max:50',
-            'per_page' => 'nullable|integer|in:10,25,50,100,250',
+            'keyword' => 'nullable|string|max:100',
+            'per_page' => 'nullable|integer|in:10,15,25,50,100,250',
             'page' => 'nullable|integer|min:1',
+            'employee_type' => 'nullable|string|in:CIVIL_SERVICE,STATUTORY,CONTRACT,OTHER',
+            'status' => 'nullable|string|in:ENABLED,DISABLED',
+            'level' => 'nullable|string|in:ADMIN,USER',
+            'department_id' => 'nullable|integer|exists:departments,id',
         ];
     }
 }

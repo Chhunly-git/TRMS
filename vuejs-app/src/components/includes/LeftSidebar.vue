@@ -1,111 +1,89 @@
 <template>
   <aside class="main-sidebar custom-officer-sidebar elevation-4">
+    <!-- Brand Logo -->
     <router-link to="/" class="brand-link">
-      <img :src="logoImage" alt="Chat System Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+      <img :src="logoImage" alt="TRMS Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
       <span class="brand-text font-weight-light">TRMS</span>
     </router-link>
 
+    <!-- Sidebar Content -->
     <div class="sidebar">
-      <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+      <!-- User Panel -->
+      <div class="user-panel mt-3 pb-3 mb-3 d-flex align-items-center">
         <div class="image">
-          <img :src="userStore.profile_thumbnail || emptyImage" class="img-circle elevation-2" alt="User Image">
+          <img 
+            :src="getFullImageUrl(userStore.profile_thumbnail || userStore.profile_image)" 
+            class="img-circle elevation-2" 
+            alt="User Image"
+            @error="onImageError"
+            style="width: 38px; height: 38px; object-fit: cover;"
+          >
         </div>
         <div class="info">
-          <router-link :to="{ name: 'profile' }" class="d-block">{{ userStore.name }}</router-link>
+          <router-link :to="{ name: 'profile' }" class="d-block text-truncate" style="max-width: 150px;">
+            {{ userStore.name_kh || userStore.name || 'មន្ត្រី' }}
+          </router-link>
         </div>
       </div>
 
       <!-- SidebarSearch Form -->
-      <div class="form-inline">
+      <div class="form-inline"  v-if="userStore.isAdmin">
         <div class="input-group" data-widget="sidebar-search">
-          <input class="form-control form-control-sidebar" type="search" placeholder="Search" aria-label="Search">
+          <input class="form-control form-control-sidebar" type="search" placeholder="ស្វែងរក..." aria-label="Search">
           <div class="input-group-append">
             <button class="btn btn-sidebar">
               <i class="fas fa-search fa-fw"></i>
             </button>
           </div>
         </div>
-        <div class="sidebar-search-results">
-          <div class="list-group"><a href="#" class="list-group-item">
-              <div class="search-title"><strong class="text-light"></strong>N<strong
-                  class="text-light"></strong>o<strong class="text-light"></strong> <strong
-                  class="text-light"></strong>e<strong class="text-light"></strong>l<strong
-                  class="text-light"></strong>e<strong class="text-light"></strong>m<strong
-                  class="text-light"></strong>e<strong class="text-light"></strong>n<strong
-                  class="text-light"></strong>t<strong class="text-light"></strong> <strong
-                  class="text-light"></strong>f<strong class="text-light"></strong>o<strong
-                  class="text-light"></strong>u<strong class="text-light"></strong>n<strong
-                  class="text-light"></strong>d<strong class="text-light"></strong>!<strong class="text-light"></strong>
-              </div>
-              <div class="search-path"></div>
-            </a></div>
-        </div>
       </div>
 
+      <!-- Navigation Menu -->
       <nav class="mt-2">
-        <ul class="nav nav-pills nav-sidebar flex-column " data-widget="treeview" role="menu" data-accordion="false">
-          <li class="nav-item">
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+          <li class="nav-item"  v-if="userStore.isAdmin">
             <router-link :to="{ name: 'dashboard' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-tachometer-alt"></i>
-              <p>
-                Dashboard
-              </p>
+              <p>Dashboard</p>
             </router-link>
           </li>
 
-          <li class="nav-header" v-if="userStore.isAdmin" style="color: white;">ការគ្រប់គ្រង</li>
-
-          <!-- 1. Menu មន្ត្រីរាជការ (Officers) -->
-          <li class="nav-item" v-if="userStore.isAdmin">
-            <router-link :to="{ name: 'employees' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-user-tie"></i>
-              <p>
-                មន្រ្តី
-              </p>
-            </router-link>
+          <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.isAdmin" style="color: #8da39c;">
+            ការគ្រប់គ្រង
           </li>
 
-          <!-- 2. Menu អ្នកប្រើប្រាស់ (Users) -->
-         
           <li class="nav-item" v-if="userStore.isAdmin">
             <router-link :to="{ name: 'departments' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-building"></i>
-              <p>
-                នាយកដ្ឋាន
-              </p>
+              <p>នាយកដ្ឋាន</p>
             </router-link>
           </li>
+
           <li class="nav-item" v-if="userStore.isAdmin">
             <router-link :to="{ name: 'divisions' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-building"></i>
-              <p>
-                ការិយាល័យ
-              </p>
+              <i class="nav-icon fas fa-door-open"></i>
+              <p>ការិយាល័យ</p>
             </router-link>
           </li>
+
           <li class="nav-item" v-if="userStore.isAdmin">
             <router-link :to="{ name: 'positions' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-user"></i>
-              <p>
-                តួនាទី
-              </p>
+              <i class="nav-icon fas fa-id-badge"></i>
+              <p>តួនាទី</p>
             </router-link>
           </li>
- <li class="nav-item" v-if="userStore.isAdmin">
+
+          <li class="nav-item" v-if="userStore.isAdmin">
             <router-link :to="{ name: 'users' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-users"></i>
-              <p>
-                អ្នកប្រើប្រាស់
-              </p>
+              <i class="nav-icon fas fa-users-cog"></i>
+              <p>អ្នកប្រើប្រាស់ / មន្ត្រី</p>
             </router-link>
           </li>
-          <!-- 3. Menu Backups -->
+
           <li class="nav-item" v-if="userStore.isAdmin">
             <router-link :to="{ name: 'backups' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-database"></i>
-              <p>
-                Backups
-              </p>
+              <p>Backups</p>
             </router-link>
           </li>
         </ul>
@@ -121,6 +99,38 @@ import { useUserStore } from '@/stores/user';
 
 const userStore = useUserStore();
 
+// ✅ ដូចគ្នា ១០០% ទៅនឹង getFullImageUrl ក្នុង User.vue
+const getFullImageUrl = (path) => {
+  if (!path) return emptyImage;
+
+  if (
+    path.startsWith('http://') || 
+    path.startsWith('https://') || 
+    path.startsWith('blob:') || 
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
+
+  const backendBase = (import.meta.env.VITE_APP_API_URL || 'http://localhost:8000')
+    .replace(/\/api\/?$/, '');
+
+  let cleanPath = path.replace(/^\//, '');
+
+  if (cleanPath.includes('users/profile-images/') && !cleanPath.includes('thumbnails/')) {
+    cleanPath = cleanPath.replace('users/profile-images/', 'users/profile-images/thumbnails/');
+  }
+
+  if (!cleanPath.startsWith('storage/') && !cleanPath.startsWith('uploads/')) {
+    cleanPath = `storage/${cleanPath}`;
+  }
+
+  return `${backendBase}/${cleanPath}`;
+};
+
+const onImageError = (event) => {
+  event.target.src = emptyImage;
+};
 </script>
 
 <style scoped>
