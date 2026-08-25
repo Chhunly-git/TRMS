@@ -9,14 +9,12 @@ use App\Http\Controllers\API\DepartmentController;
 use App\Http\Controllers\API\OfficeController;
 use App\Http\Controllers\API\PositionController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\AttendanceController;
+
 use Illuminate\Support\Facades\Route;
 
-// Route::post('/signup', [AuthController::class, 'signup']);
+
 Route::post('/signin', [AuthController::class, 'signin']);
-// Route::get('/verify/email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-//     ->middleware('signed')
-//     ->name('verify.email');
-// Route::post('/send/verification-email', [AuthController::class, 'sendVerificationEmail']);
 Route::post('/send/reset-password-email', [AuthController::class, 'sendResetPasswordEmail']);
 Route::post('/set/new-password', [AuthController::class, 'setNewPassword'])->name('set.new-password');
 
@@ -30,16 +28,19 @@ Route::get('/provinces', [GeoController::class, 'getProvinces']);
 Route::get('/districts/by/province/{id}', [GeoController::class, 'getDistrictsByProvince']);
 Route::get('/communes/by/district/{id}', [GeoController::class, 'getCommunesByDistrict']);
 Route::get('/villages/by/commune/{id}', [GeoController::class, 'getVillagesByCommune']);
+Route::get('/manage/get-dashboard-summary', [AttendanceController::class, 'getDashboardSummary']);
 
 Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/signout', [AuthController::class, 'signout']);
-    // Route::get('/verify', [AuthController::class, 'verify']);
     Route::put('/create/password', [AuthController::class, 'createPassword']);
     Route::put('/change/password', [AuthController::class, 'changePassword']);
     Route::put('/update/profile-image', [AuthController::class, 'updateProfileImage']);
     Route::delete('/delete/profile-image', [AuthController::class, 'deleteProfileImage']);
     Route::get('/manage/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/my-attendances', [AttendanceController::class, 'myAttendances']);
     Route::get('/manage/profile', [AuthController::class, 'getProfile']);
+    Route::get('/my-profile', [AuthController::class, 'getProfile']);
+    
     Route::middleware('admin')->prefix('manage')->group(function () {
         
         // 1. Users & Employees Routes (Unified under UserController)
@@ -50,9 +51,9 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::put('/update/{id}', [UserController::class, 'updateUser']);
             Route::patch('/toggle-status/{id}', [UserController::class, 'toggleUserStatus']);
             Route::delete('/delete/{id}', [UserController::class, 'deleteUser']);
+         
         });
-
-
+       
         // Backups Routes
         Route::prefix('backups')->group(function () {
             Route::get('/', [BackupController::class, 'getBackups']);
@@ -87,5 +88,13 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::put('/update/{id}', [PositionController::class, 'updatePosition']);
             Route::delete('/delete/{id}', [PositionController::class, 'deletePosition']);
         });
+
+
+        // 5. Attendances (គ្រប់គ្រងវត្តមាន)
+        // routeName សម្រាប់ទាញយកបញ្ជីវត្តមានប្រចាំថ្ងៃ (អាចផ្ញើ query date មកជាមួយបាន)
+    Route::get('/attendances', [AttendanceController::class, 'index']);
+    
+    // routeName សម្រាប់រក្សាទុក ឬកែប្រែវត្តមានមន្ត្រី
+    Route::post('/attendances/save', [AttendanceController::class, 'store']);
     });
 });

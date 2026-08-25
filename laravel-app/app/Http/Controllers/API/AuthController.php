@@ -204,45 +204,14 @@ class AuthController extends Controller
             'message' => 'បានលុបរូបភាព Profile ដោយជោគជ័យ',
         ], 200);
     }
-    public function getProfile(Request $request)
+ public function getProfile(Request $request)
 {
-    // ទាញយកទិន្នន័យ User ដែលកំពុង Login
-    $user = $request->user();
-
-    // បើបងមានចង Relationship (belongsTo) ជាមួយ តួនាទី នាយកដ្ឋាន ការិយាល័យ 
-    // បងអាច Load វាចូលដើម្បីទាញយកឈ្មោះមកបង្ហាញ
-    $user->load(['position', 'department', 'office']);
-
-    // រៀបចំទិន្នន័យបន្តិចបន្តួច ដើម្បីឲ្យត្រូវនឹងអ្វីដែល Vue (Profile.vue) ចង់បាន
-    $profileData = [
-        'id' => $user->id,
-        'name' => $user->name,
-        'name_kh' => $user->name_kh,
-        'email' => $user->email,
-        'employee_code' => $user->employee_code,
-        'gender' => $user->gender,
-        'dob' => $user->dob ? \Carbon\Carbon::parse($user->dob)->format('Y-m-d') : null,
-        'phone' => $user->phone,
-        'current_address' => $user->current_address,
-        'profile_image' => $user->profile_image,
-        
-        // ចាប់យកឈ្មោះតាមរយៈ Relationship (បើគ្មានទេ វានឹងចេញ null)
-        'position_name' => $user->position ? $user->position->title_kh : null,
-        'department_name' => $user->department ? $user->department->name_kh : null,
-        'office_name' => $user->office ? $user->office->name_kh : null,
-        'employee_type' => $user->employee_type,
-    'marital_status' => $user->marital_status,
-    'birth_place' => $user->birth_place,
-    'national_id_number' => $user->national_id_number,
-    'national_id_expired_date' => $user->national_id_expired_date,
-    'passport_number' => $user->passport_number,
-    'passport_expired_date' => $user->passport_expired_date,
-    'mef_card_number' => $user->mef_card_number,
-    ];
+    // ទាញយកទិន្នន័យ User ដែលកំពុង Login ព្រមទាំង Load Relationships ជាមួយ
+    $user = $request->user()->load(['department', 'office', 'position']);
 
     return response()->json([
         'success' => true,
-        'user' => $profileData
-    ]);
+        'user' => new UserResource($user) // 🟢 ប្រើប្រាស់ UserResource ជំនួសឱ្យការកាត់ត Array ផ្ទាល់ខ្លួន
+    ], 200);
 }
 }

@@ -16,6 +16,7 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -241,4 +242,15 @@ class UserController extends Controller
             'user' => new UserResource($user->load(['department', 'office', 'position']))
         ], 200);
     }
+   
+public function getProfile(Request $request)
+{
+    // Load ទំនាក់ទំនងជាមួយ Table ផ្សេងៗ (ឧ. department, position, ឫ info ផ្សេងទៀត)
+    $user = $request->user()->load(['department', 'position']);
+
+    return response()->json([
+        'success' => true,
+        'data' => $user
+    ]);
+}
 }

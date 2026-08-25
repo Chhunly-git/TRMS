@@ -54,8 +54,21 @@ class UserResource extends JsonResource
             'passport_number' => $this->passport_number,
             'passport_expired_date' => $this->passport_expired_date ? $this->passport_expired_date->format('Y-m-d') : null,
             
-            'created_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
-            'updated_at' => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
+            'first_service_date' => $this->first_service_date,
+        'first_appointment_date' => $this->first_appointment_date,
+        'initial_framework' => $this->initial_framework,
+        'initial_position' => $this->initial_position,
+        'initial_ministry' => $this->initial_ministry,
+        'initial_unit' => $this->initial_unit,
+        'initial_department' => $this->initial_department,
+        'initial_office' => $this->initial_office,
+
+        'current_framework' => $this->current_framework,
+        'current_appointment_date' => $this->current_appointment_date,
+        'current_position_date' => $this->current_position_date,
+
+        'created_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+        'updated_at' => $this->updated_at ? $this->updated_at->format('Y-m-d H:i:s') : null,
         ];
     }
 }

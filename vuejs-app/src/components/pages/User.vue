@@ -77,8 +77,6 @@
                   <th style="width: 70px;">រូបថត</th>
                   <th>អត្តលេខ</th>
                   <th>ឈ្មោះ</th>
-                  <!-- <th class="text-center" style="width: 80px;">ភេទ</th> -->
-                  <!-- <th>ប្រភេទ</th> -->
                   <th>នាយកដ្ឋាន / ការិយាល័យ / តួនាទី</th>
                   <th>ទំនាក់ទំនង</th>
                   <th class="text-center" style="width: 100px;">ស្ថានភាព</th>
@@ -87,13 +85,13 @@
               </thead>
               <tbody>
                 <tr v-if="loading">
-                  <td colspan="10" class="text-center py-5 text-muted">
+                  <td colspan="8" class="text-center py-5 text-muted">
                     <i class="fas fa-spinner fa-spin fa-2x text-success"></i>
                     <p class="mt-2 mb-0 font-khmer">កំពុងទាញយកទិន្នន័យ...</p>
                   </td>
                 </tr>
                 <tr v-else-if="users.length === 0">
-                  <td colspan="10" class="text-center py-5 text-muted">
+                  <td colspan="8" class="text-center py-5 text-muted">
                     <i class="fas fa-folder-open fa-3x mb-2 text-secondary"></i>
                     <p class="mb-0 font-khmer">មិនមានទិន្នន័យឡើយ</p>
                   </td>
@@ -107,8 +105,8 @@
                       class="img-circle elevation-1 border avatar-img" @error="onImageError" />
                   </td>
                   <td>
-                    <div class="font-weight-bold text-dark">{{ item.employee_code || '---' }}</div>
-                    <small class="text-muted">MEF: {{ item.mef_card_number || '---' }}</small><br>
+                    <div class="font-weight-bold text-dark" v-if="item.employee_type === 'CIVIL_SERVICE'">{{ item.employee_code || '---' }}</div>
+                    <small class="text-muted" v-if="item.employee_type === 'CIVIL_SERVICE'">MEF: {{ item.mef_card_number || '---' }}</small><br>
                     <span :class="getEmployeeTypeBadge(item.employee_type)">
                       {{ formatEmployeeType(item.employee_type) }}
                     </span>
@@ -117,25 +115,15 @@
                     <div class="font-weight-bold text-dark name-khmer">{{ item.name_kh || item.name || '---' }}</div>
                     <small class="text-muted">{{ item.name_en || '---' }}</small>
                   </td>
-                  <!-- <td class="text-center">
-                    <span :class="getGenderBadge(item.gender)">
-                      {{ formatGender(item.gender) }}
-                    </span>
-                  </td> --> 
-                  <!-- <td>
-                    <span :class="getEmployeeTypeBadge(item.employee_type)">
-                      {{ formatEmployeeType(item.employee_type) }}
-                    </span>
-                  </td> -->
                   <td>
-                    <div class="font-weight-500">{{ item.department?.name_kh || item.department?.name || '---' }}</div>
+                    <div class="font-weight-500">{{ item.department?.name_kh || item.department?.name || 'និយ័តករបរធនបាលកិច្ច' }}</div>
                     <small class="text-muted d-block">
                       {{ item.position?.title_kh || item.position?.name || '---' }}
                       <span v-if="item.office"> ({{ item.office?.name_kh || item.office?.name }})</span>
                     </small>
                   </td>
                   <td>
-                    <div><i class="fas fa-phone-alt mr-1 text-muted small"></i>{{ item.phone || '---' }}</div>
+                    <div><i class="fas fa-phone-volume" style="font-size: small;"></i> {{ item.phone || '---' }}</div>
                     <small class="text-muted"><i class="fas fa-envelope mr-1 small"></i>{{ item.email }}</small>
                   </td>
                   <td class="text-center">
@@ -148,6 +136,9 @@
                   </td>
                   <td class="text-center">
                     <div class="action-buttons">
+                      <button class="btn btn-action btn-print text-primary" title="បោះពុម្ពប្រវត្តិរូប" @click="printUserProfile(item.id)">
+                        <i class="fas fa-print"></i>
+                      </button>
                       <button class="btn btn-action btn-edit" title="កែសម្រួល" @click="openEditModal(item)">
                         <i class="fas fa-edit"></i>
                       </button>
@@ -255,34 +246,157 @@
                   </div>
                 </div>
               </div>
-
-              <!-- ផ្នែកទី ២៖ អង្គភាព & តួនាទី -->
               <h6 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer">
-                <i class="fas fa-sitemap mr-1"></i> ២. អង្គភាព & តួនាទី
+                <i class="fas fa-user-cog mr-1"></i> ប្រភេទមន្ត្រី
               </h6>
               <div class="row mb-3">
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">អត្តលេខមន្ត្រី</label>
-                  <input type="text" class="form-control" v-model="form.employee_code" placeholder="ឧ. MEF-0001" />
-                </div>
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">លេខប័ណ្ណ MEF</label>
-                  <input type="text" class="form-control" v-model="form.mef_card_number" placeholder="ឧ. MEF-CARD-01" />
-                </div>
-                <div class="col-md-3 form-group">
+                <div class="col-md-4 form-group">
                   <label class="form-label font-weight-bold">ប្រភេទមន្ត្រី</label>
                   <select class="form-control" v-model="form.employee_type">
-                    <option value="CIVIL_SERVICE">មន្ត្រីរាជការ</option>
+                    <option value="CIVIL_SERVICE">មន្រ្តីមុខងារសារធារណៈ</option>
                     <option value="STATUTORY">មន្ត្រីលក្ខន្តិកៈ</option>
-                    <option value="CONTRACT">មន្ត្រីកិច្ចសន្យា</option>
+                    <option value="CONTRACT">មន្ត្រីជាប់កិច្ចសន្យា</option>
                     <option value="OTHER">ផ្សេងៗ</option>
                   </select>
                 </div>
+                <div class="col-md-4 form-group" v-if="form.employee_type === 'CIVIL_SERVICE'">
+                  <label class="form-label font-weight-bold">អត្តលេខមន្ត្រីរាជ្យការ</label>
+                  <input type="text" class="form-control" v-model="form.employee_code" placeholder="ឧ. MEF-0001" />
+                </div>
+                <div class="col-md-4 form-group" v-if="form.employee_type === 'CIVIL_SERVICE'">
+                  <label class="form-label font-weight-bold">លេខប័ណ្ណសម្គាល់មន្រ្តីកសហវ</label>
+                  <input type="text" class="form-control" v-model="form.mef_card_number" placeholder="ឧ. MEF-CARD-01" />
+                </div>
+               
+              </div>
+ <!-- ផ្នែកទី ៣៖ ព័ត៌មានផ្ទាល់ខ្លួន -->
+              <h5 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer">
+                <i class="fas fa-id-badge mr-1"></i> ព័ត៌មានផ្ទាល់ខ្លួន
+              </h5>
+              <div class="row">
+                <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">គោត្តនាម និងនាម <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" v-model="form.name_kh" required placeholder="ឧ. សុខ សាន" />
+                </div>
+                <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">ជាអក្សរឡាតាំង</label>
+                  <input type="text" class="form-control" v-model="form.name_en" placeholder="ឧ. SOK SAN" />
+                </div>
+                <div class="col-md-2 form-group">
+                  <label class="form-label font-weight-bold">ភេទ</label>
+                  <select class="form-control" v-model="form.gender">
+                    <option value="MALE">ប្រុស (Male)</option>
+                    <option value="FEMALE">ស្រី (Female)</option>
+                  </select>
+                </div>
+                 <div class="col-md-2 form-group">
+                  <label class="form-label font-weight-bold">ថ្ងៃខែឆ្នាំកំណើត</label>
+                  <input type="date" class="form-control" v-model="form.dob" />
+                </div>
+                <div class="col-md-2 form-group">
+                  <label class="form-label font-weight-bold">ស្ថានភាពគ្រួសារ</label>
+                  <select class="form-control" v-model="form.marital_status">
+                    <option value="SINGLE">នៅលីវ</option>
+                    <option value="MARRIED">រៀបការ</option>
+                    
+                  </select>
+                </div>
+                
+                <div class="col-md-10 form-group">
+                  <label class="form-label font-weight-bold">ទីកន្លែងកំណើត</label>
+                  <input type="text" class="form-control" v-model="form.birth_place" placeholder="ខេត្ត/រាជធានីកំណើត" />
+                </div>
+                <div class="col-md-12 form-group">
+                  <label class="form-label font-weight-bold">អាសយដ្ឋានបច្ចុប្បន្ន</label>
+                  <textarea class="form-control" rows="2" v-model="form.current_address"
+                    placeholder="ផ្ទះលេខ, ផ្លូវ, ភូមិ/ឃុំ, ស្រុក/ខណ្ឌ, ខេត្ត/រាជធានី..."></textarea>
+                </div>
+              </div>
+              <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">លេខទូរស័ព្ទ</label>
+                  <input type="text" class="form-control" v-model="form.phone" placeholder="012 345 678" />
+                </div>
+              <div class="row mb-3">
                 <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">តួនាទី / Position</label>
+                  <label class="form-label font-weight-bold">លេខអត្តសញ្ញាណប័ណ្ណ</label>
+                  <input type="text" class="form-control" v-model="form.national_id_number"
+                    placeholder="លេខ ៩ ឬ ១០ ខ្ទង់" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">ថ្ងៃផុតកំណត់អត្តសញ្ញាណប័ណ្ណ</label>
+                  <input type="date" class="form-control" v-model="form.national_id_expired_date" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">លេខលិខិតឆ្លងដែន</label>
+                  <input type="text" class="form-control" v-model="form.passport_number" placeholder="ឧ. N1234567" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">ថ្ងៃផុតកំណត់លិខិតឆ្លងដែន</label>
+                  <input type="date" class="form-control" v-model="form.passport_expired_date" />
+                </div>
+              </div>
+
+
+
+
+
+              <!-- ផ្នែកទី ២៖ អង្គភាព & តួនាទី -->
+              <h5 class="text-success font-weight-bold mb-3  pb-2 font-khmer">
+                <i class="fas fa-sitemap mr-1"></i> ព័ត៌មានអំពីស្ថានភាពមុខងារ
+              </h5>
+              <h6 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer ">
+                ក.ចូលបម្រើការងារដំបូង
+              </h6>
+               <div class="row mb-3">
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទចូលបម្រើការងារដំបូង</label>
+                  <input type="date" class="form-control" v-model="form.first_service_date" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទតាំងស៊ុប/ទទួលស្គាល់</label>
+                  <input type="date" class="form-control" v-model="form.first_appointment_date" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">ក្របខណ្ឌ ឋានន្តរស័ក្តិ ប្រភេទ និងថ្នាក់</label>
+                  <input type="text" class="form-control" v-model="form.initial_framework" placeholder="ក្របខណ្ឌដំបូង" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">មុខតំណែង</label>
+                  <input type="text" class="form-control" v-model="form.initial_position" placeholder="មុខតំណែងដំបូង" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">ក្រសួង/ស្ថាប័ន</label>
+                  <input type="text" class="form-control" v-model="form.initial_ministry" placeholder="ក្រសួងដំបូង" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">អង្គភាព</label>
+                  <input type="text" class="form-control" v-model="form.initial_unit" placeholder="អង្គភាពដំបូង" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">នាយកដ្ឋាន/អង្គភាព/មន្ទីរ</label>
+                  <input type="text" class="form-control" v-model="form.initial_department" placeholder="នាយកដ្ឋានដំបូង" />
+                </div>
+                <div class="col-md-3 form-group">
+                  <label class="form-label font-weight-bold">ការិយាល័យ</label>
+                  <input type="text" class="form-control" v-model="form.initial_office" placeholder="ការិយាល័យដំបូង" />
+                </div>
+              </div>
+               <h6 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer ">
+                ខ.ស្ថានភាពមុខងារបច្ចុប្បន្ន
+              </h6>
+               <div class="row">
+                <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">ក្របខណ្ឌ ឋានន្តរស័ក្តិ ប្រភេទ និងថ្នាក់</label>
+                  <input type="text" class="form-control" v-model="form.current_framework" placeholder="ក្របខណ្ឌបច្ចុប្បន្ន" />
+                </div>
+                <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទប្តូរក្របខណ្ឌ ឋានន្តរស័ក្តិ និងថ្នាក់ចុងក្រោយ</label>
+                  <input type="date" class="form-control" v-model="form.current_appointment_date" />
+                </div>
+                <div class="col-md-4 form-group">
+                  <label class="form-label font-weight-bold">មុខតំណែង</label>
                   <select class="form-control" v-model="form.position_id">
-                    <option value="">-- ជ្រើសរើសតួនាទី --</option>
-                    <!-- ប្ដូរពី pos.name_kh ទៅ pos.title_kh វិញ -->
+                    <option value="">-- ជ្រើសរើសមុខតំណែង --</option>
                     <option v-for="pos in positions" :key="pos.id" :value="pos.id">
                       {{ pos.title_kh || pos.title_en }}
                     </option>
@@ -306,78 +420,14 @@
                     </option>
                   </select>
                 </div>
+                
+                
               </div>
+              
 
-              <!-- ផ្នែកទី ៣៖ ព័ត៌មានផ្ទាល់ខ្លួន -->
-              <h6 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer">
-                <i class="fas fa-id-badge mr-1"></i> ៣. ព័ត៌មានផ្ទាល់ខ្លួន
-              </h6>
-              <div class="row mb-3">
-                <div class="col-md-4 form-group">
-                  <label class="form-label font-weight-bold">ឈ្មោះជាភាសាខ្មែរ <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" v-model="form.name_kh" required placeholder="ឧ. សុខ សាន" />
-                </div>
-                <div class="col-md-4 form-group">
-                  <label class="form-label font-weight-bold">ឈ្មោះជាឡាតាំង / English</label>
-                  <input type="text" class="form-control" v-model="form.name_en" placeholder="ឧ. SOK SAN" />
-                </div>
-                <div class="col-md-2 form-group">
-                  <label class="form-label font-weight-bold">ភេទ</label>
-                  <select class="form-control" v-model="form.gender">
-                    <option value="MALE">ប្រុស (Male)</option>
-                    <option value="FEMALE">ស្រី (Female)</option>
-                  </select>
-                </div>
-                <div class="col-md-2 form-group">
-                  <label class="form-label font-weight-bold">ស្ថានភាពគ្រួសារ</label>
-                  <select class="form-control" v-model="form.marital_status">
-                    <option value="SINGLE">នៅលីវ</option>
-                    <option value="MARRIED">រៀបការរួច</option>
-                    <option value="DIVORCED">ពោះម៉ាយ / មេម៉ាយ</option>
-                  </select>
-                </div>
-                <div class="col-md-4 form-group">
-                  <label class="form-label font-weight-bold">ថ្ងៃខែឆ្នាំកំណើត (DOB)</label>
-                  <input type="date" class="form-control" v-model="form.dob" />
-                </div>
-                <div class="col-md-4 form-group">
-                  <label class="form-label font-weight-bold">លេខទូរស័ព្ទ</label>
-                  <input type="text" class="form-control" v-model="form.phone" placeholder="012 345 678" />
-                </div>
-                <div class="col-md-4 form-group">
-                  <label class="form-label font-weight-bold">ទីកន្លែងកំណើត</label>
-                  <input type="text" class="form-control" v-model="form.birth_place" placeholder="ខេត្ត/រាជធានីកំណើត" />
-                </div>
-                <div class="col-md-12 form-group">
-                  <label class="form-label font-weight-bold">អាសយដ្ឋានបច្ចុប្បន្ន</label>
-                  <textarea class="form-control" rows="2" v-model="form.current_address"
-                    placeholder="ផ្ទះលេខ, ផ្លូវ, ភូមិ/ឃុំ, ស្រុក/ខណ្ឌ, ខេត្ត/រាជធានី..."></textarea>
-                </div>
-              </div>
+             
+             
 
-              <!-- ផ្នែកទី ៤៖ អត្តសញ្ញាណប័ណ្ណ & លិខិតឆ្លងដែន -->
-              <h6 class="text-success font-weight-bold mb-3 border-bottom pb-2 font-khmer">
-                <i class="fas fa-passport mr-1"></i> ៤. អត្តសញ្ញាណប័ណ្ណ & លិខិតឆ្លងដែន
-              </h6>
-              <div class="row">
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">លេខអត្តសញ្ញាណប័ណ្ណ</label>
-                  <input type="text" class="form-control" v-model="form.national_id_number"
-                    placeholder="លេខ ៩ ឬ ១០ ខ្ទង់" />
-                </div>
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">ថ្ងៃផុតកំណត់អត្តសញ្ញាណប័ណ្ណ</label>
-                  <input type="date" class="form-control" v-model="form.national_id_expired_date" />
-                </div>
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">លេខលិខិតឆ្លងដែន</label>
-                  <input type="text" class="form-control" v-model="form.passport_number" placeholder="ឧ. N1234567" />
-                </div>
-                <div class="col-md-3 form-group">
-                  <label class="form-label font-weight-bold">ថ្ងៃផុតកំណត់លិខិតឆ្លងដែន</label>
-                  <input type="date" class="form-control" v-model="form.passport_expired_date" />
-                </div>
-              </div>
             </div>
 
             <div class="modal-footer bg-light py-2">
@@ -459,6 +509,20 @@ const defaultFormData = {
   national_id_expired_date: '',
   passport_number: '',
   passport_expired_date: '',
+  // ១. ព័ត៌មានបម្រើการងាររដ្ឋដំបូង (បន្ថែមថ្មី)
+  first_service_date: '',
+  first_appointment_date: '',
+  initial_framework: '',
+  initial_position: '',
+  initial_ministry: '',
+  initial_unit: '',
+  initial_department: '',
+  initial_office: '',
+
+  // ២. ស្ថានភាពមុខងារបច្ចុប្បន្ន (បន្ថែមថ្មី)
+  current_framework: '',
+  current_appointment_date: '',
+  current_position_date: '',
 };
 
 const form = reactive({ ...defaultFormData });
@@ -524,11 +588,11 @@ const getGenderBadge = (gender) => {
 const formatEmployeeType = (type) => {
   switch (type) {
     case 'CIVIL_SERVICE':
-      return 'មន្ត្រីរាជការស៊ីវិល';
+      return 'មន្ត្រីមុខងារសាធារណៈ';
     case 'STATUTORY':
       return 'មន្ត្រីលក្ខន្តិកៈ';
     case 'CONTRACT':
-      return 'មន្ត្រីកិច្ចសន្យា';
+      return 'មន្ត្រីជាប់កិច្ចសន្យា';
     case 'OTHER':
       return 'ផ្សេងៗ';
     default:
@@ -703,6 +767,19 @@ const openEditModal = async (user) => {
       national_id_expired_date: u.national_id_expired_date ? String(u.national_id_expired_date).split('T')[0] : '',
       passport_number: u.passport_number || '',
       passport_expired_date: u.passport_expired_date ? String(u.passport_expired_date).split('T')[0] : '',
+    // ✅ បន្ថែម Fields ផ្នែកទី ២ ចូលទីនេះ ដើម្បីឱ្យ Form ចាប់យកទិន្នន័យមកបង្ហាញពេល Edit:
+      first_service_date: u.first_service_date ? String(u.first_service_date).split('T')[0] : '',
+      first_appointment_date: u.first_appointment_date ? String(u.first_appointment_date).split('T')[0] : '',
+      initial_framework: u.initial_framework || '',
+      initial_position: u.initial_position || '',
+      initial_ministry: u.initial_ministry || '',
+      initial_unit: u.initial_unit || '',
+      initial_department: u.initial_department || '',
+      initial_office: u.initial_office || '',
+      
+      current_framework: u.current_framework || '',
+      current_appointment_date: u.current_appointment_date ? String(u.current_appointment_date).split('T')[0] : '',
+      current_position_date: u.current_position_date ? String(u.current_position_date).split('T')[0] : '',
     });
     showModal.value = true;
   } catch (error) {
@@ -808,10 +885,19 @@ const removeUser = async (id) => {
   }
 };
 
+
+import { useRouter } from 'vue-router';
+const router = useRouter();
+const printUserProfile = (userId) => {
+  
+  router.push({ name: 'user.detail', params: { id: userId } });
+};
+
 onMounted(() => {
   fetchDropdowns();
   fetchUsers();
 });
+
 </script>
 
 <style scoped>
@@ -901,6 +987,12 @@ onMounted(() => {
   color: #0284c7;
   background-color: #f0f9ff;
   border-color: #bae6fd;
+}
+
+.btn-print {
+  color: #0c4a6e;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .btn-edit:hover {

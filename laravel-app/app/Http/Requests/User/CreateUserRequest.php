@@ -53,6 +53,21 @@ class CreateUserRequest extends FormRequest
             'national_id_expired_date' => 'nullable|date',
             'passport_number' => 'nullable|string|max:50',
             'passport_expired_date' => 'nullable|date',
+            // ១. ព័ត៌មានបម្រើការងាររដ្ឋដំបូង
+        'first_service_date' => 'nullable|date',
+        'first_appointment_date' => 'nullable|date',
+        'initial_framework' => 'nullable|string|max:255',
+        'initial_position' => 'nullable|string|max:255',
+        'initial_ministry' => 'nullable|string|max:255',
+        'initial_unit' => 'nullable|string|max:255',
+        'initial_department' => 'nullable|string|max:255',
+        'initial_office' => 'nullable|string|max:255',
+
+        // ២. ស្ថានភាពមុខងារបច្ចុប្បន្ន
+        'current_framework' => 'nullable|string|max:255',
+        'current_appointment_date' => 'nullable|date',
+        'current_position_date' => 'nullable|date',
+        
         ];
     }
     public function messages(): array

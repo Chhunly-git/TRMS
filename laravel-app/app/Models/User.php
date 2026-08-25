@@ -48,6 +48,21 @@ class User extends Authenticatable
         'national_id_expired_date',
         'passport_number',
         'passport_expired_date',
+        // ១. ព័ត៌មានបម្រើการងាររដ្ឋដំបូង (បន្ថែមថ្មី)
+    'first_service_date',
+    'first_appointment_date',
+    'initial_framework',
+    'initial_position',
+    'initial_ministry',
+    'initial_unit',
+    'initial_department',
+    'initial_office',
+
+    // ២. ស្ថានភាពមុខងារបច្ចុប្បន្ន (បន្ថែមថ្មី)
+    'current_framework',
+    'current_appointment_date',
+    'current_position_date',
+    
     ];
 
     /**
@@ -187,5 +202,10 @@ class User extends Authenticatable
     protected function scopeIsDisabled(Builder $query): void
     {
         $query->where('status', 'DISABLED');
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'user_id');
     }
 }

@@ -30,3 +30,13 @@ export function apiToggleUserStatus(id) {
 export function apiDeleteUser(id) {
   return axios.delete(APP_API_URL + `/manage/users/delete/${id}`);
 }
+
+// ទាញយក Profile របស់ User ផ្ទាល់ខ្លួន
+export function apiGetMyProfile() {
+  return axios.get(`${APP_API_URL}/manage/profile`);
+}
+
+// ទាញយក Profile មន្ត្រីតាម ID (សម្រាប់ Admin)
+export function apiGetUserById(id) {
+  return axios.get(`${APP_API_URL}/users/${id}`);
+}
