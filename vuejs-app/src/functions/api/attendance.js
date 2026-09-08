@@ -8,6 +8,11 @@ export function apiGetAttendances(params = {}) {
 export function apiSaveAttendance(data) {
   return axios.post(APP_API_URL + '/manage/attendances/save', data);
 }
+
+export function apiImportAttendances(data) {
+  return axios.post(APP_API_URL + '/manage/attendances/import', data);
+}
+
 export function apiGetMyAttendances(params = {}) {
   return axios.get(APP_API_URL + '/my-attendances', { params });
 }

@@ -28,6 +28,7 @@ class GetUserRequest extends FormRequest
             'page' => 'nullable|integer|min:1',
             'employee_type' => 'nullable|string|in:CIVIL_SERVICE,STATUTORY,CONTRACT,OTHER',
             'status' => 'nullable|string|in:ENABLED,DISABLED',
+            'officer_status' => 'nullable|string|in:ACTIVE,RESIGNED,RETIRED,TRANSFERRED,SUSPENDED,OTHER',
             'level' => 'nullable|string|in:ADMIN,USER',
             'department_id' => 'nullable|integer|exists:departments,id',
         ];

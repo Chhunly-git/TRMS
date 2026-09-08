@@ -23,7 +23,7 @@
       </div>
 
       <!-- SidebarSearch Form -->
-      <div class="form-inline" v-if="userStore.isAdmin">
+      <div class="form-inline" v-if="userStore.hasAnyAdminPermission">
         <div class="input-group" data-widget="sidebar-search">
           <input class="form-control form-control-sidebar" type="search" placeholder="ស្វែងរក..." aria-label="Search">
           <div class="input-group-append">
@@ -37,71 +37,93 @@
       <!-- Navigation Menu -->
       <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-          <li class="nav-item" v-if="userStore.isAdmin">
+          <!-- ផ្ទាំងគ្រប់គ្រង (Dashboard) -->
+          <li class="nav-item" v-if="userStore.can('dashboard')">
             <router-link :to="{ name: 'dashboard' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-tachometer-alt"></i>
               <p>Dashboard</p>
             </router-link>
           </li>
 
-          <!-- user -->
-          <li class="nav-item">
-            <router-link :to="{ name: 'my-attendances' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-calendar-check"></i>
-              <p>វត្តមាន</p>
-            </router-link>
-          </li>
-          <li class="nav-item">
+          <!-- ព័ត៌មានផ្ទាល់ខ្លួន -->
+          <li class="nav-item" v-if="userStore.can('profile')">
             <router-link :to="{ name: 'profile' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-id-card text-success"></i>
               <p>ព័ត៌មានផ្ទាល់ខ្លួន</p>
             </router-link>
           </li>
-          <li class="nav-item">
-            <router-link :to="{ name: 'my-profile' }" active-class="active" class="nav-link">
-              <i class="nav-icon fas fa-id-card text-success"></i>
-              <p>ប្រវត្តិរូបរបស់ខ្ញុំ (Print)</p>
+
+          <!-- វត្តមានរបស់ខ្ញុំ -->
+          <li class="nav-item" v-if="userStore.can('my-attendances')">
+            <router-link :to="{ name: 'my-attendances' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-calendar-check"></i>
+              <p>វត្តមាន</p>
             </router-link>
           </li>
 
-          <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.isAdmin" style="color: #8da39c;">
+          <!-- គំរូឯកសារសម្រាប់ទាញយក -->
+          <li class="nav-item" v-if="userStore.can('document-templates')">
+            <router-link :to="{ name: 'document-templates' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-folder-open text-info"></i>
+              <p>គំរូឯកសារ</p>
+            </router-link>
+          </li>
+
+          <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
+          <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង
           </li>
-          <li class="nav-item" v-if="userStore.isAdmin">
+
+          <!-- គ្រប់គ្រងគំរូឯកសារ -->
+          <li class="nav-item" v-if="userStore.can('manage-document-templates')">
+            <router-link :to="{ name: 'manage-document-templates' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-file-invoice text-warning"></i>
+              <p>គ្រប់គ្រងគំរូឯកសារ</p>
+            </router-link>
+          </li>
+
+          <!-- អ្នកប្រើប្រាស់ / មន្ត្រី -->
+          <li class="nav-item" v-if="userStore.can('users')">
             <router-link :to="{ name: 'users' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-users-cog"></i>
               <p>អ្នកប្រើប្រាស់ / មន្ត្រី</p>
             </router-link>
           </li>
-          <li class="nav-item" v-if="userStore.isAdmin">
+
+          <!-- គ្រប់គ្រងវត្តមាន -->
+          <li class="nav-item" v-if="userStore.can('attendances')">
             <router-link :to="{ name: 'attendances' }" class="nav-link">
               <i class="nav-icon fas fa-calendar-check"></i>
               <p>គ្រប់គ្រងវត្តមាន</p>
             </router-link>
           </li>
 
-          <li class="nav-item" v-if="userStore.isAdmin">
+          <!-- នាយកដ្ឋាន -->
+          <li class="nav-item" v-if="userStore.can('departments')">
             <router-link :to="{ name: 'departments' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-building"></i>
               <p>នាយកដ្ឋាន</p>
             </router-link>
           </li>
 
-          <li class="nav-item" v-if="userStore.isAdmin">
+          <!-- ការិយាល័យ -->
+          <li class="nav-item" v-if="userStore.can('divisions')">
             <router-link :to="{ name: 'divisions' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-door-open"></i>
               <p>ការិយាល័យ</p>
             </router-link>
           </li>
 
-          <li class="nav-item" v-if="userStore.isAdmin">
+          <!-- តួនាទី -->
+          <li class="nav-item" v-if="userStore.can('positions')">
             <router-link :to="{ name: 'positions' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-id-badge"></i>
               <p>តួនាទី</p>
             </router-link>
           </li>
 
-          <li class="nav-item" v-if="userStore.isAdmin">
+          <!-- Backups -->
+          <li class="nav-item" v-if="userStore.can('backups')">
             <router-link :to="{ name: 'backups' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-database"></i>
               <p>Backups</p>
@@ -122,9 +144,9 @@ import { apiGetMyProfile } from '@/functions/api/user'; // ហៅ API ទាញ�
 
 const userStore = useUserStore();
 
-// 🟢 ពេលໂຫຼດ LeftSidebar ឡើងវិញ ត្រូវធានាថាទិន្នន័យ Admin ស្ថិតស្ថេរ
+// 🟢 ពេលម៉ោន LeftSidebar ឡើងវិញ ត្រូវធានាថាទិន្នន័យ Profile និងសិទ្ធិប្រើប្រាស់ស្ថិតស្ថេរ
 onMounted(async () => {
-  if (!userStore.id || !userStore.isAdmin) {
+  if (!userStore.id || !userStore.permissions || userStore.permissions.length === 0) {
     try {
       const res = await apiGetMyProfile();
       const myData = res.data.user || res.data.data || res.data;
@@ -132,7 +154,7 @@ onMounted(async () => {
         userStore.setState(myData);
       }
     } catch (err) {
-      console.error("Failed to restore admin profile in sidebar:", err);
+      console.error("Failed to restore profile/permissions in sidebar:", err);
     }
   }
 });

@@ -14,8 +14,8 @@ class ReadUserRequest extends FormRequest
         $currentUser = $this->user();
         $targetId = (int) $this->route('id');
 
-        // ១. បើជា Admin អាចមើលបានទាំងអស់
-        if ($currentUser && $currentUser->level === 'ADMIN') {
+        // ១. បើជា Admin ឬមានសិទ្ធិ users អាចមើលបានទាំងអស់
+        if ($currentUser && ($currentUser->level === 'ADMIN' || $currentUser->hasPermission('users'))) {
             return true;
         }
 

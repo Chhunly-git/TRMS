@@ -9,7 +9,7 @@ class DashboardController extends Controller
 {
     public function getStats(Request $request)
     {
-        if ($request->user()->level !== 'ADMIN') {
+        if ($request->user()->level !== 'ADMIN' && !$request->user()->hasPermission('dashboard')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. អ្នកមិនមានសិទ្ធិចូលមើលទិន្នន័យនេះទេ។'

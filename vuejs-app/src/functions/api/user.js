@@ -31,6 +31,11 @@ export function apiDeleteUser(id) {
   return axios.delete(APP_API_URL + `/manage/users/delete/${id}`);
 }
 
+// កំណត់សិទ្ធិប្រើប្រាស់ម៉ឺនុយ LeftSidebar សម្រាប់ User
+export function apiUpdateUserPermissions(id, permissions) {
+  return axios.put(`${APP_API_URL}/manage/users/permissions/${id}`, { permissions });
+}
+
 // ទាញយក Profile របស់ User ផ្ទាល់ខ្លួន
 export function apiGetMyProfile() {
   return axios.get(`${APP_API_URL}/manage/profile`);

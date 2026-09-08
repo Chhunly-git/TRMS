@@ -21,6 +21,8 @@ import Attendance from "@/components/pages/Attendance.vue";
 import UserAttendance from "@/components/pages/UserAttendance.vue";
 import UserProfilePrint from "@/components/pages/UserProfilePrint.vue";
 import Profile from "@/components/pages/Profile.vue";
+import DocumentTemplateManager from "@/components/pages/DocumentTemplateManager.vue";
+import DocumentTemplateList from "@/components/pages/DocumentTemplateList.vue";
 
 
 // Layout Components
@@ -72,7 +74,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
        
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "dashboard" },
     },
     {
       path: "/setting",
@@ -95,7 +97,7 @@ const router = createRouter({
         left_sidebar: LeftSidebar,
         right_sidebar: RightSidebar,
       },
-      meta: { guarded: true },
+      meta: { guarded: true, permission: "my-attendances" },
     },
     {
       path: "/profile",
@@ -106,7 +108,7 @@ const router = createRouter({
         left_sidebar: LeftSidebar,
         right_sidebar: RightSidebar,
       },
-      meta: { guarded: true },
+      meta: { guarded: true, permission: "profile" },
     },
     // Route សម្រាប់ User ព្រីន Profile ខ្លួនឯង
     {
@@ -118,7 +120,7 @@ const router = createRouter({
         left_sidebar: LeftSidebar,
         right_sidebar: RightSidebar,
       },
-      meta: { guarded: true },
+      meta: { guarded: true, permission: "profile" },
     },
 
     // Route សម្រាប់ Admin ព្រីន Profile មន្ត្រីតាម ID
@@ -133,7 +135,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
        
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "users" },
     },
     {
       path: "/user-detail/:id",
@@ -145,7 +147,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
         
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "users" },
     },
     {
       path: "/departments",
@@ -157,7 +159,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
         
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "departments" },
     },
     {
       path: "/divisions",
@@ -169,7 +171,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
        
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "divisions" },
     },
     {
       path: "/positions",
@@ -181,7 +183,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
         
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "positions" },
     },
     {
       path: "/backups",
@@ -193,7 +195,7 @@ const router = createRouter({
         right_sidebar: RightSidebar,
         
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "backups" },
     },
     {
       path: "/attendances",
@@ -205,7 +207,29 @@ const router = createRouter({
         right_sidebar: RightSidebar,
         
       },
-      meta: { guarded: true, requiresAdmin: true },
+      meta: { guarded: true, permission: "attendances" },
+    },
+    {
+      path: "/document-templates",
+      name: "document-templates",
+      components: {
+        default: DocumentTemplateList,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "document-templates" },
+    },
+    {
+      path: "/manage/document-templates",
+      name: "manage-document-templates",
+      components: {
+        default: DocumentTemplateManager,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "manage-document-templates" },
     },
     {
       path: "/:pathMatch(.*)*",
@@ -221,19 +245,36 @@ router.beforeEach((to, from) => {
     localStorage.getItem("user_level") ||
     "";
 
-  // ឆែកមើលថាតើទំព័រនេះត្រូវការសិទ្ធិ Admin ឬអត់?
-  if (to.meta.requiresAdmin) {
-    // បើ Route ត្រូវការសិទ្ធិ Admin ហើយគាត់ជា ADMIN នោះឱ្យចូល
-    if (userLevel.toUpperCase() === "ADMIN") {
-      return true; // ជំនួសឱ្យ next()
-    } else {
-      // បើគាត់ជា USER ធម្មតា បញ្ជូនគាត់ទៅទំព័រ Profile វិញ
-      return { name: "profile" }; // ជំនួសឱ្យ next({ name: 'profile' })
+  // 1. ពិនិត្យការចូលប្រើប្រាស់ (Guarded routes)
+  if (to.meta.guarded) {
+    const token = userStore.getSanctumToken();
+    if (!token && to.name !== "auth.signin") {
+      return { name: "auth.signin" };
     }
   }
 
-  // សម្រាប់ Route ផ្សេងទៀតដែលមិនត្រូវការ Admin
-  return true; // ជំនួសឱ្យ next()
+  // 2. ប្រសិនបើជា ADMIN មានសិទ្ធិចូលគ្រប់ route ទាំងអស់
+  if (userLevel && userLevel.toUpperCase() === "ADMIN") {
+    return true;
+  }
+
+  // 3. ឆែកមើលថាតើ route នេះត្រូវការសិទ្ធិ (permission) ដែរឬទេ?
+  if (to.meta.permission) {
+    if (userStore.can(to.meta.permission)) {
+      return true;
+    } else {
+      // បើគ្មានសិទ្ធិ បញ្ជូនទៅកាន់ទំព័រ Profile វិញ
+      return { name: "profile" };
+    }
+  }
+
+  // 4. ពិនិត្យ fallback សម្រាប់ requiresAdmin
+  if (to.meta.requiresAdmin) {
+    return { name: "profile" };
+  }
+
+  // សម្រាប់ Route ផ្សេងទៀតដែលមិនមានការកំណត់
+  return true;
 });
 
 export default router;

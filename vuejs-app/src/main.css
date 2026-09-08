@@ -25,11 +25,11 @@ html, body {
   min-height: calc(100vh - calc(3.5rem + 1px) - 57px) !important;
 }
 
-body.sidebar-collapse .wrapper .content-wrapper,
+/* body.sidebar-collapse .wrapper .content-wrapper,
 body.sidebar-collapse .wrapper .main-header,
 body.sidebar-collapse .wrapper .main-footer {
   margin-left: 4.6rem !important;
-}
+} */
 
 @media (max-width: 767.98px) {
   .wrapper .content-wrapper,

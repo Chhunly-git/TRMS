@@ -20,8 +20,8 @@ class UpdateProfileImageRequest extends FormRequest
             return true;
         }
 
-        // បើមាន route('id'): ADMIN អាចប្តូរឱ្យអ្នកណាទាំងអស់ ឬ User អាចប្តូរឱ្យតែខ្លួនឯង
-        return $currentUser && ($currentUser->level === 'ADMIN' || $currentUser->id === $targetId);
+        // បើមាន route('id'): ADMIN ឬអ្នកមានសិទ្ធិ users អាចប្តូរឱ្យអ្នកណាទាំងអស់ ឬ User អាចប្តូរឱ្យតែខ្លួនឯង
+        return $currentUser && ($currentUser->level === 'ADMIN' || $currentUser->hasPermission('users') || $currentUser->id === $targetId);
     }
 
     /**

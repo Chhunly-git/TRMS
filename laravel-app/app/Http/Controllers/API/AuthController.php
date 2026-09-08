@@ -207,7 +207,7 @@ class AuthController extends Controller
  public function getProfile(Request $request)
 {
     // ទាញយកទិន្នន័យ User ដែលកំពុង Login ព្រមទាំង Load Relationships ជាមួយ
-    $user = $request->user()->load(['department', 'office', 'position']);
+    $user = $request->user()->load(['department', 'office', 'position', 'additionalPositions', 'outOfFrameworkStatuses', 'unpaidLeaves', 'publicWorkHistories', 'privateWorkHistories', 'userDecorations', 'disciplinaryActions', 'educations', 'languages', 'siblings', 'children']);
 
     return response()->json([
         'success' => true,

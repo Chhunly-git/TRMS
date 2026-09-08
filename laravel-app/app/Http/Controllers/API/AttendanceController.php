@@ -13,7 +13,7 @@ public function index(Request $request)
     $date = $request->input('date', Carbon::today()->toDateString());
     
     $users = \App\Models\User::with(['department', 'position'])
-        ->join('positions', 'users.position_id', '=', 'positions.id')
+        ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
         ->orderBy('positions.level', 'asc')
         ->select('users.*')
         ->get();
@@ -29,12 +29,13 @@ public function index(Request $request)
         if ($attendance) {
             $status = $attendance->status;
             
-            // កែសម្រួលត្រង់នេះ៖ ប្រើប្រាស់សញ្ញា > ធម្មតា (ចាប់ពី 09:01 បាន LATE)
-            if ($checkIn && Carbon::parse($checkIn)->format('H:i') > '09:00') {
-                $status = 'LATE';
-            } else {
-                // ຖ້າម៉ោង 09:00 ស្មើ ឬតិចជាង គឺบังคับឱ្យជា PRESENT
-                $status = 'PRESENT';
+            // Only apply late logic if the status is PRESENT or LATE
+            if ($status === 'PRESENT' || $status === 'LATE') {
+                if ($checkIn && Carbon::parse($checkIn)->format('H:i') > '09:00') {
+                    $status = 'LATE';
+                } else {
+                    $status = 'PRESENT';
+                }
             }
         }
 
@@ -45,6 +46,8 @@ public function index(Request $request)
             'status' => $status,
             'check_in_time' => $checkIn,
             'check_out_time' => $attendance ? $attendance->check_out_time : null,
+            'working_hours' => $attendance ? $attendance->working_hours : null,
+            'working_hours_formatted' => $attendance ? $attendance->working_hours_formatted : null,
             'note' => $attendance ? $attendance->note : null,
             'user' => $user
         ];
@@ -73,7 +76,7 @@ public function store(Request $request)
     $checkOut = ($status === 'PRESENT' || $status === 'LATE') ? $validated['check_out_time'] : null;
 
     // Auto Late Logic: បើ STATUS គឺ PRESENT តែម៉ោងចូលលើស 09:00 កែជា LATE
-    if ($status === 'PRESENT' && $checkIn && Carbon::parse($checkIn)->format('H:i') >= '09:00') {
+    if ($status === 'PRESENT' && $checkIn && Carbon::parse($checkIn)->format('H:i') > '09:00') {
         $status = 'LATE';
     }
 
@@ -89,6 +92,86 @@ public function store(Request $request)
 
     return response()->json(['success' => true]);
 }
+
+    // POST: Import វត្តមានជាដុំ (ពី Excel/JSON)
+    public function import(Request $request)
+    {
+        $validated = $request->validate([
+            'records' => 'required|array|min:1',
+            'records.*.user_id' => 'required|exists:users,id',
+            'records.*.date' => 'required|date',
+            'records.*.status' => 'required|string',
+            'records.*.check_in_time' => 'nullable',
+            'records.*.check_out_time' => 'nullable',
+            'records.*.note' => 'nullable|string'
+        ]);
+
+        try {
+            \DB::beginTransaction();
+
+            $importedCount = 0;
+
+            foreach ($validated['records'] as $record) {
+                $status = strtoupper(trim($record['status']));
+                if (!in_array($status, ['PRESENT', 'LATE', 'ABSENT', 'PERMISSION', 'MISSION'])) {
+                    $status = 'PRESENT';
+                }
+
+                $checkIn = ($status === 'PRESENT' || $status === 'LATE') ? ($record['check_in_time'] ?? null) : null;
+                $checkOut = ($status === 'PRESENT' || $status === 'LATE') ? ($record['check_out_time'] ?? null) : null;
+
+                // Format times if present
+                if ($checkIn) {
+                    try {
+                        $checkIn = Carbon::parse($checkIn)->format('H:i');
+                    } catch (\Exception $e) {}
+                }
+                if ($checkOut) {
+                    try {
+                        $checkOut = Carbon::parse($checkOut)->format('H:i');
+                    } catch (\Exception $e) {}
+                }
+
+                // Auto Late Logic: status is PRESENT but check_in_time > 09:00
+                if ($status === 'PRESENT' && $checkIn) {
+                    try {
+                        if (Carbon::parse($checkIn)->format('H:i') > '09:00') {
+                            $status = 'LATE';
+                        }
+                    } catch (\Exception $e) {}
+                }
+
+                Attendance::updateOrCreate(
+                    [
+                        'user_id' => $record['user_id'],
+                        'date' => Carbon::parse($record['date'])->toDateString()
+                    ],
+                    [
+                        'status' => $status,
+                        'check_in_time' => $checkIn,
+                        'check_out_time' => $checkOut,
+                        'note' => $record['note'] ?? null
+                    ]
+                );
+
+                $importedCount++;
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "បាន Import វត្តមានដោយជោគជ័យចំនួន {$importedCount} កំណត់ត្រា",
+                'imported_count' => $importedCount
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'បរាជ័យក្នុងការ Import វត្តមាន: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
     // GET: បញ្ជីសង្ខេបសម្រាប់ Dashboard (Public Route)
 public function getDashboardSummary(Request $request)

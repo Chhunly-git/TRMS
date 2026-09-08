@@ -12,7 +12,14 @@ class ToggleUserStatusRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->id !== (int) $this->route('id');
+        $currentUser = $this->user();
+        if (!$currentUser) return false;
+        
+        if ($currentUser->level === 'ADMIN' || $currentUser->hasPermission('users')) {
+            return $currentUser->id !== (int) $this->route('id');
+        }
+
+        return false;
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Http\Controllers\API\OfficeController;
 use App\Http\Controllers\API\PositionController;
 use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\AttendanceController;
+use App\Http\Controllers\API\DocumentTemplateController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,7 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::get('/my-attendances', [AttendanceController::class, 'myAttendances']);
     Route::get('/manage/profile', [AuthController::class, 'getProfile']);
     Route::get('/my-profile', [AuthController::class, 'getProfile']);
+    Route::get('/document-templates', [DocumentTemplateController::class, 'index']);
     
     Route::middleware('admin')->prefix('manage')->group(function () {
         
@@ -48,7 +50,8 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::get('/', [UserController::class, 'getUsers']);
             Route::get('/read/{id}', [UserController::class, 'readUser']);
             Route::post('/create', [UserController::class, 'createUser']);
-            Route::put('/update/{id}', [UserController::class, 'updateUser']);
+            Route::match(['PUT', 'POST'], '/update/{id}', [UserController::class, 'updateUser']);
+            Route::put('/permissions/{id}', [UserController::class, 'updateUserPermissions']);
             Route::patch('/toggle-status/{id}', [UserController::class, 'toggleUserStatus']);
             Route::delete('/delete/{id}', [UserController::class, 'deleteUser']);
          
@@ -92,9 +95,18 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
 
         // 5. Attendances (គ្រប់គ្រងវត្តមាន)
         // routeName សម្រាប់ទាញយកបញ្ជីវត្តមានប្រចាំថ្ងៃ (អាចផ្ញើ query date មកជាមួយបាន)
-    Route::get('/attendances', [AttendanceController::class, 'index']);
-    
-    // routeName សម្រាប់រក្សាទុក ឬកែប្រែវត្តមានមន្ត្រី
-    Route::post('/attendances/save', [AttendanceController::class, 'store']);
+        Route::get('/attendances', [AttendanceController::class, 'index']);
+        
+        // routeName សម្រាប់រក្សាទុក ឬកែប្រែវត្តមានមន្ត្រី
+        Route::post('/attendances/save', [AttendanceController::class, 'store']);
+        Route::post('/attendances/import', [AttendanceController::class, 'import']);
+
+        // 6. Document Templates (គ្រប់គ្រងគំរូឯកសារ)
+        Route::prefix('document-templates')->group(function () {
+            Route::get('/', [DocumentTemplateController::class, 'index']);
+            Route::post('/create', [DocumentTemplateController::class, 'store']);
+            Route::post('/update/{id}', [DocumentTemplateController::class, 'update']);
+            Route::delete('/delete/{id}', [DocumentTemplateController::class, 'destroy']);
+        });
     });
 });
