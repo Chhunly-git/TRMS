@@ -1468,7 +1468,7 @@
               <div class="font-weight-bold text-dark mb-1">
                 <i class="fas fa-list-check text-success mr-1"></i>
                 ម៉ឺនុយអនុញ្ញាត៖
-                <span class="badge badge-success ml-1">{{ selectedPermissions.length }} / 11 ម៉ឺនុយ</span>
+                <span class="badge badge-success ml-1">{{ selectedPermissions.length }} / {{ allPermissionKeys.length }} ម៉ឺនុយ</span>
               </div>
               <div class="btn-group btn-group-sm mb-1">
                 <button type="button" class="btn btn-outline-primary" @click="selectAllPermissions">
@@ -1610,21 +1610,23 @@ const generalMenuItems = [
   { key: 'my-attendances', label: 'វត្តមានរបស់ខ្ញុំ', desc: 'កត់ត្រា និងតាមដានវត្តមានផ្ទាល់ខ្លួន', icon: 'fas fa-calendar-check', iconClass: 'text-primary' },
   { key: 'document-templates', label: 'គំរូឯកសារ', desc: 'ទាញយកទម្រង់គំរូឯកសារផ្សេងៗ', icon: 'fas fa-folder-open', iconClass: 'text-warning' },
   { key: 'work-schedules', label: 'កាលវិភាគការងារ', desc: 'កត់ត្រា និងគ្រប់គ្រងកាលវិភាគ/កិច្ចប្រជុំ', icon: 'fas fa-calendar-alt', iconClass: 'text-warning' },
+  { key: 'meeting-rooms', label: 'បន្ទប់ប្រជុំ & ការកក់', desc: 'មើលកាលវិភាគ និងស្នើសុំកក់បន្ទប់ប្រជុំ', icon: 'fas fa-door-open', iconClass: 'text-info' },
 ];
 
 const managementMenuItems = [
   { key: 'manage-document-templates', label: 'គ្រប់គ្រងគំរូឯកសារ', desc: 'បន្ថែម កែប្រែ ឬលុបគំរូឯកសារ', icon: 'fas fa-file-invoice', iconClass: 'text-warning' },
+  { key: 'manage-meeting-rooms', label: 'គ្រប់គ្រងបន្ទប់ប្រជុំ', desc: 'ពិនិត្យ អនុម័ត/បដិសេធ និងចាត់ចែងបន្ទប់ប្រជុំ', icon: 'fas fa-tasks', iconClass: 'text-success' },
   { key: 'users', label: 'អ្នកប្រើប្រាស់ / មន្ត្រី', desc: 'គ្រប់គ្រងទិន្នន័យមន្ត្រីទាំងអស់', icon: 'fas fa-users-cog', iconClass: 'text-primary' },
   { key: 'attendances', label: 'គ្រប់គ្រងវត្តមាន', desc: 'គ្រប់គ្រង កត់ត្រា និង Import វត្តមាន', icon: 'fas fa-calendar-alt', iconClass: 'text-success' },
   { key: 'departments', label: 'នាយកដ្ឋាន', desc: 'គ្រប់គ្រងបញ្ជីនាយកដ្ឋាន', icon: 'fas fa-building', iconClass: 'text-secondary' },
-  { key: 'divisions', label: 'ការិយាល័យ', desc: 'គ្រប់គ្រងបញ្ជីការិយាល័យ', icon: 'fas fa-door-open', iconClass: 'text-info' },
+  { key: 'divisions', label: 'ការិយាល័យ', desc: 'គ្រប់គ្រងបញ្ជីការិយាល័យ', icon: 'fas fa-door-closed', iconClass: 'text-info' },
   { key: 'positions', label: 'តួនាទី', desc: 'គ្រប់គ្រងបញ្ជីតួនាទីមន្ត្រី', icon: 'fas fa-id-badge', iconClass: 'text-danger' },
   { key: 'backups', label: 'Backups', desc: 'ទាញយក និងគ្រប់គ្រង Backup', icon: 'fas fa-database', iconClass: 'text-dark' },
 ];
 
 const allPermissionKeys = [
-  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules',
-  'manage-document-templates', 'users', 'attendances',
+  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms',
+  'manage-document-templates', 'manage-meeting-rooms', 'users', 'attendances',
   'departments', 'divisions', 'positions', 'backups'
 ];
 
@@ -1635,7 +1637,7 @@ const openPermissionModal = (user) => {
   } else if (Array.isArray(user.permissions) && user.permissions.length > 0) {
     selectedPermissions.value = [...user.permissions];
   } else {
-    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules'];
+    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
   }
   showPermissionModal.value = true;
 };
@@ -1660,7 +1662,7 @@ const selectAllPermissions = () => {
 };
 
 const resetToDefaultPermissions = () => {
-  selectedPermissions.value = ['profile', 'my-attendances', 'document-templates'];
+  selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
 };
 
 const clearAllPermissions = () => {

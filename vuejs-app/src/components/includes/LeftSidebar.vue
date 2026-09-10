@@ -77,6 +77,14 @@
             </router-link>
           </li>
 
+          <!-- បន្ទប់ប្រជុំ & ការកក់ -->
+          <li class="nav-item" v-if="userStore.can('meeting-rooms')">
+            <router-link :to="{ name: 'meeting-rooms' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-door-open text-success"></i>
+              <p>បន្ទប់ប្រជុំ & ការកក់</p>
+            </router-link>
+          </li>
+
           <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
           <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង
@@ -87,6 +95,14 @@
             <router-link :to="{ name: 'manage-document-templates' }" active-class="active" class="nav-link">
               <i class="nav-icon fas fa-file-invoice text-warning"></i>
               <p>គ្រប់គ្រងគំរូឯកសារ</p>
+            </router-link>
+          </li>
+
+          <!-- គ្រប់គ្រងបន្ទប់ប្រជុំ -->
+          <li class="nav-item" v-if="userStore.can('manage-meeting-rooms')">
+            <router-link :to="{ name: 'manage-meeting-rooms' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-tasks text-success"></i>
+              <p>គ្រប់គ្រងបន្ទប់ប្រជុំ</p>
             </router-link>
           </li>
 

@@ -130,10 +130,30 @@ class User extends Authenticatable
         // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
         $perms = $this->permissions;
         if (empty($perms) || !is_array($perms)) {
-            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules']);
+            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms']);
         }
 
         return in_array($permission, $perms);
+    }
+
+    /**
+     * ពិនិត្យថាតើមន្ត្រីមានសិទ្ធិគ្រប់គ្រង/អនុម័តបន្ទប់ប្រជុំដែរឬទេ
+     */
+    public function canManageRooms(?int $roomId = null): bool
+    {
+        if ($this->level === 'ADMIN') {
+            return true;
+        }
+
+        if ($this->hasPermission('manage-meeting-rooms')) {
+            return true;
+        }
+
+        if ($roomId !== null) {
+            return MeetingRoom::where('id', $roomId)->where('manager_id', $this->id)->exists();
+        }
+
+        return MeetingRoom::where('manager_id', $this->id)->exists();
     }
 
     /**
@@ -374,5 +394,21 @@ class User extends Authenticatable
     public function workSchedules(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(WorkSchedule::class, 'user_id');
+    }
+
+    /**
+     * ទំនាក់ទំនងទៅកាន់តារាង RoomBooking (ការកក់បន្ទប់ប្រជុំរបស់មន្ត្រី)
+     */
+    public function roomBookings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RoomBooking::class, 'user_id');
+    }
+
+    /**
+     * ទំនាក់ទំនងទៅកាន់បន្ទប់ប្រជុំដែលមន្ត្រីទទួលខុសត្រូវផ្ទាល់ (Room Manager)
+     */
+    public function managedRooms(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MeetingRoom::class, 'manager_id');
     }
 }

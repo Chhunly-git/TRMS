@@ -11,7 +11,7 @@ export const useUserStore = defineStore('user',
       profile_image: null,
       profile_thumbnail: null,
       password_null: true,
-      level: null,
+      level: localStorage.getItem("user_level") || null,
       status: null,
       employee_type: null,
       employee_code: null,
@@ -105,15 +105,17 @@ export const useUserStore = defineStore('user',
       isAuthenticated: (state) => !!state.id,
       // ពិនិត្យសិទ្ធិ Admin យ៉ាងមានសុវត្ថិភាព (មិនខ្វល់រឿងអក្សរតូច/ធំ)
       isAdmin: (state) => {
-        if (!state.level) return false;
-        return String(state.level).trim().toUpperCase() === 'ADMIN';
+        const lvl = state.level || localStorage.getItem("user_level");
+        if (!lvl) return false;
+        return String(lvl).trim().toUpperCase() === 'ADMIN';
       },
       // ពិនិត្យសិទ្ធិលើមុខងារ ឬម៉ឺនុយនីមួយៗ
       can: (state) => (permissionKey) => {
-        if (state.level && String(state.level).trim().toUpperCase() === 'ADMIN') {
+        const lvl = state.level || localStorage.getItem("user_level");
+        if (lvl && String(lvl).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
-        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules'];
+        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
         if (!state.permissions || !Array.isArray(state.permissions) || state.permissions.length === 0) {
           return defaultPerms.includes(permissionKey);
         }
@@ -121,12 +123,14 @@ export const useUserStore = defineStore('user',
       },
       // ពិនិត្យថាតើមន្ត្រីមានសិទ្ធិលើម៉ឺនុយគ្រប់គ្រងណាមួយដែរឬទេ
       hasAnyAdminPermission: (state) => {
-        if (state.level && String(state.level).trim().toUpperCase() === 'ADMIN') {
+        const lvl = state.level || localStorage.getItem("user_level");
+        if (lvl && String(lvl).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
         const adminPerms = [
           'dashboard',
           'manage-document-templates',
+          'manage-meeting-rooms',
           'users',
           'attendances',
           'departments',

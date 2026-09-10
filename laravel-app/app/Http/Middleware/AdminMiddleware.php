@@ -86,6 +86,10 @@ class AdminMiddleware
             return $user->hasPermission('dashboard');
         }
 
+        if (str_contains($path, 'manage/meeting-rooms')) {
+            return $user->hasPermission('manage-meeting-rooms');
+        }
+
         return false;
     }
 }

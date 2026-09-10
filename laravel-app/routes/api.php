@@ -12,6 +12,8 @@ use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\AttendanceController;
 use App\Http\Controllers\API\DocumentTemplateController;
 use App\Http\Controllers\API\WorkScheduleController;
+use App\Http\Controllers\API\MeetingRoomController;
+use App\Http\Controllers\API\RoomBookingController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +55,30 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::put('/{id}', [WorkScheduleController::class, 'update']);
         Route::patch('/{id}/status', [WorkScheduleController::class, 'updateStatus']);
         Route::delete('/{id}', [WorkScheduleController::class, 'destroy']);
+    });
+
+    // បន្ទប់ប្រជុំ (Meeting Rooms)
+    Route::prefix('meeting-rooms')->group(function () {
+        Route::get('/', [MeetingRoomController::class, 'index']);
+        Route::get('/availability', [MeetingRoomController::class, 'checkAvailability']);
+        Route::get('/{id}', [MeetingRoomController::class, 'show']);
+        Route::post('/', [MeetingRoomController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [MeetingRoomController::class, 'update']);
+        Route::delete('/{id}', [MeetingRoomController::class, 'destroy']);
+    });
+
+    // ការកក់បន្ទប់ប្រជុំ (Room Bookings)
+    Route::prefix('room-bookings')->group(function () {
+        Route::get('/', [RoomBookingController::class, 'index']);
+        Route::get('/timetable', [RoomBookingController::class, 'timetable']);
+        Route::get('/my-bookings', [RoomBookingController::class, 'myBookings']);
+        Route::get('/{id}', [RoomBookingController::class, 'show']);
+        Route::post('/', [RoomBookingController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [RoomBookingController::class, 'update']);
+        Route::match(['POST', 'PATCH'], '/{id}/cancel', [RoomBookingController::class, 'cancel']);
+        Route::match(['POST', 'PATCH'], '/{id}/approve', [RoomBookingController::class, 'approve']);
+        Route::match(['POST', 'PATCH'], '/{id}/reject', [RoomBookingController::class, 'reject']);
+        Route::delete('/{id}', [RoomBookingController::class, 'destroy']);
     });
     
     Route::middleware('admin')->prefix('manage')->group(function () {

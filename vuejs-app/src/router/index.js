@@ -24,6 +24,7 @@ import Profile from "@/components/pages/Profile.vue";
 import DocumentTemplateManager from "@/components/pages/DocumentTemplateManager.vue";
 import DocumentTemplateList from "@/components/pages/DocumentTemplateList.vue";
 import WorkSchedule from "@/components/pages/WorkSchedule.vue";
+import MeetingRoomBooking from "@/components/pages/MeetingRoomBooking.vue";
 
 
 // Layout Components
@@ -242,6 +243,28 @@ const router = createRouter({
         right_sidebar: RightSidebar,
       },
       meta: { guarded: true, permission: "work-schedules" },
+    },
+    {
+      path: "/meeting-rooms",
+      name: "meeting-rooms",
+      components: {
+        default: MeetingRoomBooking,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "meeting-rooms" },
+    },
+    {
+      path: "/manage/meeting-rooms",
+      name: "manage-meeting-rooms",
+      components: {
+        default: MeetingRoomBooking,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "manage-meeting-rooms" },
     },
     {
       path: "/:pathMatch(.*)*",
