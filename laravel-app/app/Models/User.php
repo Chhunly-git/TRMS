@@ -130,7 +130,7 @@ class User extends Authenticatable
         // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
         $perms = $this->permissions;
         if (empty($perms) || !is_array($perms)) {
-            return in_array($permission, ['profile', 'my-attendances', 'document-templates']);
+            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules']);
         }
 
         return in_array($permission, $perms);
@@ -366,5 +366,13 @@ class User extends Authenticatable
         }
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * ទំនាក់ទំនងទៅកាន់តារាង WorkSchedule (កាលវិភាគការងាររបស់មន្ត្រី)
+     */
+    public function workSchedules(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkSchedule::class, 'user_id');
     }
 }

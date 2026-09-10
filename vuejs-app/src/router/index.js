@@ -23,6 +23,7 @@ import UserProfilePrint from "@/components/pages/UserProfilePrint.vue";
 import Profile from "@/components/pages/Profile.vue";
 import DocumentTemplateManager from "@/components/pages/DocumentTemplateManager.vue";
 import DocumentTemplateList from "@/components/pages/DocumentTemplateList.vue";
+import WorkSchedule from "@/components/pages/WorkSchedule.vue";
 
 
 // Layout Components
@@ -230,6 +231,17 @@ const router = createRouter({
         right_sidebar: RightSidebar,
       },
       meta: { guarded: true, permission: "manage-document-templates" },
+    },
+    {
+      path: "/work-schedules",
+      name: "work-schedules",
+      components: {
+        default: WorkSchedule,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "work-schedules" },
     },
     {
       path: "/:pathMatch(.*)*",

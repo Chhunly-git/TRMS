@@ -11,6 +11,7 @@ use App\Http\Controllers\API\PositionController;
 use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\AttendanceController;
 use App\Http\Controllers\API\DocumentTemplateController;
+use App\Http\Controllers\API\WorkScheduleController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,17 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::get('/manage/profile', [AuthController::class, 'getProfile']);
     Route::get('/my-profile', [AuthController::class, 'getProfile']);
     Route::get('/document-templates', [DocumentTemplateController::class, 'index']);
+    
+    // កាលវិភាគការងារ និងកិច្ចប្រជុំ (Work Schedules & Meetings)
+    Route::prefix('work-schedules')->group(function () {
+        Route::get('/', [WorkScheduleController::class, 'index']);
+        Route::get('/summary', [WorkScheduleController::class, 'summary']);
+        Route::get('/{id}', [WorkScheduleController::class, 'show']);
+        Route::post('/', [WorkScheduleController::class, 'store']);
+        Route::put('/{id}', [WorkScheduleController::class, 'update']);
+        Route::patch('/{id}/status', [WorkScheduleController::class, 'updateStatus']);
+        Route::delete('/{id}', [WorkScheduleController::class, 'destroy']);
+    });
     
     Route::middleware('admin')->prefix('manage')->group(function () {
         

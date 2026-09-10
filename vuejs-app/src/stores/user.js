@@ -113,7 +113,7 @@ export const useUserStore = defineStore('user',
         if (state.level && String(state.level).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
-        const defaultPerms = ['profile', 'my-attendances', 'document-templates'];
+        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules'];
         if (!state.permissions || !Array.isArray(state.permissions) || state.permissions.length === 0) {
           return defaultPerms.includes(permissionKey);
         }

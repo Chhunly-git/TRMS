@@ -69,6 +69,14 @@
             </router-link>
           </li>
 
+          <!-- កាលវិភាគការងារ -->
+          <li class="nav-item" v-if="userStore.can('work-schedules')">
+            <router-link :to="{ name: 'work-schedules' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-calendar-alt text-warning"></i>
+              <p>កាលវិភាគការងារ</p>
+            </router-link>
+          </li>
+
           <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
           <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង

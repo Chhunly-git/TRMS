@@ -1609,6 +1609,7 @@ const generalMenuItems = [
   { key: 'profile', label: 'ព័ត៌មានផ្ទាល់ខ្លួន', desc: 'មើល និងព្រីនប្រវត្តិរូបផ្ទាល់ខ្លួន', icon: 'fas fa-id-card', iconClass: 'text-success' },
   { key: 'my-attendances', label: 'វត្តមានរបស់ខ្ញុំ', desc: 'កត់ត្រា និងតាមដានវត្តមានផ្ទាល់ខ្លួន', icon: 'fas fa-calendar-check', iconClass: 'text-primary' },
   { key: 'document-templates', label: 'គំរូឯកសារ', desc: 'ទាញយកទម្រង់គំរូឯកសារផ្សេងៗ', icon: 'fas fa-folder-open', iconClass: 'text-warning' },
+  { key: 'work-schedules', label: 'កាលវិភាគការងារ', desc: 'កត់ត្រា និងគ្រប់គ្រងកាលវិភាគ/កិច្ចប្រជុំ', icon: 'fas fa-calendar-alt', iconClass: 'text-warning' },
 ];
 
 const managementMenuItems = [
@@ -1622,7 +1623,7 @@ const managementMenuItems = [
 ];
 
 const allPermissionKeys = [
-  'dashboard', 'profile', 'my-attendances', 'document-templates',
+  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules',
   'manage-document-templates', 'users', 'attendances',
   'departments', 'divisions', 'positions', 'backups'
 ];
@@ -1634,7 +1635,7 @@ const openPermissionModal = (user) => {
   } else if (Array.isArray(user.permissions) && user.permissions.length > 0) {
     selectedPermissions.value = [...user.permissions];
   } else {
-    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates'];
+    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules'];
   }
   showPermissionModal.value = true;
 };
