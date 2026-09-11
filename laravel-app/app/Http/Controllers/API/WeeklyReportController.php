@@ -242,9 +242,10 @@ class WeeklyReportController extends Controller
         $departments = $deptQuery->orderBy('id')->get(['id', 'name_kh', 'name_en']);
         $offices = $officeQuery->orderBy('id')->get(['id', 'department_id', 'name_kh', 'name_en']);
 
-        // បញ្ជីមន្ត្រីក្រោមឱវាទ (សម្រាប់ Filter មើលតាមមន្ត្រីជាក់លាក់)
+        // បញ្ជីមន្ត្រីក្រោមឱវាទ (សម្រាប់ Filter មើលតាមមន្ត្រីជាក់លាក់) - Order តាមកម្រិតតួនាទី (Position Level) ពីខ្ពស់ទៅទាប
         $userQuery = User::query()
             ->where('users.id', '!=', $viewer->id)
+            ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
             ->with(['position:id,title_kh,title_en,level']);
 
         if (!$isAdmin) {
@@ -265,8 +266,11 @@ class WeeklyReportController extends Controller
             }
         }
 
-        $officers = $userQuery->orderBy('users.name_kh')
-            ->get(['users.id', 'users.name_kh', 'users.name', 'users.department_id', 'users.office_id', 'users.position_id']);
+        $officers = $userQuery
+            ->orderByRaw('positions.level IS NULL, positions.level ASC')
+            ->orderBy('users.name_kh', 'asc')
+            ->select('users.id', 'users.name_kh', 'users.name', 'users.department_id', 'users.office_id', 'users.position_id')
+            ->get();
 
         return response()->json([
             'status' => 'success',

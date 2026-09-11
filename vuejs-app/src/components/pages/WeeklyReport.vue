@@ -1577,7 +1577,7 @@ const filteredOffices = computed(() => {
   return (filterOptions.value.offices || []).filter(o => o.department_id == filterDepartmentId.value);
 });
 
-// Filtered officers based on selected department and office
+// Filtered officers based on selected department and office (Order តាមកម្រិត Position ពីខ្ពស់ទៅទាប)
 const filteredOfficers = computed(() => {
   let list = filterOptions.value.officers || [];
   if (filterDepartmentId.value) {
@@ -1586,7 +1586,14 @@ const filteredOfficers = computed(() => {
   if (filterOfficeId.value) {
     list = list.filter(u => u.office_id == filterOfficeId.value);
   }
-  return list;
+  return [...list].sort((a, b) => {
+    const levelA = a.position?.level != null ? Number(a.position.level) : 9999;
+    const levelB = b.position?.level != null ? Number(b.position.level) : 9999;
+    if (levelA !== levelB) {
+      return levelA - levelB;
+    }
+    return (a.name_kh || a.name || '').localeCompare(b.name_kh || b.name || '', 'km');
+  });
 });
 
 // Label describing current filter scope for KPI tracking
