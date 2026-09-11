@@ -15,11 +15,12 @@ use App\Http\Controllers\API\WorkScheduleController;
 use App\Http\Controllers\API\MeetingRoomController;
 use App\Http\Controllers\API\RoomBookingController;
 use App\Http\Controllers\API\WeeklyReportController;
+use App\Http\Controllers\API\LeaveRequestController;
 
 use Illuminate\Support\Facades\Route;
 
 
-Route::post('/signin', [AuthController::class, 'signin']);
+Route::post('/signin', [AuthController::class, 'signin'])->name('login');
 Route::post('/send/reset-password-email', [AuthController::class, 'sendResetPasswordEmail']);
 Route::post('/set/new-password', [AuthController::class, 'setNewPassword'])->name('set.new-password');
 
@@ -95,6 +96,21 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::delete('/{id}', [WeeklyReportController::class, 'destroy']);
         Route::get('/{id}/download-attachment', [WeeklyReportController::class, 'downloadAttachment']);
         Route::patch('/tasks/{taskId}/status', [WeeklyReportController::class, 'updateTaskStatus']);
+    });
+
+    // ច្បាប់ឈប់សម្រាក (Leave Requests)
+    Route::prefix('leave-requests')->group(function () {
+        Route::get('/', [LeaveRequestController::class, 'index']);
+        Route::get('/stats', [LeaveRequestController::class, 'stats']);
+        Route::get('/next-approvers', [LeaveRequestController::class, 'getNextApproverCandidates']);
+        Route::get('/{id}', [LeaveRequestController::class, 'show']);
+        Route::post('/', [LeaveRequestController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [LeaveRequestController::class, 'update']);
+        Route::patch('/{id}/submit', [LeaveRequestController::class, 'submit']);
+        Route::post('/{id}/action', [LeaveRequestController::class, 'processAction']);
+        Route::post('/{id}/cancel', [LeaveRequestController::class, 'cancel']);
+        Route::delete('/{id}', [LeaveRequestController::class, 'destroy']);
+        Route::get('/{id}/download-attachment', [LeaveRequestController::class, 'downloadAttachment']);
     });
     
     Route::middleware('admin')->prefix('manage')->group(function () {

@@ -128,7 +128,7 @@ class User extends Authenticatable
         }
 
         // សិទ្ធិមូលដ្ឋានដែលមន្ត្រីគ្រប់រូបមានដោយស្វ័យប្រវត្តិ
-        if (in_array($permission, ['profile', 'weekly-reports'])) {
+        if (in_array($permission, ['profile', 'weekly-reports', 'leave-requests'])) {
             return true;
         }
 
@@ -139,7 +139,7 @@ class User extends Authenticatable
 
         // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
         if (empty($perms) || !is_array($perms)) {
-            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports']);
+            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests']);
         }
 
         return in_array($permission, $perms);
@@ -419,5 +419,21 @@ class User extends Authenticatable
     public function managedRooms(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(MeetingRoom::class, 'manager_id');
+    }
+
+    /**
+     * ទំនាក់ទំនងទៅកាន់ពាក្យសុំច្បាប់របស់មន្ត្រី
+     */
+    public function leaveRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LeaveRequest::class, 'user_id');
+    }
+
+    /**
+     * សំណើសុំច្បាប់ដែលកំពុងរង់ចាំការពិនិត្យរបស់មន្ត្រី/ថ្នាក់ដឹកនាំរូបនេះ
+     */
+    public function pendingLeaveReviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LeaveRequest::class, 'current_approver_id')->where('status', 'PENDING');
     }
 }

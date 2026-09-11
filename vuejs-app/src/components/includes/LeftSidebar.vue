@@ -93,6 +93,14 @@
             </router-link>
           </li>
 
+          <!-- ច្បាប់ឈប់សម្រាក -->
+          <li class="nav-item" v-if="userStore.can('leave-requests')">
+            <router-link :to="{ name: 'leave-requests' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-calendar-minus text-warning"></i>
+              <p>ច្បាប់ឈប់សម្រាក</p>
+            </router-link>
+          </li>
+
           <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
           <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង
