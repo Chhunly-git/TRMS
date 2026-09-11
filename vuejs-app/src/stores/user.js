@@ -115,7 +115,12 @@ export const useUserStore = defineStore('user',
         if (lvl && String(lvl).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
-        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
+        // សិទ្ធិមូលដ្ឋានដែលមន្ត្រីគ្រប់រូបត្រូវតែអាចប្រើប្រាស់បាន
+        const baseOfficerPerms = ['profile', 'weekly-reports'];
+        if (baseOfficerPerms.includes(permissionKey)) {
+          return true;
+        }
+        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports'];
         if (!state.permissions || !Array.isArray(state.permissions) || state.permissions.length === 0) {
           return defaultPerms.includes(permissionKey);
         }

@@ -25,6 +25,7 @@ import DocumentTemplateManager from "@/components/pages/DocumentTemplateManager.
 import DocumentTemplateList from "@/components/pages/DocumentTemplateList.vue";
 import WorkSchedule from "@/components/pages/WorkSchedule.vue";
 import MeetingRoomBooking from "@/components/pages/MeetingRoomBooking.vue";
+import WeeklyReport from "@/components/pages/WeeklyReport.vue";
 
 
 // Layout Components
@@ -265,6 +266,17 @@ const router = createRouter({
         right_sidebar: RightSidebar,
       },
       meta: { guarded: true, permission: "manage-meeting-rooms" },
+    },
+    {
+      path: "/weekly-reports",
+      name: "weekly-reports",
+      components: {
+        default: WeeklyReport,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "weekly-reports" },
     },
     {
       path: "/:pathMatch(.*)*",

@@ -15,13 +15,29 @@ class DeleteUserRequest extends FormRequest
         $currentUser = $this->user();
         $targetId = (int) $this->route('id');
 
-        // ១. ត្រូវតែជា ADMIN ទើបមានសិទ្ធិលុប
-        if (!$currentUser || $currentUser->level !== 'ADMIN') {
+        // ១. ត្រូវតែជា ADMIN ឬអ្នកដែលមានសិទ្ធិ users ទើបមានសិទ្ធិលុប
+        if (!$currentUser) {
             return false;
         }
 
-        // ២. មិនអនុញ្ញាតឱ្យ ADMIN លុបគណនីរបស់ខ្លួនឯងឡើយ
-        return $currentUser->id !== $targetId;
+        if (strtoupper($currentUser->level ?? '') === 'ADMIN' || $currentUser->hasPermission('users')) {
+            // មិនអនុញ្ញាតឱ្យលុបគណនីរបស់ខ្លួនឯងឡើយ
+            if ($currentUser->id === $targetId) {
+                return false;
+            }
+
+            // ប្រសិនបើមិនមែនជា ADMIN មិនអាចលុបគណនី ADMIN បានឡើយ
+            if (strtoupper($currentUser->level ?? '') !== 'ADMIN') {
+                $targetUser = \App\Models\User::find($targetId);
+                if ($targetUser && strtoupper($targetUser->level ?? '') === 'ADMIN') {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

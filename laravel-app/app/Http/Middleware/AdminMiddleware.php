@@ -23,19 +23,12 @@ class AdminMiddleware
         }
 
         // 1. ប្រសិនបើជា ADMIN មានសិទ្ធិពេញលេញលើគ្រប់មុខងារទាំងអស់
-        if ($user->level === 'ADMIN') {
+        if (strtoupper($user->level ?? '') === 'ADMIN') {
             return $next($request);
         }
 
         // 2. ពិនិត្យសិទ្ធិតាមផ្លូវ API (Path-based Permission Check)
         $path = $request->path();
-
-        // ហាមឃាត់ដាច់ខាតមិនឱ្យ User ធម្មតាចូលកែប្រែសិទ្ធិ ឬលុប User ឡើយ
-        if (str_contains($path, 'manage/users/permissions')) {
-            return response([
-                'message' => 'Unauthorized. Admin access required to manage permissions.'
-            ], 403);
-        }
 
         if ($this->hasPermissionForPath($user, $path, $request)) {
             return $next($request);
@@ -66,7 +59,7 @@ class AdminMiddleware
 
         if (str_contains($path, 'manage/offices')) {
             return $user->hasPermission('divisions') 
-                || ($request->isMethod('GET') && $user->hasPermission('users'));
+                || ($request->isMethod('GET') && ($user->hasPermission('departments') || $user->hasPermission('users')));
         }
 
         if (str_contains($path, 'manage/positions')) {
@@ -87,7 +80,7 @@ class AdminMiddleware
         }
 
         if (str_contains($path, 'manage/meeting-rooms')) {
-            return $user->hasPermission('manage-meeting-rooms');
+            return $user->hasPermission('manage-meeting-rooms') || $user->canManageRooms();
         }
 
         return false;

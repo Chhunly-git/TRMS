@@ -272,19 +272,32 @@
                       <button class="btn btn-action btn-print text-primary" title="បោះពុម្ពប្រវត្តិរូប" @click="printUserProfile(item.id)">
                         <i class="fas fa-print"></i>
                       </button>
-                      <button class="btn btn-action btn-permission text-warning" title="កំណត់សិទ្ធិប្រើប្រាស់ម៉ឺនុយ" @click="openPermissionModal(item)">
+                      <button 
+                        v-if="userStore.isAdmin || item.level !== 'ADMIN'"
+                        class="btn btn-action btn-permission text-warning" 
+                        title="កំណត់សិទ្ធិប្រើប្រាស់ម៉ឺនុយ" 
+                        @click="openPermissionModal(item)">
                         <i class="fas fa-shield-alt"></i>
                       </button>
-                      <button class="btn btn-action btn-edit" title="កែសម្រួល" @click="openEditModal(item)">
+                      <button 
+                        v-if="userStore.isAdmin || item.level !== 'ADMIN'"
+                        class="btn btn-action btn-edit" 
+                        title="កែសម្រួល" 
+                        @click="openEditModal(item)">
                         <i class="fas fa-edit"></i>
                       </button>
                       <button
+                        v-if="userStore.isAdmin || item.level !== 'ADMIN'"
                         :class="item.status === 'ENABLED' ? 'btn btn-action btn-disable' : 'btn btn-action btn-enable'"
                         :title="item.status === 'ENABLED' ? 'ផ្អាកដំណើរការ' : 'បើកដំណើរការ'"
                         @click="toggleStatus(item)">
                         <i :class="item.status === 'ENABLED' ? 'fas fa-user-slash' : 'fas fa-user-check'"></i>
                       </button>
-                      <button class="btn btn-action btn-delete" title="លុប" @click="removeUser(item.id)">
+                      <button 
+                        v-if="userStore.isAdmin || item.level !== 'ADMIN'"
+                        class="btn btn-action btn-delete" 
+                        title="លុប" 
+                        @click="removeUser(item.id)">
                         <i class="fas fa-trash-alt"></i>
                       </button>
                     </div>
@@ -1611,6 +1624,7 @@ const generalMenuItems = [
   { key: 'document-templates', label: 'គំរូឯកសារ', desc: 'ទាញយកទម្រង់គំរូឯកសារផ្សេងៗ', icon: 'fas fa-folder-open', iconClass: 'text-warning' },
   { key: 'work-schedules', label: 'កាលវិភាគការងារ', desc: 'កត់ត្រា និងគ្រប់គ្រងកាលវិភាគ/កិច្ចប្រជុំ', icon: 'fas fa-calendar-alt', iconClass: 'text-warning' },
   { key: 'meeting-rooms', label: 'បន្ទប់ប្រជុំ & ការកក់', desc: 'មើលកាលវិភាគ និងស្នើសុំកក់បន្ទប់ប្រជុំ', icon: 'fas fa-door-open', iconClass: 'text-info' },
+  { key: 'weekly-reports', label: 'របាយការណ៍ប្រចាំសប្តាហ៍', desc: 'កត់ត្រា និងតាមដានរបាយការណ៍/កិច្ចការប្រចាំសប្តាហ៍', icon: 'fas fa-clipboard-list', iconClass: 'text-info' },
 ];
 
 const managementMenuItems = [
@@ -1625,19 +1639,28 @@ const managementMenuItems = [
 ];
 
 const allPermissionKeys = [
-  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms',
+  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports',
   'manage-document-templates', 'manage-meeting-rooms', 'users', 'attendances',
   'departments', 'divisions', 'positions', 'backups'
 ];
 
 const openPermissionModal = (user) => {
+  if (!userStore.isAdmin && user.level === 'ADMIN') {
+    Swal.fire({
+      icon: 'warning',
+      title: 'មិនមានសិទ្ធិ',
+      text: 'មិនអាចកែប្រែសិទ្ធិរបស់គណនី Admin បានឡើយ!',
+      confirmButtonText: 'យល់ព្រម'
+    });
+    return;
+  }
   permissionTargetUser.value = user;
   if (user.level === 'ADMIN') {
     selectedPermissions.value = [...allPermissionKeys];
   } else if (Array.isArray(user.permissions) && user.permissions.length > 0) {
     selectedPermissions.value = [...user.permissions];
   } else {
-    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
+    selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports'];
   }
   showPermissionModal.value = true;
 };
@@ -1662,7 +1685,7 @@ const selectAllPermissions = () => {
 };
 
 const resetToDefaultPermissions = () => {
-  selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms'];
+  selectedPermissions.value = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports'];
 };
 
 const clearAllPermissions = () => {

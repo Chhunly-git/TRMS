@@ -123,14 +123,23 @@ class User extends Authenticatable
      */
     public function hasPermission(string $permission): bool
     {
-        if ($this->level === 'ADMIN') {
+        if (strtoupper($this->level ?? '') === 'ADMIN') {
             return true;
         }
 
-        // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
+        // សិទ្ធិមូលដ្ឋានដែលមន្ត្រីគ្រប់រូបមានដោយស្វ័យប្រវត្តិ
+        if (in_array($permission, ['profile', 'weekly-reports'])) {
+            return true;
+        }
+
         $perms = $this->permissions;
+        if (is_string($perms)) {
+            $perms = json_decode($perms, true);
+        }
+
+        // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
         if (empty($perms) || !is_array($perms)) {
-            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms']);
+            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports']);
         }
 
         return in_array($permission, $perms);
@@ -141,7 +150,7 @@ class User extends Authenticatable
      */
     public function canManageRooms(?int $roomId = null): bool
     {
-        if ($this->level === 'ADMIN') {
+        if (strtoupper($this->level ?? '') === 'ADMIN') {
             return true;
         }
 

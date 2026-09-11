@@ -25,7 +25,23 @@ class UserResource extends JsonResource
             'profile_thumbnail' => $this->profile_thumbnail,
             'password_null' => $this->password_null,
             'level' => $this->level,
-            'permissions' => $this->permissions ?? ($this->level === 'ADMIN' ? ['all'] : ['profile', 'my-attendances', 'document-templates']),
+            'permissions' => (function () {
+                $defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports'];
+                if ($this->level === 'ADMIN') {
+                    if (empty($this->permissions)) {
+                        return ['all'];
+                    }
+                    return array_values(array_unique(array_merge($this->permissions, ['weekly-reports'])));
+                }
+                if (empty($this->permissions)) {
+                    return $defaultPerms;
+                }
+                $perms = $this->permissions;
+                if (!in_array('weekly-reports', $perms)) {
+                    $perms[] = 'weekly-reports';
+                }
+                return array_values(array_unique($perms));
+            })(),
             'status' => $this->status,
 
             // អង្គភាព & តួនាទី

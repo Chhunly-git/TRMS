@@ -19,11 +19,12 @@ class WorkScheduleController extends Controller
         $user = $request->user();
         $query = WorkSchedule::with('user:id,name,name_kh,name_en,profile_image');
 
-        // កំណត់សិទ្ធិមើល៖ Admin អាចមើលទាំងអស់ ឬមើលតាមមន្ត្រីជាក់លាក់; User មើលតែកាលវិភាគខ្លួនឯង
-        if ($user->level === 'ADMIN' && $request->filled('user_id')) {
+        // កំណត់សិទ្ធិមើល៖ Admin ឬអ្នកគ្រប់គ្រង អាចមើលទាំងអស់ ឬមើលតាមមន្ត្រីជាក់លាក់; User មើលតែកាលវិភាគខ្លួនឯង
+        $isManager = (strtoupper($user->level ?? '') === 'ADMIN' || $user->hasPermission('users') || $user->hasPermission('work-schedules-manage') || $user->hasPermission('manage-work-schedules'));
+        if ($isManager && $request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
-        } elseif ($user->level === 'ADMIN' && $request->get('scope') === 'all') {
-            // Admin មើលកាលវិភាគទាំងអស់
+        } elseif ($isManager && $request->get('scope') === 'all') {
+            // អ្នកគ្រប់គ្រងមើលកាលវិភាគទាំងអស់
         } else {
             $query->where('user_id', $user->id);
         }
@@ -91,7 +92,8 @@ class WorkScheduleController extends Controller
     public function summary(Request $request)
     {
         $user = $request->user();
-        $targetUserId = ($user->level === 'ADMIN' && $request->filled('user_id')) 
+        $isManager = (strtoupper($user->level ?? '') === 'ADMIN' || $user->hasPermission('users') || $user->hasPermission('work-schedules-manage') || $user->hasPermission('manage-work-schedules'));
+        $targetUserId = ($isManager && $request->filled('user_id')) 
             ? $request->user_id 
             : $user->id;
 
@@ -104,7 +106,7 @@ class WorkScheduleController extends Controller
         }
 
         $baseQuery = WorkSchedule::where('user_id', $targetUserId);
-        if ($user->level === 'ADMIN' && $request->get('scope') === 'all') {
+        if ($isManager && $request->get('scope') === 'all') {
             $baseQuery = WorkSchedule::query();
         }
 
@@ -199,7 +201,8 @@ class WorkScheduleController extends Controller
         ]);
 
         $user = $request->user();
-        $targetUserId = ($user->level === 'ADMIN' && $request->filled('user_id')) 
+        $isManager = (strtoupper($user->level ?? '') === 'ADMIN' || $user->hasPermission('users') || $user->hasPermission('work-schedules-manage') || $user->hasPermission('manage-work-schedules'));
+        $targetUserId = ($isManager && $request->filled('user_id')) 
             ? $request->user_id 
             : $user->id;
 
@@ -334,7 +337,8 @@ class WorkScheduleController extends Controller
      */
     private function checkScheduleAccess($user, WorkSchedule $schedule): void
     {
-        if ($user->level === 'ADMIN') {
+        $isManager = (strtoupper($user->level ?? '') === 'ADMIN' || $user->hasPermission('users') || $user->hasPermission('work-schedules-manage') || $user->hasPermission('manage-work-schedules'));
+        if ($isManager) {
             return;
         }
 

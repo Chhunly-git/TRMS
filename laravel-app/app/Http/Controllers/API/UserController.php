@@ -98,7 +98,7 @@ class UserController extends Controller
             $data = $request->except(['profile_image', 'national_id_file', 'passport_file']);
 
             $data['name'] = $request->name_kh ?? $request->name_en ?? 'System User';
-            $data['level'] = $request->level ?? 'USER';
+            $data['level'] = (strtoupper($request->user()->level ?? '') === 'ADMIN') ? ($request->level ?? 'USER') : 'USER';
             $data['status'] = $request->status ?? 'ENABLED';
 
             if ($request->has('permissions')) {
@@ -334,11 +334,25 @@ class UserController extends Controller
     public function updateUser(UpdateUserRequest $request)
     {
         $user = User::where('id', $request->route('id'))->firstOrFail();
+        $currentUser = $request->user();
+
+        // ប្រសិនបើមិនមែនជា ADMIN មិនអាចកែប្រែទិន្នន័យ Admin បានឡើយ
+        if (strtoupper($currentUser->level ?? '') !== 'ADMIN' && strtoupper($user->level ?? '') === 'ADMIN') {
+            return response([
+                'success' => false,
+                'message' => 'មិនអាចកែប្រែទិន្នន័យរបស់អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin) បានឡើយ។'
+            ], 403);
+        }
 
         try {
             DB::beginTransaction();
 
             $data = $request->except(['password', 'profile_image', 'national_id_file', 'passport_file', '_method']);
+
+            // មិនអនុញ្ញាតឱ្យ non-admin ដំឡើង level ជា ADMIN ឡើយ
+            if (strtoupper($currentUser->level ?? '') !== 'ADMIN') {
+                unset($data['level']);
+            }
             
             if ($request->filled('name_kh') || $request->filled('name_en')) {
                 $data['name'] = $request->name_kh ?? $request->name_en;
@@ -634,6 +648,14 @@ class UserController extends Controller
     {
         $user = User::where('id', $request->route('id'))->firstOrFail();
 
+        // មិនអនុញ្ញាតឱ្យ non-admin បិទគណនី ADMIN ឡើយ
+        if (strtoupper($request->user()->level ?? '') !== 'ADMIN' && strtoupper($user->level ?? '') === 'ADMIN') {
+            return response([
+                'success' => false,
+                'message' => 'មិនអាចផ្លាស់ប្តូរស្ថានភាពរបស់អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin) បានឡើយ។'
+            ], 403);
+        }
+
         try {
             DB::beginTransaction();
             $user->status = $user->status === 'ENABLED' ? 'DISABLED' : 'ENABLED';
@@ -681,12 +703,21 @@ public function getProfile(Request $request)
         ]);
 
         $user = User::findOrFail($id);
+        $currentUser = $request->user();
 
-        // មានតែ ADMIN ប៉ុណ្ណោះដែលអាចកំណត់សិទ្ធិបាន
-        if ($request->user()->level !== 'ADMIN') {
+        // ត្រូវតែជា ADMIN ឬមានសិទ្ធិ users
+        if (strtoupper($currentUser->level ?? '') !== 'ADMIN' && !$currentUser->hasPermission('users')) {
             return response([
                 'success' => false,
                 'message' => 'គ្មានសិទ្ធិកំណត់សិទ្ធិប្រើប្រាស់ឡើយ។'
+            ], 403);
+        }
+
+        // ប្រសិនបើមិនមែនជា ADMIN មិនអាចកែប្រែសិទ្ធិរបស់ ADMIN បានឡើយ
+        if (strtoupper($currentUser->level ?? '') !== 'ADMIN' && strtoupper($user->level ?? '') === 'ADMIN') {
+            return response([
+                'success' => false,
+                'message' => 'មិនអាចកែប្រែសិទ្ធិរបស់អ្នកគ្រប់គ្រងប្រព័ន្ធ (Admin) បានឡើយ។'
             ], 403);
         }
 

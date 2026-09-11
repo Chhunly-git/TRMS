@@ -37,10 +37,10 @@
                 </p>
               </div>
 
-              <!-- Admin shortcut button if admin -->
-              <div class="col-lg-5 text-lg-right" v-if="userStore.isAdmin">
+              <!-- Admin/Manager shortcut button -->
+              <div class="col-lg-5 text-lg-right" v-if="userStore.isAdmin || userStore.can('manage-document-templates')">
                 <router-link :to="{ name: 'manage-document-templates' }" class="btn btn-success shadow-sm">
-                  <i class="fas fa-cog mr-1"></i> គ្រប់គ្រងគំរូឯកសារ (Admin)
+                  <i class="fas fa-cog mr-1"></i> គ្រប់គ្រងគំរូឯកសារ
                 </router-link>
               </div>
             </div>

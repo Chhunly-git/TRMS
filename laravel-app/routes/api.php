@@ -14,6 +14,7 @@ use App\Http\Controllers\API\DocumentTemplateController;
 use App\Http\Controllers\API\WorkScheduleController;
 use App\Http\Controllers\API\MeetingRoomController;
 use App\Http\Controllers\API\RoomBookingController;
+use App\Http\Controllers\API\WeeklyReportController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -79,6 +80,21 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::match(['POST', 'PATCH'], '/{id}/approve', [RoomBookingController::class, 'approve']);
         Route::match(['POST', 'PATCH'], '/{id}/reject', [RoomBookingController::class, 'reject']);
         Route::delete('/{id}', [RoomBookingController::class, 'destroy']);
+    });
+
+    // របាយការណ៍ការងារប្រចាំសប្តាហ៍ (Weekly Reports)
+    Route::prefix('weekly-reports')->group(function () {
+        Route::get('/', [WeeklyReportController::class, 'index']);
+        Route::get('/stats', [WeeklyReportController::class, 'stats']);
+        Route::get('/filter-options', [WeeklyReportController::class, 'filterOptions']);
+        Route::get('/{id}', [WeeklyReportController::class, 'show']);
+        Route::post('/', [WeeklyReportController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [WeeklyReportController::class, 'update']);
+        Route::patch('/{id}/submit', [WeeklyReportController::class, 'submit']);
+        Route::patch('/{id}/review', [WeeklyReportController::class, 'review']);
+        Route::delete('/{id}', [WeeklyReportController::class, 'destroy']);
+        Route::get('/{id}/download-attachment', [WeeklyReportController::class, 'downloadAttachment']);
+        Route::patch('/tasks/{taskId}/status', [WeeklyReportController::class, 'updateTaskStatus']);
     });
     
     Route::middleware('admin')->prefix('manage')->group(function () {

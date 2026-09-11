@@ -85,6 +85,14 @@
             </router-link>
           </li>
 
+          <!-- របាយការណ៍ប្រចាំសប្តាហ៍ -->
+          <li class="nav-item" v-if="userStore.can('weekly-reports')">
+            <router-link :to="{ name: 'weekly-reports' }" active-class="active" class="nav-link">
+              <i class="nav-icon fas fa-clipboard-list text-info"></i>
+              <p>របាយការណ៍ប្រចាំសប្តាហ៍</p>
+            </router-link>
+          </li>
+
           <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
           <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង

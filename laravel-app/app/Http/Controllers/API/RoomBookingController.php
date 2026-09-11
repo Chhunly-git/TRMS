@@ -301,7 +301,8 @@ class RoomBookingController extends Controller
 
         // ពិនិត្យសិទ្ធិ៖ សាមីខ្លួនអាចកែបានពេលនៅ PENDING ឬ Admin/Manager អាចកែបាន
         $isOwner = $booking->user_id === $user->id;
-        $isManager = $user->canManageRooms($booking->room_id);
+        $targetRoomId = $booking->room_id ?: $booking->preferred_room_id;
+        $isManager = $user->canManageRooms($targetRoomId);
 
         if (!$isOwner && !$isManager) {
             return response()->json([
@@ -379,8 +380,9 @@ class RoomBookingController extends Controller
     {
         $booking = RoomBooking::findOrFail($id);
         $user = $request->user();
+        $targetRoomId = $booking->room_id ?: $booking->preferred_room_id;
 
-        if ($booking->user_id !== $user->id && !$user->canManageRooms($booking->room_id)) {
+        if ($booking->user_id !== $user->id && !$user->canManageRooms($targetRoomId)) {
             return response()->json([
                 'success' => false,
                 'message' => 'លោកអ្នកមិនមានសិទ្ធិបោះបង់ការកក់នេះឡើយ!'
@@ -406,7 +408,8 @@ class RoomBookingController extends Controller
         $user = $request->user();
 
         $isOwner = $booking->user_id === $user->id;
-        $isManager = $user->canManageRooms($booking->room_id);
+        $targetRoomId = $booking->room_id ?: $booking->preferred_room_id;
+        $isManager = $user->canManageRooms($targetRoomId);
 
         if (!$isOwner && !$isManager) {
             return response()->json([
