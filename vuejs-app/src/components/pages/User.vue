@@ -1596,6 +1596,9 @@ import {
 import { apiGetDepartments } from '@/functions/api/department';
 import { apiGetOfficesByDepartment } from '@/functions/api/office';
 import { apiGetPositions } from '@/functions/api/position';
+import { useUserStore } from '@/stores/user';
+
+const userStore = useUserStore();
 
 const defaultAvatar = 'https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg';
 
