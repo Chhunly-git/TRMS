@@ -43,6 +43,7 @@ class LeaveRequestController extends Controller
             'approvals.user:id,name,name_kh,profile_image,position_id',
             'approvals.user.position:id,title_kh,title_en,level',
             'approvals.forwardedTo:id,name,name_kh,profile_image,position_id',
+            'approvals.forwardedTo.position:id,title_kh,title_en,level',
         ]);
 
         if ($scope === 'my') {
@@ -53,11 +54,14 @@ class LeaveRequestController extends Controller
             if ($isAdmin) {
                 $query->where('leave_requests.status', 'PENDING');
             } elseif ($viewerPosLevel === 1) {
-                // អគ្គនាយក (DG) មើលឃើញសំណើដែលចង្អុលមកខ្លួន ឬសំណើដែលដល់កម្រិត LEADERSHIP
+                // អគ្គនាយក (DG) មើលឃើញសំណើដែលចង្អុលមកខ្លួន ឬសំណើដែលដល់កម្រិត LEADERSHIP ដោយមិនបានចង្អុលទៅនរណាជាក់លាក់
                 $query->where('leave_requests.status', 'PENDING')
                       ->where(function ($q) use ($viewer) {
                           $q->where('leave_requests.current_approver_id', $viewer->id)
-                            ->orWhere('leave_requests.current_stage', 'LEADERSHIP');
+                            ->orWhere(function ($subQ) {
+                                $subQ->whereNull('leave_requests.current_approver_id')
+                                     ->where('leave_requests.current_stage', 'LEADERSHIP');
+                            });
                       });
             } elseif ($viewerPosLevel === 2) {
                 // អគ្គនាយករង (DDG) មើលឃើញតែសំណើដែលចង្អុលមកខ្លួនប៉ុណ្ណោះ (មិនបង្ហាញសំណើដែលបានបញ្ជូនទៅអគ្គនាយករួចហើយ)
@@ -164,6 +168,99 @@ class LeaveRequestController extends Controller
     }
 
     /**
+     * គណនាកូតា និងសមតុល្យច្បាប់ឈប់សម្រាកទាំង ៥ ប្រភេទ
+     */
+    public static function getLeaveBalances(int $userId, ?int $year = null, ?int $excludeRequestId = null): array
+    {
+        $year = $year ?: Carbon::now()->year;
+
+        $leaveTypesConfig = [
+            'ANNUAL' => [
+                'name_kh' => 'ច្បាប់ឈប់សម្រាកប្រចាំឆ្នាំ',
+                'max_limit' => 15.0,
+                'unit' => 'ថ្ងៃ',
+                'period_label' => "១៥ ថ្ងៃ / ឆ្នាំ ({$year})",
+                'scope' => 'YEAR',
+            ],
+            'SHORT_TERM' => [
+                'name_kh' => 'ច្បាប់ឈប់សម្រាករយៈពេលខ្លី',
+                'max_limit' => 15.0,
+                'unit' => 'ថ្ងៃ',
+                'period_label' => "១៥ ថ្ងៃ / ឆ្នាំ ({$year})",
+                'scope' => 'YEAR',
+            ],
+            'MATERNITY' => [
+                'name_kh' => 'ច្បាប់ឈប់សម្រាកលំហែមាតុភាព',
+                'max_limit' => 90.0,
+                'unit' => 'ថ្ងៃ',
+                'period_label' => '៣ ខែ (៩០ ថ្ងៃ) / លើក',
+                'scope' => 'EVENT',
+            ],
+            'SICK' => [
+                'name_kh' => 'ច្បាប់ឈប់សម្រាកព្យាបាលជំងឺ',
+                'max_limit' => 365.0,
+                'unit' => 'ថ្ងៃ',
+                'period_label' => '១២ ខែ (៣៦៥ ថ្ងៃ) / ជីវិតការងារ',
+                'scope' => 'CAREER',
+            ],
+            'PERSONAL' => [
+                'name_kh' => 'ច្បាប់ឈប់សម្រាកមានកិច្ចការផ្ទាល់ខ្លួន',
+                'max_limit' => 90.0,
+                'unit' => 'ថ្ងៃ',
+                'period_label' => '៣ ខែ (៩០ ថ្ងៃ) / ជីវិតការងារ',
+                'scope' => 'CAREER',
+            ],
+        ];
+
+        $balances = [];
+
+        foreach ($leaveTypesConfig as $type => $config) {
+            $queryApproved = LeaveRequest::where('user_id', $userId)
+                ->where('leave_type', $type)
+                ->where('status', 'APPROVED');
+
+            $queryPending = LeaveRequest::where('user_id', $userId)
+                ->where('leave_type', $type)
+                ->where('status', 'PENDING');
+
+            if ($excludeRequestId) {
+                $queryApproved->where('id', '!=', $excludeRequestId);
+                $queryPending->where('id', '!=', $excludeRequestId);
+            }
+
+            if ($config['scope'] === 'YEAR') {
+                $queryApproved->whereYear('start_date', $year);
+                $queryPending->whereYear('start_date', $year);
+            }
+
+            $usedApproved = (float) $queryApproved->sum('duration_days');
+            $usedPending = (float) $queryPending->sum('duration_days');
+            $totalUsed = $usedApproved + $usedPending;
+
+            if ($config['scope'] === 'EVENT') {
+                $remaining = (float) $config['max_limit'];
+            } else {
+                $remaining = max(0.0, (float) ($config['max_limit'] - $totalUsed));
+            }
+
+            $balances[$type] = [
+                'type' => $type,
+                'name_kh' => $config['name_kh'],
+                'max_limit' => $config['max_limit'],
+                'used_approved' => $usedApproved,
+                'used_pending' => $usedPending,
+                'total_used' => $totalUsed,
+                'remaining' => $remaining,
+                'unit' => $config['unit'],
+                'period_label' => $config['period_label'],
+                'scope' => $config['scope'],
+            ];
+        }
+
+        return $balances;
+    }
+
+    /**
      * ស្ថិតិសង្ខេបពាក្យសុំច្បាប់ (Stats)
      */
     public function stats(Request $request)
@@ -171,7 +268,7 @@ class LeaveRequestController extends Controller
         $viewer = $request->user()->loadMissing('position', 'department', 'office');
         $viewerPosLevel = $viewer->position ? (int)$viewer->position->level : 99;
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $currentYear = Carbon::now()->year;
+        $currentYear = (int)$request->get('year', Carbon::now()->year);
 
         // ស្ថិតិផ្ទាល់ខ្លួន
         $myRequests = LeaveRequest::where('user_id', $viewer->id);
@@ -188,6 +285,9 @@ class LeaveRequestController extends Controller
             ->whereYear('start_date', $currentYear)
             ->sum('duration_days');
 
+        // សមតុល្យកូតាច្បាប់ទាំង ៥ ប្រភេទ
+        $leaveBalances = self::getLeaveBalances($viewer->id, $currentYear);
+
         // ចំនួនសំណើដែលត្រូវពិនិត្យ (Pending Review Count)
         // ត្រូវស៊ីសង្វាក់គ្នា ១០០% ជាមួយ scope === 'pending_review' ក្នុង index()
         $pendingReviewsQuery = LeaveRequest::where('leave_requests.status', 'PENDING');
@@ -197,7 +297,10 @@ class LeaveRequestController extends Controller
             // អគ្គនាយក (DG)
             $pendingReviewsQuery->where(function ($q) use ($viewer) {
                 $q->where('leave_requests.current_approver_id', $viewer->id)
-                  ->orWhere('leave_requests.current_stage', 'LEADERSHIP');
+                  ->orWhere(function ($subQ) {
+                      $subQ->whereNull('leave_requests.current_approver_id')
+                           ->where('leave_requests.current_stage', 'LEADERSHIP');
+                  });
             });
         } elseif ($viewerPosLevel === 2) {
             // អគ្គនាយករង (DDG) មើលឃើញតែសំណើដែលចង្អុលមកខ្លួនប៉ុណ្ណោះ
@@ -271,6 +374,7 @@ class LeaveRequestController extends Controller
                     'rejected' => $myRejected,
                     'annual_days_used' => (float)$annualDaysUsed,
                 ],
+                'leave_balances' => $leaveBalances,
                 'review_stats' => [
                     'pending' => $pendingReviewsCount,
                     'forwarded' => $reviewForwarded,
@@ -313,8 +417,12 @@ class LeaveRequestController extends Controller
             $lr = LeaveRequest::with('user.position', 'currentApprover.position', 'department', 'office')->findOrFail($requestId);
             $applicant = $lr->user;
             $currentStage = $lr->current_stage;
-            $startDate = $lr->start_date->toDateString();
-            $endDate = $lr->end_date->toDateString();
+            $startDate = $lr->start_date instanceof \DateTimeInterface 
+                ? $lr->start_date->format('Y-m-d') 
+                : (string)($lr->start_date ?? Carbon::today()->toDateString());
+            $endDate = $lr->end_date instanceof \DateTimeInterface 
+                ? $lr->end_date->format('Y-m-d') 
+                : (string)($lr->end_date ?? $startDate);
             $targetOfficeId = $lr->office_id ?? $applicant?->office_id;
             $targetDeptId = $lr->department_id ?? $applicant?->department_id;
 
@@ -338,51 +446,104 @@ class LeaveRequestController extends Controller
         $applicantPosLevel = $applicant->position ? (int)$applicant->position->level : 99;
         $viewerPosLevel = $viewer->position ? (int)$viewer->position->level : 99;
 
-        // កំណត់កម្រិតថ្នាក់ដឹកនាំដែលត្រូវស្វែងរក
-        // កម្រិតទី ១ (Immediate Candidates) និង កម្រិតបន្ទាប់ (Next Tier Candidates - សម្រាប់រំលង)
+        // កំណត់កម្រិតថ្នាក់ដឹកនាំដែលត្រូវស្វែងរកតាមឋានានុក្រមផ្ទាល់
         $candidates = collect();
-        $nextTierCandidates = collect();
 
-        // ប្រសិនបើជាអ្នកដាក់ពាក្យដំបូង (Officer Level 9+)
+        // ករណីទី ១៖ អ្នកដាក់ពាក្យស្នើសុំដំបូង (Initial Request Submission by Applicant)
         if (!$requestId || $viewer->id === $applicant->id) {
-            if ($targetOfficeId) {
-                // ថ្នាក់ដឹកនាំការិយាល័យ (អនុប្រធានការិយាល័យ Level 8, ប្រធានការិយាល័យ Level 6-7)
-                $candidates = User::where('office_id', $targetOfficeId)
+            if ($applicantPosLevel === 1) {
+                // អគ្គនាយក មិនចាំបាច់មានថ្នាក់ដឹកនាំពិនិត្យបន្តទេ
+                $candidates = collect();
+            } elseif ($applicantPosLevel === 2) {
+                // អគ្គនាយករង -> ត្រូវដាក់ជូនតែឯកឧត្តមអគ្គនាយក (Level 1)
+                $candidates = User::whereHas('position', fn($q) => $q->where('level', 1))
                     ->where('id', '!=', $applicant->id)
-                    ->whereHas('position', fn($q) => $q->whereIn('level', [6, 7, 8]))
-                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                    ->with('position:id,title_kh,title_en,level')
                     ->get();
-
-                // Next Tier: ថ្នាក់ដឹកនាំនាយកដ្ឋាន (សម្រាប់រំលង បើប្រធានការិយាល័យឈប់)
+            } elseif ($applicantPosLevel <= 4 && $applicantPosLevel >= 3) {
+                // ប្រធាននាយកដ្ឋាន / ស្តីទី -> ដាក់ជូនថ្នាក់ដឹកនាំអគ្គនាយកដ្ឋាន (Level 1, 2)
+                $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                    ->where('id', '!=', $applicant->id)
+                    ->with('position:id,title_kh,title_en,level')
+                    ->get();
+            } elseif ($applicantPosLevel === 5) {
+                // អនុប្រធាននាយកដ្ឋាន -> ដាក់ជូនប្រធាននាយកដ្ឋាន (Level 3, 4)
                 if ($targetDeptId) {
-                    $nextTierCandidates = User::where('department_id', $targetDeptId)
+                    $candidates = User::where('department_id', $targetDeptId)
+                        ->where('id', '!=', $applicant->id)
+                        ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4]))
+                        ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                        ->get();
+                }
+                // បើគ្មានប្រធាននាយកដ្ឋាន -> ឆ្លងទៅថ្នាក់ដឹកនាំអគ្គនាយកដ្ឋាន
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $applicant->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
+            } elseif ($applicantPosLevel <= 7 && $applicantPosLevel >= 6) {
+                // ប្រធានការិយាល័យ / ស្តីទី -> ត្រូវដាក់ជូនថ្នាក់ដឹកនាំនាយកដ្ឋាន (Level 3, 4, 5)
+                if ($targetDeptId) {
+                    $candidates = User::where('department_id', $targetDeptId)
                         ->where('id', '!=', $applicant->id)
                         ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
                         ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                         ->get();
                 }
-            } elseif ($targetDeptId) {
-                // គ្មានការិយាល័យ -> ថ្នាក់ដឹកនាំនាយកដ្ឋានផ្ទាល់
-                $candidates = User::where('department_id', $targetDeptId)
-                    ->where('id', '!=', $applicant->id)
-                    ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
-                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
-                    ->get();
-
-                // Next Tier: អគ្គនាយកដ្ឋាន
-                $nextTierCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
-                    ->where('id', '!=', $applicant->id)
-                    ->with('position:id,title_kh,title_en,level')
-                    ->get();
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $applicant->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
+            } elseif ($applicantPosLevel === 8) {
+                // អនុប្រធានការិយាល័យ -> ដាក់ជូនប្រធានការិយាល័យ (Level 6, 7)
+                if ($targetOfficeId) {
+                    $candidates = User::where('office_id', $targetOfficeId)
+                        ->where('id', '!=', $applicant->id)
+                        ->whereHas('position', fn($q) => $q->whereIn('level', [6, 7]))
+                        ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                        ->get();
+                }
+                if ($candidates->isEmpty() && $targetDeptId) {
+                    $candidates = User::where('department_id', $targetDeptId)
+                        ->where('id', '!=', $applicant->id)
+                        ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
+                        ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                        ->get();
+                }
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $applicant->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
             } else {
-                // គ្មាននាយកដ្ឋាន -> អគ្គនាយកដ្ឋាន
-                $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
-                    ->where('id', '!=', $applicant->id)
-                    ->with('position:id,title_kh,title_en,level')
-                    ->get();
+                // មន្ត្រី / បុគ្គលិកទូទៅ (Level 9+)
+                if ($targetOfficeId) {
+                    $candidates = User::where('office_id', $targetOfficeId)
+                        ->where('id', '!=', $applicant->id)
+                        ->whereHas('position', fn($q) => $q->whereIn('level', [6, 7, 8]))
+                        ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                        ->get();
+                }
+                if ($candidates->isEmpty() && $targetDeptId) {
+                    $candidates = User::where('department_id', $targetDeptId)
+                        ->where('id', '!=', $applicant->id)
+                        ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
+                        ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                        ->get();
+                }
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $applicant->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
             }
         } else {
-            // កំពុងឆ្លងពិនិត្យតាមដំណាក់កាល
+            // ករណីទី ២៖ ថ្នាក់ដឹកនាំកំពុងពិនិត្យ និងចារមតិបញ្ជូនបន្ត (Review & Forward Workflow)
             if ($effectiveReviewerLevel === 8) {
                 // អនុប្រធានការិយាល័យ -> បញ្ជូនទៅប្រធានការិយាល័យ
                 if ($targetOfficeId) {
@@ -392,16 +553,15 @@ class LeaveRequestController extends Controller
                         ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                         ->get();
                 }
-                // Next Tier: ថ្នាក់ដឹកនាំនាយកដ្ឋាន
-                if ($targetDeptId) {
-                    $nextTierCandidates = User::where('department_id', $targetDeptId)
+                if ($candidates->isEmpty() && $targetDeptId) {
+                    $candidates = User::where('department_id', $targetDeptId)
                         ->where('id', '!=', $viewer->id)
                         ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
                         ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                         ->get();
                 }
             } elseif ($effectiveReviewerLevel <= 7 && $effectiveReviewerLevel >= 6) {
-                // ប្រធានការិយាល័យ -> បញ្ជូនទៅថ្នាក់ដឹកនាំនាយកដ្ឋាន (អនុប្រធាននាយកដ្ឋាន Level 5, ប្រធាននាយកដ្ឋាន Level 3-4)
+                // ប្រធានការិយាល័យ -> បញ្ជូនទៅថ្នាក់ដឹកនាំនាយកដ្ឋាន (Level 3, 4, 5)
                 if ($targetDeptId) {
                     $candidates = User::where('department_id', $targetDeptId)
                         ->where('id', '!=', $viewer->id)
@@ -409,13 +569,14 @@ class LeaveRequestController extends Controller
                         ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                         ->get();
                 }
-                // Next Tier: ថ្នាក់ដឹកនាំអគ្គនាយកដ្ឋាន
-                $nextTierCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
-                    ->where('id', '!=', $viewer->id)
-                    ->with('position:id,title_kh,title_en,level')
-                    ->get();
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $viewer->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
             } elseif ($effectiveReviewerLevel === 5) {
-                // អនុប្រធាននាយកដ្ឋាន -> បញ្ជូនទៅប្រធាននាយកដ្ឋាន
+                // អនុប្រធាននាយកដ្ឋាន -> បញ្ជូនទៅប្រធាននាយកដ្ឋាន (Level 3, 4)
                 if ($targetDeptId) {
                     $candidates = User::where('department_id', $targetDeptId)
                         ->where('id', '!=', $viewer->id)
@@ -423,11 +584,12 @@ class LeaveRequestController extends Controller
                         ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                         ->get();
                 }
-                // Next Tier: ថ្នាក់ដឹកនាំអគ្គនាយកដ្ឋាន
-                $nextTierCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
-                    ->where('id', '!=', $viewer->id)
-                    ->with('position:id,title_kh,title_en,level')
-                    ->get();
+                if ($candidates->isEmpty()) {
+                    $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                        ->where('id', '!=', $viewer->id)
+                        ->with('position:id,title_kh,title_en,level')
+                        ->get();
+                }
             } elseif ($effectiveReviewerLevel <= 4 && $effectiveReviewerLevel >= 3) {
                 // ប្រធាននាយកដ្ឋាន -> បញ្ជូនទៅអគ្គនាយករង (Level 2) ឬ អគ្គនាយក (Level 1)
                 $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
@@ -435,11 +597,14 @@ class LeaveRequestController extends Controller
                     ->with('position:id,title_kh,title_en,level')
                     ->get();
             } elseif ($effectiveReviewerLevel === 2) {
-                // អគ្គនាយករង -> បញ្ជូនទៅអគ្គនាយក (Level 1)
+                // អគ្គនាយករង -> បញ្ជូនទៅតែឯកឧត្តមអគ្គនាយក (Level 1) ប៉ុណ្ណោះ
                 $candidates = User::whereHas('position', fn($q) => $q->where('level', 1))
                     ->where('id', '!=', $viewer->id)
                     ->with('position:id,title_kh,title_en,level')
                     ->get();
+            } elseif ($effectiveReviewerLevel === 1) {
+                // អគ្គនាយក មិនបាច់បញ្ជូនបន្តទេ គឺសម្រេច APPROVE / REJECT
+                $candidates = collect();
             }
         }
 
@@ -489,15 +654,14 @@ class LeaveRequestController extends Controller
         };
 
         $formattedCandidates = $checkLeaveStatus($candidates);
-        $formattedNextTier = $checkLeaveStatus($nextTierCandidates);
 
         return response()->json([
             'status' => 'success',
             'data' => [
                 'current_stage' => $currentStage,
                 'candidates' => $formattedCandidates,
-                'next_tier_candidates' => $formattedNextTier,
-                'can_skip_to_next_tier' => $formattedNextTier->count() > 0,
+                'next_tier_candidates' => [],
+                'can_skip_to_next_tier' => false,
             ]
         ]);
     }
@@ -534,6 +698,36 @@ class LeaveRequestController extends Controller
         $year = Carbon::parse($request->start_date)->year;
         $countThisYear = LeaveRequest::whereYear('created_at', $year)->count() + 1;
         $requestNumber = sprintf("LR-%d-%04d", $year, $countThisYear);
+
+        // ត្រួតពិនិត្យកូតាច្បាប់ឈប់សម្រាក (Quota Validation)
+        $durationDays = (float) $request->duration_days;
+        $balances = self::getLeaveBalances($user->id, $year);
+        $balance = $balances[$request->leave_type] ?? null;
+
+        if ($balance) {
+            if ($balance['scope'] === 'EVENT') {
+                if ($durationDays > $balance['max_limit']) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "ច្បាប់ឈប់សម្រាក{$balance['name_kh']} អនុញ្ញាតអតិបរមាត្រឹមតែ {$balance['max_limit']} {$balance['unit']} ក្នុងមួយលើកប៉ុណ្ណោះ។ ចំនួនថ្ងៃដែលលោកអ្នកបានស្នើសុំគឺ {$durationDays} {$balance['unit']}។",
+                        'errors' => [
+                            'duration_days' => ["ចំនួនថ្ងៃស្នើសុំ ({$durationDays} ថ្ងៃ) លើសពីកម្រិតអតិបរមា ({$balance['max_limit']} ថ្ងៃ)"]
+                        ]
+                    ], 422);
+                }
+            } else {
+                if ($durationDays > $balance['remaining']) {
+                    $periodKh = ($balance['scope'] === 'YEAR') ? "ក្នុងឆ្នាំ {$year}" : "ពេញមួយជីវិតការងារ";
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "លោកអ្នកមិនអាចស្នើសុំច្បាប់នេះបានទេ ពីព្រោះចំនួនថ្ងៃដែលបានស្នើសុំ ({$durationDays} {$balance['unit']}) លើសពីសមតុល្យនៅសល់ ({$balance['remaining']} {$balance['unit']}) {$periodKh} នៃកូតាដែលបានកំណត់ ({$balance['max_limit']} {$balance['unit']})។",
+                        'errors' => [
+                            'duration_days' => ["ចំនួនថ្ងៃស្នើសុំលើសពីសមតុល្យកូតាដែលនៅសល់ ({$balance['remaining']} ថ្ងៃ)"]
+                        ]
+                    ], 422);
+                }
+            }
+        }
 
         // បើមាន file ភ្ជាប់មកជាមួយ
         $attachmentPath = null;
@@ -665,9 +859,12 @@ class LeaveRequestController extends Controller
         // សិទ្ធិអាច Final Approve (DG Level 1 ឬ Admin)
         $canFinalApprove = ($isAdmin || $viewerPosLevel === 1);
 
+        $applicantBalances = self::getLeaveBalances($leaveRequest->user_id, Carbon::parse($leaveRequest->start_date)->year);
+
         return response()->json([
             'status' => 'success',
             'data' => $leaveRequest,
+            'applicant_balances' => $applicantBalances,
             'permissions' => [
                 'can_edit' => ($isOwner && in_array($leaveRequest->status, ['DRAFT'])) || $isAdmin,
                 'can_cancel' => ($isOwner && $leaveRequest->status === 'PENDING') || $isAdmin,
@@ -710,6 +907,37 @@ class LeaveRequestController extends Controller
             'submit_now' => 'nullable|boolean',
             'next_approver_id' => 'nullable|exists:users,id',
         ]);
+
+        // ត្រួតពិនិត្យកូតាច្បាប់ឈប់សម្រាក (Quota Validation)
+        $year = Carbon::parse($request->start_date)->year;
+        $durationDays = (float) $request->duration_days;
+        $balances = self::getLeaveBalances($leaveRequest->user_id, $year, $leaveRequest->id);
+        $balance = $balances[$request->leave_type] ?? null;
+
+        if ($balance) {
+            if ($balance['scope'] === 'EVENT') {
+                if ($durationDays > $balance['max_limit']) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "ច្បាប់ឈប់សម្រាក{$balance['name_kh']} អនុញ្ញាតអតិបរមាត្រឹមតែ {$balance['max_limit']} {$balance['unit']} ក្នុងមួយលើកប៉ុណ្ណោះ។ ចំនួនថ្ងៃដែលលោកអ្នកបានស្នើសុំគឺ {$durationDays} {$balance['unit']}។",
+                        'errors' => [
+                            'duration_days' => ["ចំនួនថ្ងៃស្នើសុំ ({$durationDays} ថ្ងៃ) លើសពីកម្រិតអតិបរមា ({$balance['max_limit']} ថ្ងៃ)"]
+                        ]
+                    ], 422);
+                }
+            } else {
+                if ($durationDays > $balance['remaining']) {
+                    $periodKh = ($balance['scope'] === 'YEAR') ? "ក្នុងឆ្នាំ {$year}" : "ពេញមួយជីវិតការងារ";
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "លោកអ្នកមិនអាចស្នើសុំច្បាប់នេះបានទេ ពីព្រោះចំនួនថ្ងៃដែលបានស្នើសុំ ({$durationDays} {$balance['unit']}) លើសពីសមតុល្យនៅសល់ ({$balance['remaining']} {$balance['unit']}) {$periodKh} នៃកូតាដែលបានកំណត់ ({$balance['max_limit']} {$balance['unit']})។",
+                        'errors' => [
+                            'duration_days' => ["ចំនួនថ្ងៃស្នើសុំលើសពីសមតុល្យកូតាដែលនៅសល់ ({$balance['remaining']} ថ្ងៃ)"]
+                        ]
+                    ], 422);
+                }
+            }
+        }
 
         if ($request->hasFile('attachment')) {
             if ($leaveRequest->attachment_path && Storage::disk('public')->exists($leaveRequest->attachment_path)) {
@@ -786,6 +1014,31 @@ class LeaveRequestController extends Controller
             ], 422);
         }
 
+        // ត្រួតពិនិត្យកូតាច្បាប់ឈប់សម្រាក (Quota Validation)
+        $year = Carbon::parse($leaveRequest->start_date)->year;
+        $balances = self::getLeaveBalances($leaveRequest->user_id, $year, $leaveRequest->id);
+        $balance = $balances[$leaveRequest->leave_type] ?? null;
+        $durationDays = (float) $leaveRequest->duration_days;
+
+        if ($balance) {
+            if ($balance['scope'] === 'EVENT') {
+                if ($durationDays > $balance['max_limit']) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "ច្បាប់ឈប់សម្រាក{$balance['name_kh']} អនុញ្ញាតអតិបរមាត្រឹមតែ {$balance['max_limit']} {$balance['unit']} ក្នុងមួយលើកប៉ុណ្ណោះ។ ចំនួនថ្ងៃដែលបានស្នើសុំគឺ {$durationDays} {$balance['unit']}។"
+                    ], 422);
+                }
+            } else {
+                if ($durationDays > $balance['remaining']) {
+                    $periodKh = ($balance['scope'] === 'YEAR') ? "ក្នុងឆ្នាំ {$year}" : "ពេញមួយជីវិតការងារ";
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "លោកអ្នកមិនអាចដាក់ជូនពាក្យសុំច្បាប់នេះបានទេ ពីព្រោះចំនួនថ្ងៃដែលបានស្នើសុំ ({$durationDays} {$balance['unit']}) លើសពីសមតុល្យនៅសល់ ({$balance['remaining']} {$balance['unit']}) {$periodKh} នៃកូតាដែលបានកំណត់ ({$balance['max_limit']} {$balance['unit']})។"
+                    ], 422);
+                }
+            }
+        }
+
         $request->validate([
             'next_approver_id' => 'required|exists:users,id',
         ], [
@@ -855,6 +1108,20 @@ class LeaveRequestController extends Controller
                 'status' => 'error',
                 'message' => 'លោកអ្នកគ្មានសិទ្ធិពិនិត្យ ឬចារលើសំណើនេះឡើយ។'
             ], 403);
+        }
+
+        // ការពារកុំឱ្យចារមតិ ឬបញ្ជូនបន្តជាន់គ្នាដដែលៗ
+        if (!$isAdmin) {
+            $alreadyActed = $leaveRequest->approvals()
+                ->where('user_id', $viewer->id)
+                ->whereIn('action', ['FORWARDED', 'APPROVED', 'REJECTED'])
+                ->exists();
+            if ($alreadyActed && !$isCurrentApprover) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'លោកអ្នកបានចារមតិ ឬអនុវត្តសកម្មភាពលើសំណើនេះរួចរាល់ហើយ។'
+                ], 403);
+            }
         }
 
         $request->validate([

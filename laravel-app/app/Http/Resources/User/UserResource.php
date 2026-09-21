@@ -26,12 +26,12 @@ class UserResource extends JsonResource
             'password_null' => $this->password_null,
             'level' => $this->level,
             'permissions' => (function () {
-                $defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports'];
+                $defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents'];
                 if ($this->level === 'ADMIN') {
                     if (empty($this->permissions)) {
                         return ['all'];
                     }
-                    return array_values(array_unique(array_merge($this->permissions, ['weekly-reports'])));
+                    return array_values(array_unique(array_merge($this->permissions, ['weekly-reports', 'leave-requests', 'inbound-documents'])));
                 }
                 if (empty($this->permissions)) {
                     return $defaultPerms;
@@ -39,6 +39,12 @@ class UserResource extends JsonResource
                 $perms = $this->permissions;
                 if (!in_array('weekly-reports', $perms)) {
                     $perms[] = 'weekly-reports';
+                }
+                if (!in_array('leave-requests', $perms)) {
+                    $perms[] = 'leave-requests';
+                }
+                if (!in_array('inbound-documents', $perms)) {
+                    $perms[] = 'inbound-documents';
                 }
                 return array_values(array_unique($perms));
             })(),

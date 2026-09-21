@@ -1628,9 +1628,13 @@ const generalMenuItems = [
   { key: 'work-schedules', label: 'កាលវិភាគការងារ', desc: 'កត់ត្រា និងគ្រប់គ្រងកាលវិភាគ/កិច្ចប្រជុំ', icon: 'fas fa-calendar-alt', iconClass: 'text-warning' },
   { key: 'meeting-rooms', label: 'បន្ទប់ប្រជុំ & ការកក់', desc: 'មើលកាលវិភាគ និងស្នើសុំកក់បន្ទប់ប្រជុំ', icon: 'fas fa-door-open', iconClass: 'text-info' },
   { key: 'weekly-reports', label: 'របាយការណ៍ប្រចាំសប្តាហ៍', desc: 'កត់ត្រា និងតាមដានរបាយការណ៍/កិច្ចការប្រចាំសប្តាហ៍', icon: 'fas fa-clipboard-list', iconClass: 'text-info' },
+  { key: 'leave-requests', label: 'ច្បាប់ឈប់សម្រាក', desc: 'ស្នើសុំ និងតាមដានច្បាប់ឈប់សម្រាក', icon: 'fas fa-calendar-minus', iconClass: 'text-warning' },
+  { key: 'inbound-documents', label: 'ឯកសារចូល', desc: 'ពិនិត្យ និងតាមដានលំហូរឯកសារចូល', icon: 'fas fa-file-import', iconClass: 'text-success' },
 ];
 
 const managementMenuItems = [
+  { key: 'inbound-documents-receptionist', label: 'អ្នកទទួលឯកសារ (ឯកសារចូល)', desc: 'ចុះបញ្ជីឯកសារចូលថ្មី (001/26), Scan ឯកសារដើម និងបញ្ជូនបន្ត', icon: 'fas fa-inbox', iconClass: 'text-info' },
+  { key: 'inbound-documents-assistant', label: 'ជំនួយការអគ្គនាយក (ឯកសារចូល)', desc: 'ចុះលេខចូលការិយាល័យអគ្គនាយក (AA/E/NF/A/R/T/L/AS), ដាក់ជូនអគ្គនាយក, Scan ចំណារ & ចែកចាយ', icon: 'fas fa-user-shield', iconClass: 'text-danger' },
   { key: 'manage-document-templates', label: 'គ្រប់គ្រងគំរូឯកសារ', desc: 'បន្ថែម កែប្រែ ឬលុបគំរូឯកសារ', icon: 'fas fa-file-invoice', iconClass: 'text-warning' },
   { key: 'manage-meeting-rooms', label: 'គ្រប់គ្រងបន្ទប់ប្រជុំ', desc: 'ពិនិត្យ អនុម័ត/បដិសេធ និងចាត់ចែងបន្ទប់ប្រជុំ', icon: 'fas fa-tasks', iconClass: 'text-success' },
   { key: 'users', label: 'អ្នកប្រើប្រាស់ / មន្ត្រី', desc: 'គ្រប់គ្រងទិន្នន័យមន្ត្រីទាំងអស់', icon: 'fas fa-users-cog', iconClass: 'text-primary' },
@@ -1642,7 +1646,8 @@ const managementMenuItems = [
 ];
 
 const allPermissionKeys = [
-  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports',
+  'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents',
+  'inbound-documents-receptionist', 'inbound-documents-assistant',
   'manage-document-templates', 'manage-meeting-rooms', 'users', 'attendances',
   'departments', 'divisions', 'positions', 'backups'
 ];

@@ -101,9 +101,33 @@
             </router-link>
           </li>
 
+          <!-- ឯកសារចូល -->
+          <li class="nav-item" v-if="userStore.can('inbound-documents')">
+            <router-link :to="{ name: 'inbound-documents' }" class="nav-link" :class="{ active: isAllDocsActive }">
+              <i class="nav-icon fas fa-file-import text-success"></i>
+              <p>ឯកសារចូល</p>
+            </router-link>
+          </li>
+
           <!-- បឋមកថា ផ្នែកគ្រប់គ្រង -->
           <li class="nav-header text-uppercase font-weight-bold" v-if="userStore.hasAnyAdminPermission" style="color: #8da39c;">
             ការគ្រប់គ្រង
+          </li>
+
+          <!-- អ្នកទទួលឯកសារ (ចុះបញ្ជី & ទទួលឯកសារ) -->
+          <li class="nav-item" v-if="userStore.can('inbound-documents-receptionist')">
+            <router-link :to="{ name: 'inbound-documents', query: { tab: 'reception' } }" class="nav-link" :class="{ active: isReceptionActive }">
+              <i class="nav-icon fas fa-inbox text-info"></i>
+              <p>អ្នកទទួលឯកសារ</p>
+            </router-link>
+          </li>
+
+          <!-- ជំនួយការអគ្គនាយក (ការិយាល័យអគ្គនាយក) -->
+          <li class="nav-item" v-if="userStore.can('inbound-documents-assistant')">
+            <router-link :to="{ name: 'inbound-documents', query: { tab: 'assistant_inbox' } }" class="nav-link" :class="{ active: isAssistantActive }">
+              <i class="nav-icon fas fa-user-shield text-danger"></i>
+              <p>ជំនួយការអគ្គនាយក</p>
+            </router-link>
           </li>
 
           <!-- គ្រប់គ្រងគំរូឯកសារ -->
@@ -176,13 +200,27 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import emptyImage from '@/assets/images/emptyImage.png';
 import logoImage from '@/assets/images/logoImage.webp';
 import { useUserStore } from '@/stores/user';
 import { apiGetMyProfile } from '@/functions/api/user'; // ហៅ API ទាញយក Profile ផ្ទាល់ខ្លួន
 
+const route = useRoute();
 const userStore = useUserStore();
+
+const isAllDocsActive = computed(() => {
+  return route.name === 'inbound-documents' && (!route.query.tab || route.query.tab === 'all');
+});
+
+const isReceptionActive = computed(() => {
+  return route.name === 'inbound-documents' && route.query.tab === 'reception';
+});
+
+const isAssistantActive = computed(() => {
+  return route.name === 'inbound-documents' && route.query.tab === 'assistant_inbox';
+});
 
 // 🟢 ពេលម៉ោន LeftSidebar ឡើងវិញ ត្រូវធានាថាទិន្នន័យ Profile និងសិទ្ធិប្រើប្រាស់ស្ថិតស្ថេរ
 onMounted(async () => {

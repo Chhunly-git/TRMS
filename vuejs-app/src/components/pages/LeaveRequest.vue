@@ -93,7 +93,7 @@
                   </span>
                   <h3 class="font-weight-bold mb-0" :class="activeTab === 'my' ? 'text-primary' : 'text-danger'">
                     <template v-if="activeTab === 'my'">
-                      {{ stats.my_stats?.annual_days_used || 0 }} ថ្ងៃ
+                      {{ stats.my_stats?.annual_days_used || 0 }} <span class="small text-muted font-weight-normal">/ 15 ថ្ងៃ</span>
                     </template>
                     <template v-else-if="activeTab === 'pending_review'">
                       {{ stats.review_stats?.rejected || 0 }}
@@ -105,6 +105,173 @@
                 </div>
                 <div class="stat-icon-circle" :class="activeTab === 'my' ? 'bg-primary-light text-primary' : 'bg-danger-light text-danger'">
                   <i class="fas fa-lg" :class="activeTab === 'my' ? 'fa-calendar-day' : 'fa-ban'"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1.5. Leave Quota Balances Widget (Shown on 'my' tab) -->
+        <div class="card shadow-sm border-0 rounded-lg mb-4" v-if="activeTab === 'my' && stats.leave_balances">
+          <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center flex-wrap">
+            <div class="d-flex align-items-center">
+              <div class="bg-primary-light text-primary rounded-circle p-2 mr-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                <i class="fas fa-balance-scale"></i>
+              </div>
+              <div>
+                <h6 class="mb-0 font-weight-bold text-dark font-khmer">សមតុល្យកូតាច្បាប់ឈប់សម្រាក (Leave Quota Balances)</h6>
+                <small class="text-muted">កូតាកំណត់តាមសហលក្ខន្តិកៈមន្ត្រីរាជការស៊ីវិល</small>
+              </div>
+            </div>
+            <span class="badge badge-light border text-muted px-2 py-1 mt-1 mt-sm-0">
+              <i class="far fa-calendar-alt mr-1 text-primary"></i>ឆ្នាំ {{ currentYear }}
+            </span>
+          </div>
+          <div class="card-body p-3 bg-light-soft">
+            <div class="row">
+              <!-- 1. ANNUAL -->
+              <div class="col-lg col-md-4 col-sm-6 mb-3">
+                <div class="quota-card bg-white p-3 rounded-lg border shadow-sm h-100 position-relative">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="quota-badge badge-primary-light text-primary">
+                      <i class="fas fa-calendar-check mr-1"></i> ប្រចាំឆ្នាំ
+                    </span>
+                    <span class="badge badge-light border text-muted small">១៥ ថ្ងៃ/ឆ្នាំ</span>
+                  </div>
+                  <div class="my-2">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                      <span class="text-muted small">នៅសល់៖</span>
+                      <strong class="h5 mb-0" :class="(stats.leave_balances.ANNUAL?.remaining || 0) > 0 ? 'text-success' : 'text-danger'">
+                        {{ stats.leave_balances.ANNUAL?.remaining ?? 15 }} <span class="small font-weight-normal">ថ្ងៃ</span>
+                      </strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                      <span>បានប្រើ៖ {{ stats.leave_balances.ANNUAL?.used_approved ?? 0 }} ថ្ងៃ</span>
+                      <span v-if="(stats.leave_balances.ANNUAL?.used_pending || 0) > 0" class="text-warning">
+                        (រង់ចាំ {{ stats.leave_balances.ANNUAL?.used_pending }} ថ្ងៃ)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress progress-xs mt-2 rounded">
+                    <div class="progress-bar" :class="getProgressBarColor(calculatePercent(stats.leave_balances.ANNUAL?.total_used, 15))"
+                         :style="{ width: calculatePercent(stats.leave_balances.ANNUAL?.total_used, 15) + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. SHORT_TERM -->
+              <div class="col-lg col-md-4 col-sm-6 mb-3">
+                <div class="quota-card bg-white p-3 rounded-lg border shadow-sm h-100 position-relative">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="quota-badge badge-info-light text-info">
+                      <i class="fas fa-hourglass-half mr-1"></i> រយៈពេលខ្លី
+                    </span>
+                    <span class="badge badge-light border text-muted small">១៥ ថ្ងៃ/ឆ្នាំ</span>
+                  </div>
+                  <div class="my-2">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                      <span class="text-muted small">នៅសល់៖</span>
+                      <strong class="h5 mb-0" :class="(stats.leave_balances.SHORT_TERM?.remaining || 0) > 0 ? 'text-success' : 'text-danger'">
+                        {{ stats.leave_balances.SHORT_TERM?.remaining ?? 15 }} <span class="small font-weight-normal">ថ្ងៃ</span>
+                      </strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                      <span>បានប្រើ៖ {{ stats.leave_balances.SHORT_TERM?.used_approved ?? 0 }} ថ្ងៃ</span>
+                      <span v-if="(stats.leave_balances.SHORT_TERM?.used_pending || 0) > 0" class="text-warning">
+                        (រង់ចាំ {{ stats.leave_balances.SHORT_TERM?.used_pending }} ថ្ងៃ)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress progress-xs mt-2 rounded">
+                    <div class="progress-bar" :class="getProgressBarColor(calculatePercent(stats.leave_balances.SHORT_TERM?.total_used, 15))"
+                         :style="{ width: calculatePercent(stats.leave_balances.SHORT_TERM?.total_used, 15) + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. MATERNITY -->
+              <div class="col-lg col-md-4 col-sm-6 mb-3">
+                <div class="quota-card bg-white p-3 rounded-lg border shadow-sm h-100 position-relative">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="quota-badge badge-danger-light text-danger">
+                      <i class="fas fa-baby mr-1"></i> លំហែមាតុភាព
+                    </span>
+                    <span class="badge badge-light border text-muted small">៣ ខែ/លើក</span>
+                  </div>
+                  <div class="my-2">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                      <span class="text-muted small">កូតាកំណត់៖</span>
+                      <strong class="h5 mb-0 text-dark">
+                        ៩០ <span class="small font-weight-normal">ថ្ងៃ/លើក</span>
+                      </strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                      <span>ប្រចាំលើក៖ អតិបរមា ៩០ ថ្ងៃ</span>
+                    </div>
+                  </div>
+                  <div class="progress progress-xs mt-2 rounded">
+                    <div class="progress-bar bg-info" style="width: 100%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. SICK -->
+              <div class="col-lg col-md-4 col-sm-6 mb-3">
+                <div class="quota-card bg-white p-3 rounded-lg border shadow-sm h-100 position-relative">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="quota-badge badge-warning-light text-warning-dark">
+                      <i class="fas fa-heartbeat mr-1"></i> ព្យាបាលជំងឺ
+                    </span>
+                    <span class="badge badge-light border text-muted small">១២ ខែ/ជីវិត</span>
+                  </div>
+                  <div class="my-2">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                      <span class="text-muted small">នៅសល់៖</span>
+                      <strong class="h5 mb-0" :class="(stats.leave_balances.SICK?.remaining || 0) > 0 ? 'text-success' : 'text-danger'">
+                        {{ stats.leave_balances.SICK?.remaining ?? 365 }} <span class="small font-weight-normal">ថ្ងៃ</span>
+                      </strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                      <span>បានប្រើ៖ {{ stats.leave_balances.SICK?.used_approved ?? 0 }} ថ្ងៃ</span>
+                      <span v-if="(stats.leave_balances.SICK?.used_pending || 0) > 0" class="text-warning">
+                        (រង់ចាំ {{ stats.leave_balances.SICK?.used_pending }} ថ្ងៃ)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress progress-xs mt-2 rounded">
+                    <div class="progress-bar" :class="getProgressBarColor(calculatePercent(stats.leave_balances.SICK?.total_used, 365))"
+                         :style="{ width: calculatePercent(stats.leave_balances.SICK?.total_used, 365) + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. PERSONAL -->
+              <div class="col-lg col-md-4 col-sm-6 mb-3">
+                <div class="quota-card bg-white p-3 rounded-lg border shadow-sm h-100 position-relative">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="quota-badge badge-secondary-light text-secondary">
+                      <i class="fas fa-user-clock mr-1"></i> កិច្ចការផ្ទាល់ខ្លួន
+                    </span>
+                    <span class="badge badge-light border text-muted small">៣ ខែ/ជីវិត</span>
+                  </div>
+                  <div class="my-2">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                      <span class="text-muted small">នៅសល់៖</span>
+                      <strong class="h5 mb-0" :class="(stats.leave_balances.PERSONAL?.remaining || 0) > 0 ? 'text-success' : 'text-danger'">
+                        {{ stats.leave_balances.PERSONAL?.remaining ?? 90 }} <span class="small font-weight-normal">ថ្ងៃ</span>
+                      </strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                      <span>បានប្រើ៖ {{ stats.leave_balances.PERSONAL?.used_approved ?? 0 }} ថ្ងៃ</span>
+                      <span v-if="(stats.leave_balances.PERSONAL?.used_pending || 0) > 0" class="text-warning">
+                        (រង់ចាំ {{ stats.leave_balances.PERSONAL?.used_pending }} ថ្ងៃ)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress progress-xs mt-2 rounded">
+                    <div class="progress-bar" :class="getProgressBarColor(calculatePercent(stats.leave_balances.PERSONAL?.total_used, 90))"
+                         :style="{ width: calculatePercent(stats.leave_balances.PERSONAL?.total_used, 90) + '%' }"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -149,15 +316,15 @@
             <div class="row mb-3">
               <div class="col-md-3 col-sm-6 mb-2">
                 <div class="input-group input-group-sm">
-                  <input type="text" v-model="filterSearch" class="form-control" placeholder="ស្វែងរកលេខកូដ មូលហេតុ ឬឈ្មោះ..." @keyup.enter="loadRequests">
+                  <input type="text" v-model="filterSearch" class="form-control" placeholder="ស្វែងរកលេខកូដ មូលហេតុ ឬឈ្មោះ..." @keyup.enter="loadRequests(1)">
                   <div class="input-group-append">
-                    <button class="btn btn-primary" @click="loadRequests"><i class="fas fa-search"></i></button>
+                    <button class="btn btn-primary" @click="loadRequests(1)"><i class="fas fa-search"></i></button>
                   </div>
                 </div>
               </div>
 
               <div class="col-md-3 col-sm-6 mb-2">
-                <select v-model="filterType" class="form-control form-control-sm" @change="loadRequests">
+                <select v-model="filterType" class="form-control form-control-sm" @change="loadRequests(1)">
                   <option value="">-- ប្រភេទច្បាប់ទាំងអស់ --</option>
                   <option value="ANNUAL">ច្បាប់ឈប់សម្រាកប្រចាំឆ្នាំ</option>
                   <option value="SHORT_TERM">ច្បាប់ឈប់សម្រាករយៈពេលខ្លី</option>
@@ -168,7 +335,7 @@
               </div>
 
               <div class="col-md-3 col-sm-6 mb-2">
-                <select v-model="filterStatus" class="form-control form-control-sm" @change="loadRequests">
+                <select v-model="filterStatus" class="form-control form-control-sm" @change="loadRequests(1)">
                   <option value="">-- ស្ថានភាពទាំងអស់ --</option>
                   <option value="DRAFT">សេចក្តីព្រាង (DRAFT)</option>
                   <option value="PENDING">កំពុងរង់ចាំពិនិត្យ (PENDING)</option>
@@ -365,11 +532,11 @@
                 <div class="col-md-6 form-group">
                   <label class="font-weight-bold">ប្រភេទច្បាប់ឈប់សម្រាក <span class="text-danger">*</span></label>
                   <select v-model="form.leave_type" class="form-control" required @change="onDatesChanged">
-                    <option value="ANNUAL">ច្បាប់ឈប់សម្រាកប្រចាំឆ្នាំ (Annual)</option>
-                    <option value="SHORT_TERM">ច្បាប់ឈប់សម្រាករយៈពេលខ្លី (Short-term)</option>
-                    <option value="MATERNITY">ច្បាប់ឈប់សម្រាកលំហែមាតុភាព (Maternity)</option>
-                    <option value="SICK">ច្បាប់ឈប់សម្រាកព្យាបាលជំងឺ (Sick)</option>
-                    <option value="PERSONAL">ច្បាប់ឈប់សម្រាកមានកិច្ចការផ្ទាល់ខ្លួន (Personal)</option>
+                    <option value="ANNUAL">ច្បាប់ឈប់សម្រាកប្រចាំឆ្នាំ (Annual) - ១៥ ថ្ងៃ/ឆ្នាំ</option>
+                    <option value="SHORT_TERM">ច្បាប់ឈប់សម្រាករយៈពេលខ្លី (Short-term) - ១៥ ថ្ងៃ/ឆ្នាំ</option>
+                    <option value="MATERNITY">ច្បាប់ឈប់សម្រាកលំហែមាតុភាព (Maternity) - ៣ ខែ/លើក</option>
+                    <option value="SICK">ច្បាប់ឈប់សម្រាកព្យាបាលជំងឺ (Sick) - ១២ ខែ/ជីវិតការងារ</option>
+                    <option value="PERSONAL">ច្បាប់ឈប់សម្រាកមានកិច្ចការផ្ទាល់ខ្លួន (Personal) - ៣ ខែ/ជីវិតការងារ</option>
                   </select>
                 </div>
 
@@ -377,6 +544,35 @@
                 <div class="col-md-6 form-group">
                   <label class="font-weight-bold">លេខទូរស័ព្ទទំនាក់ទំនងអំឡុងពេលឈប់</label>
                   <input type="text" v-model="form.contact_phone" class="form-control" placeholder="ឧ. 012 345 678">
+                </div>
+
+                <!-- Real-time Quota Info Box -->
+                <div class="col-12 mb-3" v-if="selectedTypeBalance">
+                  <div class="p-2 px-3 rounded border" :class="isDurationExceedingQuota ? 'bg-danger-light border-danger text-danger' : 'bg-light border-info text-dark'">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap">
+                      <div>
+                        <i class="fas mr-1" :class="getLeaveTypeIcon(form.leave_type)"></i>
+                        <strong>{{ selectedTypeBalance.name_kh }}</strong>
+                        <span class="text-muted small ml-1">({{ selectedTypeBalance.period_label }})</span>
+                      </div>
+                      <div class="mt-1 mt-sm-0">
+                        <template v-if="selectedTypeBalance.scope === 'EVENT'">
+                          <span class="badge badge-info px-2 py-1">អតិបរមា ៩០ ថ្ងៃ / លើក</span>
+                        </template>
+                        <template v-else>
+                          <span class="mr-3 small">
+                            បានប្រើ៖ <strong>{{ selectedTypeBalance.used_approved }}</strong> ថ្ងៃ
+                            <span v-if="selectedTypeBalance.used_pending > 0" class="text-warning font-weight-bold">
+                              (+រង់ចាំ {{ selectedTypeBalance.used_pending }} ថ្ងៃ)
+                            </span>
+                          </span>
+                          <span class="badge px-2 py-1" :class="selectedTypeBalance.remaining > 0 ? 'badge-success' : 'badge-danger'">
+                            នៅសល់៖ {{ selectedTypeBalance.remaining }} ថ្ងៃ
+                          </span>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Half-day Checkbox -->
@@ -430,6 +626,15 @@
                       (មិនរាប់បញ្ចូលថ្ងៃសៅរ៍ និងអាទិត្យ)
                     </small>
                   </div>
+
+                  <!-- Quota Exceeded Warning Alert -->
+                  <div v-if="isDurationExceedingQuota" class="alert alert-danger py-2 mt-2 d-flex align-items-center mb-0">
+                    <i class="fas fa-exclamation-triangle mr-2 fa-lg"></i>
+                    <div>
+                      <strong>មិនអាចស្នើសុំបានទេ៖</strong> ចំនួនថ្ងៃដែលបានស្នើសុំ ({{ form.duration_days }} ថ្ងៃ) លើសពី
+                      {{ selectedTypeBalance?.scope === 'EVENT' ? 'កម្រិតអនុញ្ញាតអតិបរមា (៩០ ថ្ងៃ)' : 'សមតុល្យកូតាដែលនៅសល់ (' + (selectedTypeBalance?.remaining ?? 0) + ' ថ្ងៃ)' }}! សូមកែសម្រួលកាលបរិច្ឆេទឡើងវិញ។
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Reason -->
@@ -447,42 +652,26 @@
 
                 <!-- Next Approver Dropdown (with On-Leave Indicator & Skip) -->
                 <div class="col-12 form-group bg-light p-3 border rounded">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="mb-2">
                     <label class="font-weight-bold text-dark mb-0">
                       <i class="fas fa-user-check text-success mr-1"></i>
                       ជ្រើសរើសថ្នាក់ដឹកនាំដែលត្រូវដាក់ជូនពិនិត្យ
                       <span class="text-danger">*</span>
                     </label>
-
-                    <!-- Toggle Skip to Next Tier if Available -->
-                    <button type="button" v-if="approverCandidates.can_skip_to_next_tier" 
-                            class="btn btn-outline-warning btn-xs" 
-                            @click="useNextTier = !useNextTier">
-                      <i class="fas fa-forward mr-1"></i>
-                      {{ useNextTier ? 'ប្តូរមកថ្នាក់ដឹកនាំបន្ទាល់ផ្ទាល់' : 'រំលងទៅកាន់ថ្នាក់បន្ទាប់ (ករណីថ្នាក់ដឹកនាំឈប់សម្រាក)' }}
-                    </button>
                   </div>
 
                   <!-- Candidate Selection -->
                   <select v-model="form.next_approver_id" class="form-control" :required="submitNowSelected">
                     <option value="">-- សូមជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                    <template v-if="!useNextTier">
-                      <option v-for="cand in approverCandidates.candidates" :key="cand.id" :value="cand.id">
-                        {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
-                        {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
-                      </option>
-                    </template>
-                    <template v-else>
-                      <option v-for="cand in approverCandidates.next_tier_candidates" :key="cand.id" :value="cand.id">
-                        [ថ្នាក់បន្ទាប់] {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
-                        {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
-                      </option>
-                    </template>
+                    <option v-for="cand in approverCandidates.candidates" :key="cand.id" :value="cand.id">
+                      {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
+                      {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
+                    </option>
                   </select>
 
                   <div v-if="selectedApproverOnLeave" class="alert alert-warning mt-2 py-1 px-2 mb-0 small">
                     <i class="fas fa-exclamation-triangle mr-1"></i>
-                    <strong>ចំណាំ៖</strong> ថ្នាក់ដឹកនាំដែលលោកអ្នកបានជ្រើសរើសកំពុងមានវត្តមានឈប់សម្រាក។ លោកអ្នកអាចជ្រើសរើសថ្នាក់ដឹកនាំផ្សេង ឬចុច "រំលងទៅកាន់ថ្នាក់បន្ទាប់" បាន។
+                    <strong>ចំណាំ៖</strong> ថ្នាក់ដឹកនាំដែលលោកអ្នកបានជ្រើសរើសកំពុងមានវត្តមានឈប់សម្រាក។
                   </div>
                 </div>
 
@@ -491,10 +680,10 @@
             <div class="modal-footer justify-content-between">
               <button type="button" class="btn btn-default" @click="closeCreateModal">បោះបង់</button>
               <div>
-                <button type="submit" class="btn btn-secondary mr-2" @click="submitNowSelected = false">
+                <button type="submit" class="btn btn-secondary mr-2" :disabled="isDurationExceedingQuota" @click="submitNowSelected = false">
                   <i class="fas fa-save mr-1"></i> រក្សាទុកជាព្រាង
                 </button>
-                <button type="submit" class="btn btn-primary" @click="submitNowSelected = true">
+                <button type="submit" class="btn btn-primary" :disabled="isDurationExceedingQuota" @click="submitNowSelected = true">
                   <i class="fas fa-paper-plane mr-1"></i> ដាក់ជូនភ្លាមៗ
                 </button>
               </div>
@@ -578,6 +767,29 @@
                   <strong>មូលហេតុ៖ </strong> {{ currentSelectedRequest.reason }}
                 </div>
               </div>
+
+              <!-- Applicant Quota Summary in Review Modal -->
+              <div class="col-12 mt-2" v-if="reviewApplicantBalances">
+                <div class="p-2 bg-light-soft border rounded">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <small class="font-weight-bold text-dark"><i class="fas fa-balance-scale text-primary mr-1"></i>សមតុល្យកូតាច្បាប់របស់សាមីខ្លួន (ឆ្នាំនេះ)៖</small>
+                  </div>
+                  <div class="d-flex flex-wrap small text-muted">
+                    <span class="mr-3">
+                      ប្រចាំឆ្នាំ៖ <strong class="text-dark">{{ reviewApplicantBalances.ANNUAL?.remaining ?? 0 }}</strong>/15 ថ្ងៃ
+                    </span>
+                    <span class="mr-3">
+                      រយៈពេលខ្លី៖ <strong class="text-dark">{{ reviewApplicantBalances.SHORT_TERM?.remaining ?? 0 }}</strong>/15 ថ្ងៃ
+                    </span>
+                    <span class="mr-3">
+                      ព្យាបាលជំងឺ៖ <strong class="text-dark">{{ reviewApplicantBalances.SICK?.remaining ?? 0 }}</strong>/365 ថ្ងៃ
+                    </span>
+                    <span>
+                      ផ្ទាល់ខ្លួន៖ <strong class="text-dark">{{ reviewApplicantBalances.PERSONAL?.remaining ?? 0 }}</strong>/90 ថ្ងៃ
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Previous Remarks / Timeline -->
@@ -610,12 +822,12 @@
             <div class="form-group">
               <label class="font-weight-bold text-dark">ជ្រើសរើសសកម្មភាពសម្រេច៖</label>
               <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn mr-2 mb-2" 
+                <button v-if="!isDirectorGeneral || userStore.isAdmin" type="button" class="btn mr-2 mb-2" 
                         :class="reviewActionForm.action === 'FORWARD' ? 'btn-primary' : 'btn-outline-primary'" 
                         @click="setAction('FORWARD')">
                   <i class="fas fa-share mr-1"></i> បញ្ជូនបន្តទៅថ្នាក់លើ
                 </button>
-                <button v-if="isDirectorGeneral" type="button" class="btn mr-2 mb-2" 
+                <button v-if="canFinalApprove" type="button" class="btn mr-2 mb-2" 
                         :class="reviewActionForm.action === 'APPROVE' ? 'btn-success' : 'btn-outline-success'" 
                         @click="setAction('APPROVE')">
                   <i class="fas fa-check-double mr-1"></i> ឯកភាព / អនុម័តជាផ្លូវការ
@@ -635,28 +847,20 @@
 
             <!-- If FORWARD selected: choose next candidate -->
             <div class="form-group bg-light p-3 border rounded" v-if="reviewActionForm.action === 'FORWARD'">
-              <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="mb-2">
                 <label class="font-weight-bold text-dark mb-0">ជ្រើសរើសថ្នាក់ដឹកនាំដែលត្រូវបញ្ជូនបន្តទៅ <span class="text-danger">*</span></label>
-                <button type="button" v-if="reviewCandidates.can_skip_to_next_tier" class="btn btn-outline-warning btn-xs" @click="useReviewNextTier = !useReviewNextTier">
-                  <i class="fas fa-forward mr-1"></i> {{ useReviewNextTier ? 'ប្តូរមកថ្នាក់ដឹកនាំបន្ទាល់ផ្ទាល់' : 'រំលងទៅថ្នាក់លើបន្ទាប់' }}
-                </button>
               </div>
 
               <select v-model="reviewActionForm.next_approver_id" class="form-control" required>
                 <option value="">-- សូមជ្រើសរើសថ្នាក់ដឹកនាំបន្ត --</option>
-                <template v-if="!useReviewNextTier">
-                  <option v-for="cand in reviewCandidates.candidates" :key="cand.id" :value="cand.id">
-                    {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
-                    {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
-                  </option>
-                </template>
-                <template v-else>
-                  <option v-for="cand in reviewCandidates.next_tier_candidates" :key="cand.id" :value="cand.id">
-                    [ថ្នាក់បន្ទាប់] {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
-                    {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
-                  </option>
-                </template>
+                <option v-for="cand in reviewCandidates.candidates" :key="cand.id" :value="cand.id">
+                  {{ cand.name_kh || cand.name }} - {{ cand.position_title }} ({{ cand.office_name || cand.department_name || 'អគ្គនាយកដ្ឋាន' }})
+                  {{ cand.is_on_leave ? ' ⚠️ [' + (cand.leave_note || 'កំពុងឈប់សម្រាក') + ']' : '' }}
+                </option>
               </select>
+              <div v-if="reviewCandidates.candidates.length === 0" class="text-danger small mt-2">
+                <i class="fas fa-exclamation-triangle mr-1"></i> មិនមានថ្នាក់ដឹកនាំបន្ទាប់ក្នុងឋានានុក្រមនេះដើម្បីបញ្ជូនបន្តឡើយ
+              </div>
             </div>
 
             <!-- If REJECT selected: rejection reason -->
@@ -770,6 +974,26 @@
                         <strong>អ្នកទទួលពិនិត្យបច្ចុប្បន្ន៖ </strong>
                         <span class="font-weight-bold text-dark">{{ selectedViewRequest.current_approver.name_kh || selectedViewRequest.current_approver.name }}</span>
                         <span class="text-muted small ml-1">({{ selectedViewRequest.current_approver.position?.title_kh || 'ថ្នាក់ដឹកនាំ' }})</span>
+                      </div>
+                      <!-- Applicant Quota Summary in View Modal -->
+                      <div class="mt-2 pt-2 border-top" v-if="viewApplicantBalances">
+                        <small class="font-weight-bold text-dark d-block mb-1">
+                          <i class="fas fa-balance-scale text-primary mr-1"></i>សមតុល្យកូតាច្បាប់របស់សាមីខ្លួន (ឆ្នាំនេះ)៖
+                        </small>
+                        <div class="d-flex flex-wrap small text-muted">
+                          <span class="mr-2 badge badge-light border">
+                            ប្រចាំឆ្នាំ៖ <strong>{{ viewApplicantBalances.ANNUAL?.remaining ?? 0 }}</strong>/15 ថ្ងៃ
+                          </span>
+                          <span class="mr-2 badge badge-light border">
+                            រយៈពេលខ្លី៖ <strong>{{ viewApplicantBalances.SHORT_TERM?.remaining ?? 0 }}</strong>/15 ថ្ងៃ
+                          </span>
+                          <span class="mr-2 badge badge-light border">
+                            ព្យាបាលជំងឺ៖ <strong>{{ viewApplicantBalances.SICK?.remaining ?? 0 }}</strong>/365 ថ្ងៃ
+                          </span>
+                          <span class="badge badge-light border">
+                            ផ្ទាល់ខ្លួន៖ <strong>{{ viewApplicantBalances.PERSONAL?.remaining ?? 0 }}</strong>/90 ថ្ងៃ
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -896,6 +1120,7 @@ const loading = ref(false);
 const requests = ref([]);
 const stats = reactive({
   my_stats: { total: 0, draft: 0, pending: 0, approved: 0, rejected: 0, annual_days_used: 0 },
+  leave_balances: null,
   review_stats: { pending: 0, forwarded: 0, approved: 0, rejected: 0 },
   all_stats: { total: 0, pending: 0, approved: 0, rejected: 0 },
   pending_reviews_count: 0,
@@ -905,8 +1130,42 @@ const stats = reactive({
 });
 
 const isDirectorGeneral = computed(() => {
-  return stats.is_dg || userStore.position?.level === 1 || (userStore.isAdmin && !userStore.position_id);
+  return stats.is_dg || userStore.position?.level === 1;
 });
+
+const canFinalApprove = computed(() => {
+  return stats.can_final_approve || isDirectorGeneral.value || userStore.isAdmin;
+});
+
+const currentYear = computed(() => new Date().getFullYear());
+const reviewApplicantBalances = ref(null);
+const viewApplicantBalances = ref(null);
+
+const selectedTypeBalance = computed(() => {
+  if (!stats.leave_balances || !form.leave_type) return null;
+  return stats.leave_balances[form.leave_type] || null;
+});
+
+const isDurationExceedingQuota = computed(() => {
+  if (!selectedTypeBalance.value) return false;
+  const requested = Number(form.duration_days) || 0;
+  if (selectedTypeBalance.value.scope === 'EVENT') {
+    return requested > (selectedTypeBalance.value.max_limit || 90);
+  }
+  return requested > (selectedTypeBalance.value.remaining || 0);
+});
+
+function getProgressBarColor(percent) {
+  if (percent >= 90) return 'bg-danger';
+  if (percent >= 60) return 'bg-warning';
+  return 'bg-success';
+}
+
+function calculatePercent(used, max) {
+  if (!max || max <= 0) return 0;
+  const p = Math.round(((used || 0) / max) * 100);
+  return Math.min(100, Math.max(0, p));
+}
 
 const pagination = reactive({
   current_page: 1,
@@ -925,7 +1184,6 @@ const isEditing = ref(false);
 const currentEditingId = ref(null);
 const submitNowSelected = ref(false);
 const selectedFile = ref(null);
-const useNextTier = ref(false);
 
 const form = reactive({
   leave_type: 'ANNUAL',
@@ -942,14 +1200,11 @@ const form = reactive({
 
 const approverCandidates = reactive({
   candidates: [],
-  next_tier_candidates: [],
-  can_skip_to_next_tier: false,
 });
 
 // Review State
 const currentSelectedRequest = ref(null);
 const submittingAction = ref(false);
-const useReviewNextTier = ref(false);
 const reviewActionForm = reactive({
   action: 'FORWARD',
   remarks: '',
@@ -958,8 +1213,6 @@ const reviewActionForm = reactive({
 });
 const reviewCandidates = reactive({
   candidates: [],
-  next_tier_candidates: [],
-  can_skip_to_next_tier: false,
 });
 
 // View Details State
@@ -976,10 +1229,12 @@ function closeCreateModal() {
 function closeReviewModal() {
   showReviewModal.value = false;
   currentSelectedRequest.value = null;
+  reviewApplicantBalances.value = null;
 }
 function closeViewModal() {
   showViewModal.value = false;
   selectedViewRequest.value = null;
+  viewApplicantBalances.value = null;
 }
 
 // Lifecycle
@@ -1010,6 +1265,9 @@ async function loadStats() {
 }
 
 async function loadRequests(page = 1) {
+  if (typeof page !== 'number' || isNaN(page) || page < 1) {
+    page = 1;
+  }
   loading.value = true;
   try {
     const params = {
@@ -1123,8 +1381,6 @@ async function fetchApproverCandidates() {
     const res = await apiGetNextApproverCandidates(params);
     if (res.data && res.data.data) {
       approverCandidates.candidates = res.data.data.candidates;
-      approverCandidates.next_tier_candidates = res.data.data.next_tier_candidates;
-      approverCandidates.can_skip_to_next_tier = res.data.data.can_skip_to_next_tier;
       
       // Auto-select first candidate if not selected
       if (!form.next_approver_id && approverCandidates.candidates.length > 0) {
@@ -1137,8 +1393,7 @@ async function fetchApproverCandidates() {
 }
 
 const selectedApproverOnLeave = computed(() => {
-  const list = useNextTier.value ? approverCandidates.next_tier_candidates : approverCandidates.candidates;
-  const found = list.find(c => c.id === form.next_approver_id);
+  const found = approverCandidates.candidates.find(c => c.id === form.next_approver_id);
   return found ? found.is_on_leave : false;
 });
 
@@ -1154,7 +1409,6 @@ function openCreateModal() {
   isEditing.value = false;
   currentEditingId.value = null;
   selectedFile.value = null;
-  useNextTier.value = false;
   initDefaultDates();
   form.leave_type = 'ANNUAL';
   form.is_half_day = false;
@@ -1170,7 +1424,6 @@ function openEditModal(req) {
   isEditing.value = true;
   currentEditingId.value = req.id;
   selectedFile.value = null;
-  useNextTier.value = false;
   form.leave_type = req.leave_type;
   form.start_date = req.start_date;
   form.end_date = req.end_date;
@@ -1186,6 +1439,15 @@ function openEditModal(req) {
 }
 
 async function submitForm() {
+  if (isDurationExceedingQuota.value) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'លើសកូតាកំណត់',
+      text: `ចំនួនថ្ងៃដែលបានស្នើសុំ (${form.duration_days} ថ្ងៃ) លើសពីសមតុល្យកូតាដែលនៅសល់!`,
+    });
+    return;
+  }
+
   try {
     const formData = new FormData();
     formData.append('leave_type', form.leave_type);
@@ -1236,24 +1498,36 @@ async function openReviewModal(req) {
   try {
     const res = await apiGetLeaveRequest(req.id);
     currentSelectedRequest.value = res.data.data;
-    reviewActionForm.action = isDirectorGeneral.value ? 'APPROVE' : 'FORWARD';
+    reviewApplicantBalances.value = res.data.applicant_balances || null;
+
+    if (isDirectorGeneral.value) {
+      reviewActionForm.action = 'APPROVE';
+    } else {
+      reviewActionForm.action = 'FORWARD';
+    }
+
     reviewActionForm.remarks = '';
     reviewActionForm.rejection_reason = '';
     reviewActionForm.next_approver_id = '';
-    useReviewNextTier.value = false;
+    reviewCandidates.candidates = [];
 
-    // Load next stage candidates
-    const candRes = await apiGetNextApproverCandidates({
-      request_id: req.id,
-      start_date: req.start_date,
-      end_date: req.end_date,
-    });
-    if (candRes.data && candRes.data.data) {
-      reviewCandidates.candidates = candRes.data.data.candidates;
-      reviewCandidates.next_tier_candidates = candRes.data.data.next_tier_candidates;
-      reviewCandidates.can_skip_to_next_tier = candRes.data.data.can_skip_to_next_tier;
-      if (reviewCandidates.candidates.length > 0) {
-        reviewActionForm.next_approver_id = reviewCandidates.candidates[0].id;
+    // Load next stage candidates (for non-DG or Admin)
+    if (!isDirectorGeneral.value || userStore.isAdmin) {
+      try {
+        const candRes = await apiGetNextApproverCandidates({
+          request_id: req.id,
+          start_date: req.start_date,
+          end_date: req.end_date,
+        });
+        if (candRes.data && candRes.data.data) {
+          reviewCandidates.candidates = candRes.data.data.candidates || [];
+          if (reviewCandidates.candidates.length > 0) {
+            reviewActionForm.next_approver_id = reviewCandidates.candidates[0].id;
+          }
+        }
+      } catch (candErr) {
+        console.warn("Could not load next approver candidates:", candErr);
+        reviewCandidates.candidates = [];
       }
     }
 
@@ -1364,6 +1638,7 @@ async function openViewModal(req) {
   try {
     const res = await apiGetLeaveRequest(req.id);
     selectedViewRequest.value = res.data.data;
+    viewApplicantBalances.value = res.data.applicant_balances || null;
     showViewModal.value = true;
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'កំហុស', text: 'មិនអាចបើកមើលព័ត៌មានលម្អិតនៃសំណើបានឡើយ!' });
@@ -1582,6 +1857,51 @@ function getApprovalRemarkForStage(req, stage) {
 .bg-secondary-light { background-color: #f1f5f9; }
 .bg-info-light { background-color: #e0f2fe; }
 .cursor-pointer { cursor: pointer; }
+
+/* Quota Dashboard Styles */
+.bg-light-soft {
+  background-color: #f8fafc;
+}
+.quota-card {
+  transition: all 0.2s ease;
+  border: 1px solid #e2e8f0;
+}
+.quota-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06) !important;
+}
+.quota-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.badge-primary-light {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+.badge-info-light {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+.badge-danger-light {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+.badge-warning-light {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.badge-secondary-light {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+.text-warning-dark {
+  color: #92400e !important;
+}
+.progress-xs {
+  height: 6px;
+}
 
 /* Custom Table */
 .custom-table th {

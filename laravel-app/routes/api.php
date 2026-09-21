@@ -16,6 +16,7 @@ use App\Http\Controllers\API\MeetingRoomController;
 use App\Http\Controllers\API\RoomBookingController;
 use App\Http\Controllers\API\WeeklyReportController;
 use App\Http\Controllers\API\LeaveRequestController;
+use App\Http\Controllers\API\InboundDocumentController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -111,6 +112,30 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::post('/{id}/cancel', [LeaveRequestController::class, 'cancel']);
         Route::delete('/{id}', [LeaveRequestController::class, 'destroy']);
         Route::get('/{id}/download-attachment', [LeaveRequestController::class, 'downloadAttachment']);
+    });
+
+    // គ្រប់គ្រងលំហូរឯកសារចូលមក ន.ប.ធ. (Inbound Documents)
+    Route::prefix('inbound-documents')->group(function () {
+        Route::get('/generate-number', [InboundDocumentController::class, 'generateNextNumber']);
+        Route::get('/recipients-options', [InboundDocumentController::class, 'recipientsOptions']);
+        Route::get('/', [InboundDocumentController::class, 'index']);
+        Route::get('/stats', [InboundDocumentController::class, 'stats']);
+        Route::get('/{id}', [InboundDocumentController::class, 'show']);
+        Route::post('/', [InboundDocumentController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [InboundDocumentController::class, 'update']);
+        Route::patch('/{id}/send-to-assistant', [InboundDocumentController::class, 'sendToAssistant']);
+        Route::post('/{id}/assistant-receive', [InboundDocumentController::class, 'assistantReceiveAndSubmitToDg']);
+        Route::post('/{id}/dg-annotate', [InboundDocumentController::class, 'dgAnnotate']);
+        Route::post('/{id}/assistant-dispatch', [InboundDocumentController::class, 'assistantDispatch']);
+        Route::post('/{id}/forward', [InboundDocumentController::class, 'forward']);
+        Route::post('/{id}/acknowledge', [InboundDocumentController::class, 'acknowledge']);
+        Route::get('/{id}/next-response-approvers', [InboundDocumentController::class, 'getNextResponseApprovers']);
+        Route::post('/{id}/submit-response', [InboundDocumentController::class, 'submitResponseDraft']);
+        Route::post('/{id}/response-action', [InboundDocumentController::class, 'processResponseAction']);
+        Route::get('/{id}/download-original', [InboundDocumentController::class, 'downloadOriginalFile']);
+        Route::get('/{id}/download-annotated', [InboundDocumentController::class, 'downloadAnnotatedFile']);
+        Route::get('/responses/{responseId}/download', [InboundDocumentController::class, 'downloadResponseFile']);
+        Route::delete('/{id}', [InboundDocumentController::class, 'destroy']);
     });
     
     Route::middleware('admin')->prefix('manage')->group(function () {
