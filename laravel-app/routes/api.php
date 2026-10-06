@@ -17,6 +17,7 @@ use App\Http\Controllers\API\RoomBookingController;
 use App\Http\Controllers\API\WeeklyReportController;
 use App\Http\Controllers\API\LeaveRequestController;
 use App\Http\Controllers\API\InboundDocumentController;
+use App\Http\Controllers\API\HikvisionAttendanceController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,10 @@ Route::get('/districts/by/province/{id}', [GeoController::class, 'getDistrictsBy
 Route::get('/communes/by/district/{id}', [GeoController::class, 'getCommunesByDistrict']);
 Route::get('/villages/by/commune/{id}', [GeoController::class, 'getVillagesByCommune']);
 Route::get('/manage/get-dashboard-summary', [AttendanceController::class, 'getDashboardSummary']);
+
+// HIKVISION Biometric Event Push (Webhook for Terminals)
+Route::post('/attendance/hikvision/event', [HikvisionAttendanceController::class, 'handleWebhook']);
+Route::post('/attendance/hikvision/webhook', [HikvisionAttendanceController::class, 'handleWebhook']);
 
 Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/signout', [AuthController::class, 'signout']);
@@ -118,9 +123,12 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::prefix('inbound-documents')->group(function () {
         Route::get('/generate-number', [InboundDocumentController::class, 'generateNextNumber']);
         Route::get('/recipients-options', [InboundDocumentController::class, 'recipientsOptions']);
-        Route::get('/', [InboundDocumentController::class, 'index']);
         Route::get('/stats', [InboundDocumentController::class, 'stats']);
+        Route::post('/telegram-settings', [InboundDocumentController::class, 'updateTelegramSettings']);
+        Route::post('/test-telegram', [InboundDocumentController::class, 'testTelegram']);
+        Route::get('/', [InboundDocumentController::class, 'index']);
         Route::get('/{id}', [InboundDocumentController::class, 'show']);
+        Route::get('/{id}/routing-slip-data', [InboundDocumentController::class, 'routingSlipData']);
         Route::post('/', [InboundDocumentController::class, 'store']);
         Route::match(['PUT', 'POST'], '/{id}', [InboundDocumentController::class, 'update']);
         Route::patch('/{id}/send-to-assistant', [InboundDocumentController::class, 'sendToAssistant']);
@@ -195,6 +203,18 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         // routeName សម្រាប់រក្សាទុក ឬកែប្រែវត្តមានមន្ត្រី
         Route::post('/attendances/save', [AttendanceController::class, 'store']);
         Route::post('/attendances/import', [AttendanceController::class, 'import']);
+
+        // 5b. HIKVISION Biometric Devices & Logs Management
+        Route::prefix('manage/biometric-devices')->group(function () {
+            Route::get('/', [HikvisionAttendanceController::class, 'getDevices']);
+            Route::post('/', [HikvisionAttendanceController::class, 'storeDevice']);
+            Route::put('/{id}', [HikvisionAttendanceController::class, 'updateDevice']);
+            Route::delete('/{id}', [HikvisionAttendanceController::class, 'deleteDevice']);
+            Route::post('/{id}/test', [HikvisionAttendanceController::class, 'testConnection']);
+            Route::post('/{id}/sync', [HikvisionAttendanceController::class, 'syncDevice']);
+            Route::get('/logs/list', [HikvisionAttendanceController::class, 'getDeviceLogs']);
+            Route::get('/setup-info', [HikvisionAttendanceController::class, 'getSetupInfo']);
+        });
 
         // 6. Document Templates (គ្រប់គ្រងគំរូឯកសារ)
         Route::prefix('document-templates')->group(function () {

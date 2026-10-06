@@ -116,11 +116,11 @@ export const useUserStore = defineStore('user',
           return true;
         }
         // សិទ្ធិមូលដ្ឋានដែលមន្ត្រីគ្រប់រូបត្រូវតែអាចប្រើប្រាស់បាន
-        const baseOfficerPerms = ['profile', 'weekly-reports', 'leave-requests', 'inbound-documents'];
+        const baseOfficerPerms = ['dashboard', 'profile', 'weekly-reports', 'leave-requests', 'inbound-documents'];
         if (baseOfficerPerms.includes(permissionKey)) {
           return true;
         }
-        const defaultPerms = ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents'];
+        const defaultPerms = ['dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents'];
         if (!state.permissions || !Array.isArray(state.permissions) || state.permissions.length === 0) {
           return defaultPerms.includes(permissionKey);
         }

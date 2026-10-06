@@ -45,7 +45,7 @@ class InboundDocumentMovement extends Model
             get: function () {
                 return match ($this->action) {
                     'REGISTERED' => 'ចុះបញ្ជីទទួលឯកសារចូល',
-                    'FORWARDED_TO_ASSISTANT' => 'បញ្ជូនទៅការិយាល័យអគ្គនាយក',
+                    'FORWARDED_TO_ASSISTANT' => 'បញ្ជូនទៅជំនួយការអគ្គនាយក',
                     'ASSISTANT_RECEIVED' => 'ជំនួយការបានចុះលេខចូល និងកាលបរិច្ឆេទ',
                     'SUBMITTED_TO_DG' => 'ដាក់ជូនឯកឧត្តមអគ្គនាយក',
                     'DG_ANNOTATED' => 'ឯកឧត្តមអគ្គនាយកបានធ្វើចំណារ',

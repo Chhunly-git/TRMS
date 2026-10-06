@@ -61,6 +61,8 @@ class UpdateUserRequest extends FormRequest
             'phone' => 'nullable|string|max:30',
             'birth_place' => 'nullable|string|max:255',
             'current_address' => 'nullable|string|max:500',
+            'telegram_chat_id' => 'nullable|string|max:100',
+            'telegram_username' => 'nullable|string|max:100',
 
             // អត្តសញ្ញាណប័ណ្ណ & លិខិតឆ្លងដែន
             'national_id_number' => 'nullable|string|max:50',

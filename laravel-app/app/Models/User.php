@@ -29,6 +29,8 @@ class User extends Authenticatable
         'name_kh',
         'name_en',
         'email',
+        'telegram_chat_id',
+        'telegram_username',
         'password',
         'profile_image',
         'level',
@@ -128,7 +130,7 @@ class User extends Authenticatable
         }
 
         // សិទ្ធិមូលដ្ឋានដែលមន្ត្រីគ្រប់រូបមានដោយស្វ័យប្រវត្តិ
-        if (in_array($permission, ['profile', 'weekly-reports', 'leave-requests', 'inbound-documents'])) {
+        if (in_array($permission, ['dashboard', 'profile', 'weekly-reports', 'leave-requests', 'inbound-documents'])) {
             return true;
         }
 

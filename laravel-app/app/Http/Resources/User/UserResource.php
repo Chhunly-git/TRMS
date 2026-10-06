@@ -21,6 +21,8 @@ class UserResource extends JsonResource
             'name_kh' => $this->name_kh,
             'name_en' => $this->name_en,
             'email' => $this->email,
+            'telegram_chat_id' => $this->telegram_chat_id,
+            'telegram_username' => $this->telegram_username,
             'profile_image' => $this->profile_image,
             'profile_thumbnail' => $this->profile_thumbnail,
             'password_null' => $this->password_null,

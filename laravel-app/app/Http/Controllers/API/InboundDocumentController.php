@@ -14,9 +14,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Services\TelegramService;
 
 class InboundDocumentController extends Controller
 {
+    protected TelegramService $telegram;
+
+    public function __construct(TelegramService $telegram)
+    {
+        $this->telegram = $telegram;
+    }
+
     /**
      * Helper: Category to DG Prefix mapping
      */
@@ -430,7 +438,7 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        return DB::transaction(function () use ($request, $viewer) {
+        $doc = DB::transaction(function () use ($request, $viewer) {
             $yy = date('y');
             $maxSeq = InboundDocument::where('general_inbound_year', $yy)->max('general_inbound_seq') ?? 0;
             $nextSeq = (int) $maxSeq + 1;
@@ -488,15 +496,22 @@ class InboundDocumentController extends Controller
                     'action' => 'FORWARDED_TO_ASSISTANT',
                     'from_status' => 'RECEPTION_DRAFT',
                     'to_status' => 'SUBMITTED_TO_ASSISTANT',
-                    'comment' => 'បានបញ្ជូនទៅកាន់ការិយាល័យអគ្គនាយក',
+                    'comment' => 'បានបញ្ជូនទៅកាន់ជំនួយការអគ្គនាយក',
                 ]);
             }
 
-            return response()->json([
-                'message' => 'បានចុះបញ្ជីឯកសារចូលដោយជោគជ័យ!',
-                'document' => $doc->load('registeredByUser'),
-            ], 201);
+            return $doc;
         });
+
+        // Telegram Notification for new inbound document
+        if ($sendImmediately) {
+            $this->telegram->notifyNewInbound($doc);
+        }
+
+        return response()->json([
+            'message' => 'បានចុះបញ្ជីឯកសារចូលដោយជោគជ័យ!',
+            'document' => $doc->load('registeredByUser'),
+        ], 201);
     }
 
     /**
@@ -519,8 +534,11 @@ class InboundDocumentController extends Controller
             'action' => 'FORWARDED_TO_ASSISTANT',
             'from_status' => 'RECEPTION_DRAFT',
             'to_status' => 'SUBMITTED_TO_ASSISTANT',
-            'comment' => $request->input('comment', 'បានបញ្ជូនទៅកាន់ការិយាល័យអគ្គនាយក'),
+            'comment' => $request->input('comment', 'បានបញ្ជូនទៅកាន់ជំនួយការអគ្គនាយក'),
         ]);
+
+        // Telegram Notification
+        $this->telegram->notifyNewInbound($doc);
 
         return response()->json([
             'message' => 'បានបញ្ជូនឯកសារទៅកាន់ជំនួយការអគ្គនាយករួចរាល់!',
@@ -529,7 +547,7 @@ class InboundDocumentController extends Controller
     }
 
     /**
-     * 7. ជំនួយការទទួល និងចុះលេខចូលការិយាល័យអគ្គនាយក រួចដាក់ជូនអគ្គនាយក (Assistant Receive & Submit to DG)
+     * 7. ជំនួយការទទួល និងចុះលេខចូលជំនួយការអគ្គនាយក រួចដាក់ជូនអគ្គនាយក (Assistant Receive & Submit to DG)
      */
     public function assistantReceiveAndSubmitToDg($id, Request $request)
     {
@@ -552,7 +570,7 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        return DB::transaction(function () use ($request, $viewer, $doc) {
+        $doc = DB::transaction(function () use ($request, $viewer, $doc) {
             $category = $request->input('dg_inbound_category');
             $prefix = $this->getCategoryPrefix($category);
             $yy = date('y');
@@ -594,11 +612,16 @@ class InboundDocumentController extends Controller
                 ],
             ]);
 
-            return response()->json([
-                'message' => "បានចុះលេខចូល {$dgNumber} និងដាក់ជូនឯកឧត្តមអគ្គនាយករួចរាល់!",
-                'document' => $doc->fresh(['registeredByUser', 'assistant']),
-            ]);
+            return $doc->fresh(['registeredByUser', 'assistant']);
         });
+
+        // Telegram Notification for DG
+        $this->telegram->notifySubmittedToDg($doc);
+
+        return response()->json([
+            'message' => "បានចុះលេខចូល {$doc->dg_inbound_number} និងដាក់ជូនឯកឧត្តមអគ្គនាយករួចរាល់!",
+            'document' => $doc,
+        ]);
     }
 
     /**
@@ -685,7 +708,7 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        return DB::transaction(function () use ($request, $viewer, $doc) {
+        $doc = DB::transaction(function () use ($request, $viewer, $doc) {
             $annotatedPath = $doc->annotated_file_path;
             $annotatedName = $doc->annotated_file_name;
 
@@ -745,11 +768,16 @@ class InboundDocumentController extends Controller
                 ],
             ]);
 
-            return response()->json([
-                'message' => 'បានចែកចាយឯកសារទៅកាន់ភាគីពាក់ព័ន្ធរួចរាល់!',
-                'document' => $doc->fresh(['targetDepartment', 'targetOffice', 'targetUser']),
-            ]);
+            return $doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'dispatchedByUser']);
         });
+
+        // Telegram Notification for dispatched targets
+        $this->telegram->notifyDispatched($doc);
+
+        return response()->json([
+            'message' => 'បានចែកចាយឯកសារទៅកាន់ភាគីពាក់ព័ន្ធរួចរាល់!',
+            'document' => $doc,
+        ]);
     }
 
     /**
@@ -790,7 +818,7 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        return DB::transaction(function () use ($request, $viewer, $doc) {
+        $result = DB::transaction(function () use ($request, $viewer, $doc) {
             $prevTargetDesc = '';
             if ($doc->target_type === 'OFFICER' && $doc->targetUser) {
                 $prevTargetDesc = 'មន្ត្រី៖ ' . ($doc->targetUser->name_kh ?? $doc->targetUser->name);
@@ -851,12 +879,17 @@ class InboundDocumentController extends Controller
                 ],
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'បានចាត់ចែង និងបញ្ជូនបន្តដោយជោគជ័យ!',
-                'document' => $doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'movements.user']),
-            ]);
+            return [$doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'movements.user']), $newTargetDesc];
         });
+
+        [$freshDoc, $targetDesc] = $result;
+        $this->telegram->notifyForwarded($freshDoc, $viewer, $targetDesc, $request->input('forwarding_notes'), $freshDoc->targetUser);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានចាត់ចែង និងបញ្ជូនបន្តដោយជោគជ័យ!',
+            'document' => $freshDoc,
+        ]);
     }
 
     /**
@@ -1003,7 +1036,7 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        return DB::transaction(function () use ($request, $viewer, $doc) {
+        $result = DB::transaction(function () use ($request, $viewer, $doc) {
             $filePath = null;
             $fileName = null;
             if ($request->hasFile('response_file')) {
@@ -1057,11 +1090,16 @@ class InboundDocumentController extends Controller
                 'comment' => "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh}",
             ]);
 
-            return response()->json([
-                'message' => "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh} រួចរាល់!",
-                'response' => $response->load(['draftedByUser', 'currentApprover']),
-            ], 201);
+            return [$response->load(['draftedByUser', 'currentApprover']), $targetReviewer];
         });
+
+        [$responseModel, $targetReviewer] = $result;
+        $this->telegram->notifyResponseSubmitted($responseModel, $viewer, $targetReviewer);
+
+        return response()->json([
+            'message' => "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh} រួចរាល់!",
+            'response' => $responseModel,
+        ], 201);
     }
 
     /**
@@ -1137,6 +1175,8 @@ class InboundDocumentController extends Controller
                     'comment' => "បានបញ្ជូនលិខិតឆ្លើយតបបន្តទៅកាន់ {$nextReviewer->name_kh}",
                 ]);
 
+                $this->telegram->notifyResponseForwarded($response, $viewer, $nextReviewer, $comment);
+
                 return response()->json([
                     'message' => "បានបញ្ជូនលិខិតឆ្លើយតបបន្តទៅកាន់ {$nextReviewer->name_kh} រួចរាល់!",
                     'response' => $response->fresh(['currentApprover', 'approvals']),
@@ -1168,6 +1208,11 @@ class InboundDocumentController extends Controller
                     'action' => 'RESPONSE_RETURNED',
                     'comment' => "បានបញ្ជូនលិខិតឆ្លើយតបត្រឡប់ទៅអ្នករៀបចំវិញដើម្បីកែសម្រួល៖ {$comment}",
                 ]);
+
+                $drafter = User::find($response->drafted_by);
+                if ($drafter) {
+                    $this->telegram->notifyResponseReturned($response, $viewer, $drafter, $comment);
+                }
 
                 return response()->json([
                     'message' => 'បានបញ្ជូនលិខិតឆ្លើយតបត្រឡប់ទៅកាន់អ្នករៀបចំរួចរាល់!',
@@ -1210,6 +1255,8 @@ class InboundDocumentController extends Controller
                     'to_status' => 'COMPLETED',
                     'comment' => "ឯកឧត្តមអគ្គនាយកបានឯកភាព និងចុះហត្ថលេខាលើលិខិតឆ្លើយតប" . ($responseNumber ? " (លេខ៖ {$responseNumber})" : ""),
                 ]);
+
+                $this->telegram->notifyResponseApproved($response, $viewer, $doc);
 
                 return response()->json([
                     'message' => 'ឯកឧត្តមអគ្គនាយកបានឯកភាពលើលិខិតឆ្លើយតប និងបញ្ចប់ដំណើរការឯកសារ!',
@@ -1353,5 +1400,87 @@ class InboundDocumentController extends Controller
         $doc->delete();
 
         return response()->json(['message' => 'បានលុបឯកសារចូលដោយជោគជ័យ!']);
+    }
+
+    /**
+     * 19. ព័ត៌មានលម្អិតសម្រាប់បោះពុម្ពសន្លឹកតាមដានឯកសារចូល (Routing Slip Data)
+     */
+    public function routingSlipData($id, Request $request)
+    {
+        $doc = InboundDocument::with([
+            'registeredByUser:id,name,name_kh,email,phone',
+            'assistant:id,name,name_kh,email,phone',
+            'dispatchedByUser:id,name,name_kh',
+            'targetDepartment:id,name_kh,name_en',
+            'targetOffice:id,name_kh,name_en',
+            'targetUser:id,name,name_kh,email,phone',
+            'acknowledgedByUser:id,name,name_kh',
+            'movements' => function ($q) {
+                $q->with('user:id,name,name_kh,position_id', 'user.position:id,title_kh,title_en')
+                  ->orderBy('id', 'asc');
+            },
+            'latestResponse.currentApprover:id,name,name_kh',
+            'latestResponse.draftedByUser:id,name,name_kh',
+            'latestResponse.approvals' => function ($q) {
+                $q->with('user:id,name,name_kh', 'forwardedTo:id,name,name_kh')
+                  ->orderBy('id', 'asc');
+            },
+        ])->findOrFail($id);
+
+        $clientBaseUrl = config('app.url') ?? 'http://localhost:8000';
+        $trackingUrl = "{$clientBaseUrl}/inbound-documents?id={$doc->id}&ref=" . urlencode($doc->general_inbound_number);
+
+        return response()->json([
+            'document' => $doc,
+            'tracking_url' => $trackingUrl,
+            'generated_at' => now()->setTimezone('Asia/Phnom_Penh')->format('d/m/Y H:i:s'),
+            'organization_header' => [
+                'kingdom' => 'ព្រះរាជាណាចក្រកម្ពុជា',
+                'motto' => 'ជាតិ សាសនា ព្រះមហាក្សត្រ',
+                'regulator_kh' => 'និយ័តករអាណាព្យាបាល',
+                'regulator_en' => 'TRUST REGULATOR',
+                'title_kh' => 'សន្លឹកតាមដានឯកសារចូល (ROUTING SLIP)',
+            ],
+        ]);
+    }
+
+    /**
+     * 20. កំណត់ ឬកែសម្រួល Telegram Chat ID របស់គណនីបច្ចុប្បន្ន
+     */
+    public function updateTelegramSettings(Request $request)
+    {
+        $viewer = $request->user();
+        $validator = Validator::make($request->all(), [
+            'telegram_chat_id' => 'nullable|string|max:100',
+            'telegram_username' => 'nullable|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $viewer->update([
+            'telegram_chat_id' => $request->input('telegram_chat_id'),
+            'telegram_username' => $request->input('telegram_username'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានកែសម្រួលព័ត៌មាន Telegram ដោយជោគជ័យ!',
+            'user' => $viewer->fresh(),
+        ]);
+    }
+
+    /**
+     * 21. សាកល្បងការតភ្ជាប់ផ្ញើសារ Telegram Bot (Test Telegram Connection)
+     */
+    public function testTelegram(Request $request)
+    {
+        $viewer = $request->user();
+        $chatId = $request->input('chat_id') ?: $viewer->telegram_chat_id;
+
+        $result = $this->telegram->testConnection($chatId);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
     }
 }

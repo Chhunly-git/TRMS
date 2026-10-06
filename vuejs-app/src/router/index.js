@@ -28,6 +28,7 @@ import MeetingRoomBooking from "@/components/pages/MeetingRoomBooking.vue";
 import WeeklyReport from "@/components/pages/WeeklyReport.vue";
 import LeaveRequest from "@/components/pages/LeaveRequest.vue";
 import InboundDocument from "@/components/pages/InboundDocument.vue";
+import InboundDocumentRoutingSlip from "@/components/pages/InboundDocumentRoutingSlip.vue";
 
 
 // Layout Components
@@ -296,6 +297,17 @@ const router = createRouter({
       name: "inbound-documents",
       components: {
         default: InboundDocument,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "inbound-documents" },
+    },
+    {
+      path: "/inbound-documents/:id/routing-slip",
+      name: "inbound-documents.routing-slip",
+      components: {
+        default: InboundDocumentRoutingSlip,
         navbar: Navbar,
         left_sidebar: LeftSidebar,
         right_sidebar: RightSidebar,

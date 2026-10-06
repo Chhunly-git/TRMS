@@ -28,11 +28,18 @@
                   <input type="text" class="form-control border-left-0" v-model="searchQuery" placeholder="ស្វែងរកឈ្មោះមន្ត្រី..." />
                 </div>
               </div>
-              <div class="col-md-5 text-md-right">
-                <button @click="openImportModal" class="btn btn-success px-3 shadow-sm mr-2">
+              <div class="col-md-5 text-md-right d-flex justify-content-md-end align-items-center flex-wrap">
+                <button @click="openHikvisionModal" class="btn btn-dark px-3 shadow-sm mr-2 mb-1" title="គ្រប់គ្រងម៉ាស៊ីនស្កេនវត្តមាន HIKVISION">
+                  <i class="fas fa-fingerprint text-warning mr-1"></i> ម៉ាស៊ីន HIKVISION
+                  <span v-if="devices.length > 0" class="badge badge-success ml-1">{{ devices.length }}</span>
+                </button>
+                <button @click="triggerQuickDeviceSync" :disabled="syncingDevice" class="btn btn-outline-info px-3 shadow-sm mr-2 mb-1" title="ទាញយកវត្តមានពីម៉ាស៊ីន Hikvision សម្រាប់ថ្ងៃនេះ">
+                  <i class="fas fa-satellite-dish mr-1" :class="{ 'fa-spin': syncingDevice }"></i> {{ syncingDevice ? 'កំពុង Sync...' : 'Sync ពីម៉ាស៊ីន' }}
+                </button>
+                <button @click="openImportModal" class="btn btn-success px-3 shadow-sm mr-2 mb-1">
                   <i class="fas fa-file-excel mr-1"></i> Import Excel
                 </button>
-                <button @click="fetchAttendances" class="btn btn-primary px-3 shadow-sm">
+                <button @click="fetchAttendances" class="btn btn-primary px-3 shadow-sm mb-1">
                   <i class="fas fa-sync-alt mr-1"></i> ផ្ទុកទិន្នន័យ
                 </button>
               </div>
@@ -316,6 +323,402 @@
         </div>
       </div>
     </div>
+
+    <!-- HIKVISION Management Modal -->
+    <div v-if="showHikvisionModal" class="custom-modal-backdrop" @click.self="closeHikvisionModal">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable my-auto" role="document" style="width: 100%; max-width: 1100px;">
+        <div class="modal-content border-0 shadow-lg rounded-lg font-khmer">
+          <!-- Modal Header -->
+          <div class="modal-header bg-dark text-white py-3">
+            <div class="d-flex align-items-center">
+              <div class="bg-warning text-dark rounded-circle p-2 mr-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                <i class="fas fa-fingerprint fa-lg"></i>
+              </div>
+              <div>
+                <h5 class="modal-title font-weight-bold m-0 text-white">
+                  គ្រប់គ្រងម៉ាស៊ីនស្កេនវត្តមាន HIKVISION
+                </h5>
+                <small class="text-white-50">ការតភ្ជាប់ម៉ាស៊ីនស្កេនផ្ទៃមុខ (MinMoe), ក្រយៅដៃ, និងកាតឆ្លាតវៃ</small>
+              </div>
+            </div>
+            <button type="button" class="close text-white" @click="closeHikvisionModal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <!-- Nav Tabs -->
+          <div class="bg-light px-4 pt-3 border-bottom">
+            <ul class="nav nav-tabs border-0 font-khmer">
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold cursor-pointer"
+                  :class="{ 'active text-primary border-bottom-0 bg-white': activeHikvisionTab === 'devices' }"
+                  @click="activeHikvisionTab = 'devices'"
+                >
+                  <i class="fas fa-server mr-1"></i> បញ្ជីម៉ាស៊ីនស្កេន ({{ devices.length }})
+                </a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold cursor-pointer"
+                  :class="{ 'active text-primary border-bottom-0 bg-white': activeHikvisionTab === 'logs' }"
+                  @click="switchHikvisionTab('logs')"
+                >
+                  <i class="fas fa-history mr-1"></i> ប្រវត្តិ Scan ជាក់ស្តែង
+                </a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold cursor-pointer"
+                  :class="{ 'active text-primary border-bottom-0 bg-white': activeHikvisionTab === 'setup' }"
+                  @click="switchHikvisionTab('setup')"
+                >
+                  <i class="fas fa-cogs mr-1"></i> សេចក្តីណែនាំកំណត់ម៉ាស៊ីន (Setup Guide)
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4" style="max-height: 72vh; overflow-y: auto;">
+            <!-- TAB 1: DEVICES LIST -->
+            <div v-if="activeHikvisionTab === 'devices'">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="font-weight-bold text-dark mb-0">
+                  <i class="fas fa-network-wired text-info mr-1"></i> ម៉ាស៊ីនដែលបានភ្ជាប់ក្នុងប្រព័ន្ធ
+                </h6>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs font-khmer"
+                  @click="openAddDeviceForm"
+                >
+                  <i class="fas fa-plus mr-1"></i> បន្ថែមម៉ាស៊ីនថ្មី
+                </button>
+              </div>
+
+              <!-- Add/Edit Device Form Collapse/Card -->
+              <div v-if="showDeviceForm" class="card border border-primary shadow-xs rounded-lg mb-4 bg-light">
+                <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+                  <span class="font-weight-bold text-primary font-khmer">
+                    <i class="fas fa-edit mr-1"></i> {{ deviceForm.id ? 'កែប្រែព័ត៌មានម៉ាស៊ីន' : 'បន្ថែមម៉ាស៊ីន HIKVISION ថ្មី' }}
+                  </span>
+                  <button type="button" class="btn btn-xs btn-outline-secondary" @click="showDeviceForm = false">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <div class="card-body p-3 font-khmer">
+                  <form @submit.prevent="saveDevice">
+                    <div class="row">
+                      <div class="col-md-6 mb-2">
+                        <label class="font-weight-bold small text-muted">ឈ្មោះសម្គាល់ម៉ាស៊ីន: *</label>
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.name"
+                          placeholder="ឧ. ម៉ាស៊ីនច្រកចូលធំ (Main Entrance)"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-6 mb-2">
+                        <label class="font-weight-bold small text-muted">ម៉ូដែលម៉ាស៊ីន (Model):</label>
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.model"
+                          placeholder="ឧ. DS-K1T341 / MinMoe Face Terminal"
+                        />
+                      </div>
+                      <div class="col-md-4 mb-2">
+                        <label class="font-weight-bold small text-muted">អាសយដ្ឋាន IP (IP Address): *</label>
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.ip_address"
+                          placeholder="ឧ. 192.168.1.200"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-2 mb-2">
+                        <label class="font-weight-bold small text-muted">Port: *</label>
+                        <input
+                          type="number"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.port"
+                          placeholder="80"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-3 mb-2">
+                        <label class="font-weight-bold small text-muted">Username: *</label>
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.username"
+                          placeholder="admin"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-3 mb-2">
+                        <label class="font-weight-bold small text-muted">Password: {{ deviceForm.id ? '(ទុកទំនេរប្រសិនបើមិនប្តូរ)' : '*' }}</label>
+                        <input
+                          type="password"
+                          class="form-control form-control-sm"
+                          v-model="deviceForm.password"
+                          placeholder="••••••••"
+                          :required="!deviceForm.id"
+                        />
+                      </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-2">
+                      <button type="button" class="btn btn-sm btn-secondary mr-2" @click="showDeviceForm = false">បោះបង់</button>
+                      <button type="submit" class="btn btn-sm btn-primary px-3" :disabled="savingDevice">
+                        <i class="fas fa-spinner fa-spin mr-1" v-if="savingDevice"></i>
+                        {{ deviceForm.id ? 'រក្សាទុកការកែប្រែ' : 'បន្ថែមម៉ាស៊ីន' }}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Device Cards -->
+              <div v-if="loadingDevices" class="text-center py-4 text-muted">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                <p class="small">កំពុងទាញយកបញ្ជីម៉ាស៊ីន...</p>
+              </div>
+              <div v-else-if="devices.length === 0" class="text-center py-5 bg-light rounded-lg border">
+                <i class="fas fa-laptop-house fa-3x text-muted mb-2"></i>
+                <h6 class="font-weight-bold text-dark">មិនទាន់មានម៉ាស៊ីនស្កេនត្រូវបានបន្ថែមនៅឡើយទេ</h6>
+                <p class="small text-muted mb-3">សូមចុច "បន្ថែមម៉ាស៊ីនថ្មី" ដើម្បីកំណត់ IP និងគណនីម៉ាស៊ីន HIKVISION របស់អ្នក</p>
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" @click="openAddDeviceForm">
+                  <i class="fas fa-plus mr-1"></i> បន្ថែមម៉ាស៊ីនឥឡូវនេះ
+                </button>
+              </div>
+              <div v-else class="row">
+                <div v-for="dev in devices" :key="dev.id" class="col-md-6 mb-3">
+                  <div class="card border rounded-lg h-100 shadow-xs bg-white">
+                    <div class="card-body p-3">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 class="font-weight-bold text-dark mb-0">{{ dev.name }}</h6>
+                          <small class="text-muted">{{ dev.model || 'Hikvision Terminal' }}</small>
+                        </div>
+                        <span class="badge" :class="dev.last_status === 'ONLINE' ? 'badge-success' : (dev.last_status === 'OFFLINE' ? 'badge-danger' : 'badge-secondary')">
+                          <i class="fas fa-circle mr-1 text-xs"></i>{{ dev.last_status || 'UNKNOWN' }}
+                        </span>
+                      </div>
+                      <div class="small text-secondary mb-3">
+                        <div><i class="fas fa-network-wired text-muted mr-1"></i> IP: <strong>{{ dev.ip_address }}:{{ dev.port }}</strong></div>
+                        <div v-if="dev.last_sync_at"><i class="far fa-clock text-muted mr-1"></i> Sync ចុងក្រោយ: {{ formatDateTimeShort(dev.last_sync_at) }}</div>
+                        <div v-if="dev.status_message" class="text-info mt-1"><i class="fas fa-info-circle mr-1"></i>{{ dev.status_message }}</div>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <div class="btn-group">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-success mr-1"
+                            :disabled="testingDevice === dev.id"
+                            @click="testDevice(dev)"
+                            title="តេស្តការតភ្ជាប់តាម ISAPI"
+                          >
+                            <i class="fas fa-plug mr-1" :class="{ 'fa-spin': testingDevice === dev.id }"></i> តេស្ត
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-info mr-1"
+                            :disabled="syncingDeviceId === dev.id"
+                            @click="syncDeviceEvents(dev)"
+                            title="ទាញយកទិន្នន័យពីម៉ាស៊ីនសម្រាប់ថ្ងៃដែលបានរើស"
+                          >
+                            <i class="fas fa-sync mr-1" :class="{ 'fa-spin': syncingDeviceId === dev.id }"></i> Sync
+                          </button>
+                        </div>
+                        <div>
+                          <button type="button" class="btn btn-xs btn-light text-primary mr-1" @click="editDevice(dev)">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button type="button" class="btn btn-xs btn-light text-danger" @click="confirmDeleteDevice(dev)">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: REAL-TIME DEVICE LOGS -->
+            <div v-if="activeHikvisionTab === 'logs'">
+              <!-- Filter Bar -->
+              <div class="row align-items-center mb-3">
+                <div class="col-md-4 mb-2 mb-md-0">
+                  <div class="input-group input-group-sm">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text bg-white"><i class="far fa-calendar-alt text-muted"></i></span>
+                    </div>
+                    <input type="date" class="form-control" v-model="logsFilterDate" @change="fetchDeviceLogs" />
+                  </div>
+                </div>
+                <div class="col-md-5 mb-2 mb-md-0">
+                  <div class="input-group input-group-sm">
+                    <input
+                      type="text"
+                      class="form-control"
+                      v-model="logsSearchQuery"
+                      placeholder="ស្វែងរកតាមកូដ ឬឈ្មោះ..."
+                      @keyup.enter="fetchDeviceLogs"
+                    />
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-secondary" @click="fetchDeviceLogs"><i class="fas fa-search"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3 text-md-right">
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="fetchDeviceLogs">
+                    <i class="fas fa-redo-alt mr-1"></i> Refresh Logs
+                  </button>
+                </div>
+              </div>
+
+              <!-- Logs Table -->
+              <div class="table-responsive border rounded bg-white" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle mb-0 font-khmer">
+                  <thead class="bg-light sticky-top small text-muted">
+                    <tr>
+                      <th style="width: 50px;" class="text-center">#</th>
+                      <th>ពេលវេលា Scan</th>
+                      <th>មន្ត្រី</th>
+                      <th>កូដម៉ាស៊ីន</th>
+                      <th class="text-center">វិធី Scan</th>
+                      <th>ម៉ាស៊ីន</th>
+                      <th class="text-center">ស្ថានភាព</th>
+                      <th>សម្គាល់</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="loadingLogs">
+                      <td colspan="8" class="text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin mr-1"></i> កំពុងទាញយក Logs...
+                      </td>
+                    </tr>
+                    <tr v-else-if="deviceLogs.length === 0">
+                      <td colspan="8" class="text-center py-4 text-muted">
+                        មិនមានទិន្នន័យ Scan សម្រាប់ថ្ងៃនេះឡើយ
+                      </td>
+                    </tr>
+                    <tr v-for="(log, idx) in deviceLogs" :key="log.id">
+                      <td class="text-center text-muted font-weight-bold">{{ idx + 1 }}</td>
+                      <td>
+                        <strong class="text-dark">{{ formatDateTimeShort(log.scan_time) }}</strong>
+                      </td>
+                      <td>
+                        <div v-if="log.user" class="d-flex align-items-center">
+                          <img
+                            :src="getFullImageUrl(log.user.profile_image)"
+                            class="img-circle border mr-2"
+                            style="width: 30px; height: 30px; object-fit: cover;"
+                          />
+                          <div>
+                            <span class="font-weight-bold text-dark small d-block">{{ log.user.name_kh || log.user.name }}</span>
+                            <small class="text-muted">{{ log.user.position?.title_kh || 'មន្ត្រី' }}</small>
+                          </div>
+                        </div>
+                        <span v-else class="text-muted small">---</span>
+                      </td>
+                      <td>
+                        <span class="badge badge-light border">{{ log.employee_no }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge" :class="getVerifyModeBadge(log.verify_mode)">
+                          <i :class="getVerifyModeIcon(log.verify_mode)" class="mr-1"></i>
+                          {{ formatVerifyMode(log.verify_mode) }}
+                        </span>
+                      </td>
+                      <td>
+                        <small class="text-secondary">{{ log.device?.name || log.ip_address || '---' }}</small>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge" :class="log.status === 'PROCESSED' ? 'badge-success' : 'badge-danger'">
+                          {{ log.status === 'PROCESSED' ? 'ជោគជ័យ' : 'មិនផ្គូផ្គង' }}
+                        </span>
+                      </td>
+                      <td>
+                        <small class="text-muted text-truncate d-block" style="max-width: 180px;" :title="log.note">
+                          {{ log.note || '---' }}
+                        </small>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TAB 3: SETUP INSTRUCTIONS & WEBHOOK GUIDE -->
+            <div v-if="activeHikvisionTab === 'setup'">
+              <div class="alert alert-primary shadow-xs rounded-lg mb-4">
+                <h6 class="font-weight-bold mb-1">
+                  <i class="fas fa-link mr-1"></i> Webhook URL សម្រាប់កំណត់ក្នុងម៉ាស៊ីន HIKVISION (HTTP Listening / Event Push)
+                </h6>
+                <p class="small text-muted mb-2">
+                  សូមចម្លង (Copy) Link ខាងក្រោមនេះ ទៅដាក់ក្នុង Web Management របស់ម៉ាស៊ីន Hikvision ដើម្បីឱ្យម៉ាស៊ីន Push ទិន្នន័យវត្តមានមក TRMS ភ្លាមៗរាល់ពេលមន្ត្រី Scan៖
+                </p>
+                <div class="input-group">
+                  <input
+                    type="text"
+                    class="form-control font-weight-bold text-dark bg-white"
+                    :value="setupInfo.webhook_url || defaultWebhookUrl"
+                    readonly
+                  />
+                  <div class="input-group-append">
+                    <button class="btn btn-primary px-3" @click="copyWebhookUrl">
+                      <i class="fas fa-copy mr-1"></i> ចម្លង (Copy)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Steps Guide -->
+              <div class="card border rounded-lg bg-light p-3 mb-3">
+                <h6 class="font-weight-bold text-dark mb-3">
+                  <i class="fas fa-list-ol text-success mr-2"></i> ជំហាននៃការកំណត់នៅលើ Web Management របស់ម៉ាស៊ីន HIKVISION
+                </h6>
+                <div class="step-item mb-3">
+                  <strong class="text-primary">ជំហានទី ១៖</strong> បើក Browser (Chrome/Edge) រួចវាយ IP Address របស់ម៉ាស៊ីន Hikvision (ឧ. <code>http://192.168.1.200</code>) ហើយ Login ជាមួយ user <code>admin</code>។
+                </div>
+                <div class="step-item mb-3">
+                  <strong class="text-primary">ជំហានទី ២៖</strong> ចូលទៅកាន់ Menu:
+                  <br><code>Configuration -> Network -> Advanced Configuration -> HTTP Listening</code> (ឬម៉ាស៊ីនខ្លះនៅត្រង់ <code>Alarm -> Event Linkage -> HTTP Host</code>)។
+                </div>
+                <div class="step-item mb-3">
+                  <strong class="text-primary">ជំហានទី ៣៖</strong> បំពេញព័ត៌មានខាងក្រោម៖
+                  <ul>
+                    <li><strong>Destination IP / Domain:</strong> IP Address ឬ Domain របស់ Server TRMS</li>
+                    <li><strong>Port:</strong> Port របស់ Server (ឧ. <code>80</code> ឬ <code>8000</code>)</li>
+                    <li><strong>URL:</strong> <code>/api/attendance/hikvision/event</code></li>
+                  </ul>
+                </div>
+                <div class="step-item mb-3">
+                  <strong class="text-primary">ជំហានទី ៤ (សំខាន់បំផុត - ការផ្គូផ្គងមន្ត្រី):</strong>
+                  <br>នៅពេលលោកអ្នកចុះឈ្មោះមន្ត្រី (User Management) លើម៉ាស៊ីន Hikvision សូមបញ្ចូល <strong>Employee ID</strong> ឱ្យដូចគ្នាទៅនឹង <strong>«កូដមន្ត្រី (employee_code)»</strong> ឬ <strong>«ID»</strong> របស់មន្ត្រីក្នុងប្រព័ន្ធ TRMS។
+                  <br><small class="text-muted">ឧទាហរណ៍៖ បើមន្ត្រីមានកូដក្នុង TRMS ជា <code>EMP001</code> នោះ Employee ID លើម៉ាស៊ីនត្រូវដាក់ <code>EMP001</code> ដូចគ្នា។</small>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light justify-content-between">
+            <span class="text-muted small">
+              <i class="fas fa-shield-alt text-success mr-1"></i> គាំទ្រទាំងមុខងារ Webhook Push និង ISAPI Sync
+            </span>
+            <button type="button" class="btn btn-secondary px-4 rounded-pill" @click="closeHikvisionModal">
+              បិទផ្ទាំង
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -325,6 +728,16 @@ import $ from 'jquery';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import { apiGetAttendances, apiSaveAttendance, apiImportAttendances } from '@/functions/api/attendance';
+import {
+  apiGetBiometricDevices,
+  apiCreateBiometricDevice,
+  apiUpdateBiometricDevice,
+  apiDeleteBiometricDevice,
+  apiTestBiometricDeviceConnection,
+  apiSyncBiometricDevice,
+  apiGetBiometricDeviceLogs,
+  apiGetBiometricSetupInfo
+} from '@/functions/api/biometricDevice';
 
 const attendances = ref([]);
 const searchQuery = ref('');
@@ -681,7 +1094,338 @@ const confirmImport = async () => {
   }
 };
 
-onMounted(fetchAttendances);
+// ==========================================
+// HIKVISION BIOMETRIC SCANNER INTEGRATION
+// ==========================================
+const showHikvisionModal = ref(false);
+const activeHikvisionTab = ref('devices');
+const devices = ref([]);
+const loadingDevices = ref(false);
+const deviceLogs = ref([]);
+const loadingLogs = ref(false);
+const logsFilterDate = ref(selectedDate.value);
+const logsSearchQuery = ref('');
+const setupInfo = ref({});
+const showDeviceForm = ref(false);
+const savingDevice = ref(false);
+const testingDevice = ref(null);
+const syncingDeviceId = ref(null);
+const syncingDevice = ref(false);
+
+const deviceForm = reactive({
+  id: null,
+  name: '',
+  model: '',
+  ip_address: '',
+  port: 80,
+  username: 'admin',
+  password: '',
+  protocol: 'HTTP',
+  is_active: true
+});
+
+const defaultAvatar = 'https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg';
+
+const defaultWebhookUrl = computed(() => {
+  const base = (import.meta.env.VITE_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+  return `${base}/api/attendance/hikvision/event`;
+});
+
+const getFullImageUrl = (path) => {
+  if (!path) return defaultAvatar;
+  if (path.startsWith('http')) return path;
+  const backendBase = (import.meta.env.VITE_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+  let cleanPath = path.replace(/^\//, '');
+  if (!cleanPath.startsWith('storage/')) cleanPath = `storage/${cleanPath}`;
+  return `${backendBase}/${cleanPath}`;
+};
+
+const formatDateTimeShort = (dtStr) => {
+  if (!dtStr) return '---';
+  try {
+    const d = new Date(dtStr);
+    const date = d.toLocaleDateString('en-GB');
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${date} ${time}`;
+  } catch (e) {
+    return dtStr;
+  }
+};
+
+const formatVerifyMode = (mode) => {
+  const m = String(mode || '').toLowerCase();
+  if (m.includes('face')) return 'ផ្ទៃមុខ';
+  if (m.includes('finger')) return 'ក្រយៅដៃ';
+  if (m.includes('card')) return 'កាត';
+  if (m.includes('password') || m.includes('psw')) return 'លេខកូដ';
+  return 'ម៉ាស៊ីន';
+};
+
+const getVerifyModeBadge = (mode) => {
+  const m = String(mode || '').toLowerCase();
+  if (m.includes('face')) return 'badge-primary';
+  if (m.includes('finger')) return 'badge-success';
+  if (m.includes('card')) return 'badge-info';
+  return 'badge-secondary';
+};
+
+const getVerifyModeIcon = (mode) => {
+  const m = String(mode || '').toLowerCase();
+  if (m.includes('face')) return 'fas fa-smile';
+  if (m.includes('finger')) return 'fas fa-fingerprint';
+  if (m.includes('card')) return 'fas fa-id-card';
+  return 'fas fa-shield-alt';
+};
+
+const fetchDevices = async () => {
+  loadingDevices.value = true;
+  try {
+    const res = await apiGetBiometricDevices();
+    if (res.data?.success) {
+      devices.value = res.data.devices || [];
+    }
+  } catch (e) {
+    console.error('Failed to fetch biometric devices:', e);
+  } finally {
+    loadingDevices.value = false;
+  }
+};
+
+const fetchDeviceLogs = async () => {
+  loadingLogs.value = true;
+  try {
+    const params = {
+      date: logsFilterDate.value || undefined,
+      search: logsSearchQuery.value || undefined,
+    };
+    const res = await apiGetBiometricDeviceLogs(params);
+    if (res.data?.success) {
+      deviceLogs.value = res.data.data?.data || res.data.data || [];
+    }
+  } catch (e) {
+    console.error('Failed to fetch device logs:', e);
+  } finally {
+    loadingLogs.value = false;
+  }
+};
+
+const fetchSetupInfo = async () => {
+  try {
+    const res = await apiGetBiometricSetupInfo();
+    if (res.data?.success) {
+      setupInfo.value = res.data;
+    }
+  } catch (e) {
+    console.error('Failed to fetch setup info:', e);
+  }
+};
+
+const openHikvisionModal = async () => {
+  showHikvisionModal.value = true;
+  activeHikvisionTab.value = 'devices';
+  await fetchDevices();
+  await fetchSetupInfo();
+};
+
+const closeHikvisionModal = () => {
+  showHikvisionModal.value = false;
+};
+
+const switchHikvisionTab = (tab) => {
+  activeHikvisionTab.value = tab;
+  if (tab === 'logs') {
+    logsFilterDate.value = selectedDate.value;
+    fetchDeviceLogs();
+  } else if (tab === 'setup') {
+    fetchSetupInfo();
+  } else if (tab === 'devices') {
+    fetchDevices();
+  }
+};
+
+const openAddDeviceForm = () => {
+  deviceForm.id = null;
+  deviceForm.name = '';
+  deviceForm.model = '';
+  deviceForm.ip_address = '';
+  deviceForm.port = 80;
+  deviceForm.username = 'admin';
+  deviceForm.password = '';
+  deviceForm.protocol = 'HTTP';
+  deviceForm.is_active = true;
+  showDeviceForm.value = true;
+};
+
+const editDevice = (dev) => {
+  deviceForm.id = dev.id;
+  deviceForm.name = dev.name;
+  deviceForm.model = dev.model || '';
+  deviceForm.ip_address = dev.ip_address;
+  deviceForm.port = dev.port || 80;
+  deviceForm.username = dev.username || 'admin';
+  deviceForm.password = '';
+  deviceForm.protocol = dev.protocol || 'HTTP';
+  deviceForm.is_active = dev.is_active;
+  showDeviceForm.value = true;
+};
+
+const saveDevice = async () => {
+  savingDevice.value = true;
+  try {
+    let res;
+    if (deviceForm.id) {
+      res = await apiUpdateBiometricDevice(deviceForm.id, deviceForm);
+    } else {
+      res = await apiCreateBiometricDevice(deviceForm);
+    }
+
+    if (res.data?.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'ជោគជ័យ!',
+        text: res.data.message || 'បានរក្សាទុកព័ត៌មានម៉ាស៊ីន',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+      showDeviceForm.value = false;
+      await fetchDevices();
+    }
+  } catch (e) {
+    console.error('Failed to save device:', e);
+    Swal.fire('កំហុស', e.response?.data?.message || 'បរាជ័យក្នុងការរក្សាទុកព័ត៌មានម៉ាស៊ីន', 'error');
+  } finally {
+    savingDevice.value = false;
+  }
+};
+
+const confirmDeleteDevice = async (dev) => {
+  const result = await Swal.fire({
+    title: 'តើអ្នកប្រាកដទេ?',
+    text: `តើអ្នកពិតជាចង់លុបម៉ាស៊ីន "${dev.name}" នេះមែនទេ?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'បាទ/ចាស លុបចេញ',
+    cancelButtonText: 'បោះបង់'
+  });
+
+  if (result.isConfirmed) {
+    try {
+      const res = await apiDeleteBiometricDevice(dev.id);
+      if (res.data?.success) {
+        Swal.fire('បានលុប!', 'ម៉ាស៊ីនត្រូវបានលុបចេញពីប្រព័ន្ធរួចរាល់', 'success');
+        await fetchDevices();
+      }
+    } catch (e) {
+      Swal.fire('កំហុស', 'មិនអាចលុបម៉ាស៊ីននេះបានទេ', 'error');
+    }
+  }
+};
+
+const testDevice = async (dev) => {
+  testingDevice.value = dev.id;
+  try {
+    const res = await apiTestBiometricDeviceConnection(dev.id);
+    if (res.data?.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'តភ្ជាប់ជោគជ័យ!',
+        html: `<b>${res.data.message}</b><br><small class="text-muted">ម៉ូដែល: ${res.data.device_info?.model || 'Hikvision'} | ស៊េរី: ${res.data.device_info?.serial_number || '---'}</small>`,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'មិនអាចតភ្ជាប់បានទេ!',
+        text: res.data?.message || 'សូមពិនិត្យ IP Address, Port និង Password របស់ម៉ាស៊ីន',
+      });
+    }
+    await fetchDevices();
+  } catch (e) {
+    Swal.fire('កំហុស', 'បរាជ័យក្នុងការតេស្តការតភ្ជាប់', 'error');
+  } finally {
+    testingDevice.value = null;
+  }
+};
+
+const syncDeviceEvents = async (dev) => {
+  syncingDeviceId.value = dev.id;
+  try {
+    const res = await apiSyncBiometricDevice(dev.id, selectedDate.value);
+    if (res.data?.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Sync ជោគជ័យ!',
+        text: res.data.message,
+        timer: 2500,
+        showConfirmButton: false,
+      });
+      await fetchAttendances();
+      await fetchDevices();
+    } else {
+      Swal.fire('កំហុស', res.data?.message || 'បរាជ័យក្នុងការ Sync វត្តមាន', 'error');
+    }
+  } catch (e) {
+    Swal.fire('កំហុស', 'មានបញ្ហាក្នុងការទាញយកទិន្នន័យពីម៉ាស៊ីន', 'error');
+  } finally {
+    syncingDeviceId.value = null;
+  }
+};
+
+const triggerQuickDeviceSync = async () => {
+  if (devices.value.length === 0) {
+    await fetchDevices();
+  }
+  if (devices.value.length === 0) {
+    Swal.fire('មិនទាន់មានម៉ាស៊ីន', 'សូមបន្ថែមម៉ាស៊ីនស្កេន HIKVISION ជាមុនសិន', 'info');
+    openHikvisionModal();
+    return;
+  }
+
+  syncingDevice.value = true;
+  try {
+    let successCount = 0;
+    for (const dev of devices.value) {
+      if (!dev.is_active) continue;
+      const res = await apiSyncBiometricDevice(dev.id, selectedDate.value);
+      if (res.data?.success) {
+        successCount++;
+      }
+    }
+    Swal.fire({
+      icon: 'success',
+      title: 'បាន Sync រួចរាល់!',
+      text: `បានទាញយកទិន្នន័យវត្តមានពីម៉ាស៊ីន HIKVISION សម្រាប់ថ្ងៃ ${selectedDate.value}`,
+      timer: 2000,
+      showConfirmButton: false,
+    });
+    await fetchAttendances();
+  } catch (e) {
+    Swal.fire('កំហុស', 'បរាជ័យក្នុងការ Sync វត្តមានពីម៉ាស៊ីន', 'error');
+  } finally {
+    syncingDevice.value = false;
+  }
+};
+
+const copyWebhookUrl = () => {
+  const url = setupInfo.value?.webhook_url || defaultWebhookUrl.value;
+  navigator.clipboard.writeText(url).then(() => {
+    Swal.fire({
+      icon: 'success',
+      title: 'បានចម្លង (Copied)!',
+      text: 'Webhook URL ត្រូវបានចម្លងទៅ Clipboard រួចរាល់',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+  }).catch(() => {
+    Swal.fire('កំហុស', 'មិនអាចចម្លងបានទេ សូមជ្រើសរើស Text និង Copy ដោយដៃ', 'error');
+  });
+};
+
+onMounted(async () => {
+  await fetchAttendances();
+  await fetchDevices();
+});
 </script>
 
 <style scoped>

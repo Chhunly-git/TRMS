@@ -46,7 +46,7 @@ export function apiSendToAssistant(id, comment = '') {
   return axios.patch(`${APP_API_URL}/inbound-documents/${id}/send-to-assistant`, { comment });
 }
 
-// 8. ជំនួយការចុះលេខការិយាល័យអគ្គនាយក និងដាក់ជូនអគ្គនាយក
+// 8. ជំនួយការចុះលេខជំនួយការអគ្គនាយក និងដាក់ជូនអគ្គនាយក
 export function apiAssistantReceiveAndSubmitToDg(id, data) {
   return axios.post(`${APP_API_URL}/inbound-documents/${id}/assistant-receive`, data);
 }
@@ -110,4 +110,19 @@ export function getResponseDownloadUrl(responseId) {
 // 18. លុបឯកសារចូល
 export function apiDeleteInboundDocument(id) {
   return axios.delete(`${APP_API_URL}/inbound-documents/${id}`);
+}
+
+// 19. ទាញយកទិន្នន័យសម្រាប់បោះពុម្ពសន្លឹកតាមដានឯកសារ (Routing Slip Data)
+export function apiGetRoutingSlipData(id) {
+  return axios.get(`${APP_API_URL}/inbound-documents/${id}/routing-slip-data`);
+}
+
+// 20. កំណត់ ឬកែសម្រួលព័ត៌មាន Telegram Chat ID
+export function apiUpdateTelegramSettings(data) {
+  return axios.post(`${APP_API_URL}/inbound-documents/telegram-settings`, data);
+}
+
+// 21. សាកល្បងផ្ញើសារតាម Telegram Bot (Test Connection)
+export function apiTestTelegramConnection(data = {}) {
+  return axios.post(`${APP_API_URL}/inbound-documents/test-telegram`, data);
 }

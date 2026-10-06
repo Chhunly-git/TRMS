@@ -1634,7 +1634,7 @@ const generalMenuItems = [
 
 const managementMenuItems = [
   { key: 'inbound-documents-receptionist', label: 'អ្នកទទួលឯកសារ (ឯកសារចូល)', desc: 'ចុះបញ្ជីឯកសារចូលថ្មី (001/26), Scan ឯកសារដើម និងបញ្ជូនបន្ត', icon: 'fas fa-inbox', iconClass: 'text-info' },
-  { key: 'inbound-documents-assistant', label: 'ជំនួយការអគ្គនាយក (ឯកសារចូល)', desc: 'ចុះលេខចូលការិយាល័យអគ្គនាយក (AA/E/NF/A/R/T/L/AS), ដាក់ជូនអគ្គនាយក, Scan ចំណារ & ចែកចាយ', icon: 'fas fa-user-shield', iconClass: 'text-danger' },
+  { key: 'inbound-documents-assistant', label: 'ជំនួយការអគ្គនាយក (ឯកសារចូល)', desc: 'ចុះលេខចូលជំនួយការអគ្គនាយក (AA/E/NF/A/R/T/L/AS), ដាក់ជូនអគ្គនាយក, Scan ចំណារ & ចែកចាយ', icon: 'fas fa-user-shield', iconClass: 'text-danger' },
   { key: 'manage-document-templates', label: 'គ្រប់គ្រងគំរូឯកសារ', desc: 'បន្ថែម កែប្រែ ឬលុបគំរូឯកសារ', icon: 'fas fa-file-invoice', iconClass: 'text-warning' },
   { key: 'manage-meeting-rooms', label: 'គ្រប់គ្រងបន្ទប់ប្រជុំ', desc: 'ពិនិត្យ អនុម័ត/បដិសេធ និងចាត់ចែងបន្ទប់ប្រជុំ', icon: 'fas fa-tasks', iconClass: 'text-success' },
   { key: 'users', label: 'អ្នកប្រើប្រាស់ / មន្ត្រី', desc: 'គ្រប់គ្រងទិន្នន័យមន្ត្រីទាំងអស់', icon: 'fas fa-users-cog', iconClass: 'text-primary' },

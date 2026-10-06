@@ -122,7 +122,7 @@
             </router-link>
           </li>
 
-          <!-- ជំនួយការអគ្គនាយក (ការិយាល័យអគ្គនាយក) -->
+          <!-- ជំនួយការអគ្គនាយក -->
           <li class="nav-item" v-if="userStore.can('inbound-documents-assistant')">
             <router-link :to="{ name: 'inbound-documents', query: { tab: 'assistant_inbox' } }" class="nav-link" :class="{ active: isAssistantActive }">
               <i class="nav-icon fas fa-user-shield text-danger"></i>

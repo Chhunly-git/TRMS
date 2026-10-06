@@ -138,6 +138,22 @@
                   </div>
                 </div>
 
+                <!-- Telegram Information -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <span class="text-muted small d-block mb-1">
+                      <i class="fab fa-telegram text-info mr-1"></i> Telegram Chat ID (ទទួលការជូនដំណឹង)
+                    </span>
+                    <strong class="text-dark font-monospace">{{ userStore.telegram_chat_id || userStore.user?.telegram_chat_id || 'មិនទាន់ភ្ជាប់' }}</strong>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <span class="text-muted small d-block mb-1">
+                      <i class="fab fa-telegram-plane text-info mr-1"></i> Telegram Username
+                    </span>
+                    <strong class="text-dark">{{ (userStore.telegram_username || userStore.user?.telegram_username) ? ('@' + (userStore.telegram_username || userStore.user?.telegram_username).replace('@', '')) : '---' }}</strong>
+                  </div>
+                </div>
+
                 <hr class="my-2 border-light">
 
                 <!-- អត្តសញ្ញាណប័ណ្ណ & លិខិតឆ្លងដែន -->

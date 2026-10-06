@@ -9,10 +9,17 @@
               <i class="fas fa-file-import text-success mr-2"></i>គ្រប់គ្រងលំហូរឯកសារចូល (ន.ប.ធ.)
             </h1>
             <p class="text-muted small mb-0 mt-1">
-              តាមដាន និងចាត់ចែងលំហូរឯកសារចូល ចាប់ពីការចុះលេខទូទៅ លេខការិយាល័យអគ្គនាយក ចំណារ រហូតដល់ការឆ្លើយតប
+              តាមដាន និងចាត់ចែងលំហូរឯកសារចូល ចាប់ពីការចុះលេខទូទៅ លេខជំនួយការអគ្គនាយក ចំណារ រហូតដល់ការឆ្លើយតប
             </p>
           </div>
           <div class="col-sm-6 text-right">
+            <button
+              class="btn btn-outline-info shadow-sm font-khmer mr-2"
+              @click="openTelegramModal"
+              title="កំណត់ និងតេស្តការជូនដំណឹងតាម Telegram Bot"
+            >
+              <i class="fab fa-telegram-plane mr-1"></i> ការកំណត់ Telegram
+            </button>
             <button
               v-if="canRegister"
               class="btn btn-dark-custom shadow-sm font-khmer"
@@ -132,16 +139,16 @@
             </div>
           </div>
 
-          <!-- Card 6: ការិយាល័យអគ្គនាយក (Assistant Desk) -->
+          <!-- Card 6: ជំនួយការអគ្គនាយក (Assistant Desk) -->
           <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="canAssist || isAdmin">
             <div
               class="stat-mini-card stat-mini-indigo shadow-sm h-100 cursor-pointer"
               :class="{ 'is-active': activeTab === 'assistant_inbox' }"
               @click="switchTab('assistant_inbox')"
-              title="ចុចដើម្បីមើលឯកសារនៅការិយាល័យអគ្គនាយក"
+              title="ចុចដើម្បីមើលឯកសារនៅជំនួយការអគ្គនាយក"
             >
               <div class="stat-mini-content">
-                <span class="stat-mini-title">ការិយាល័យអគ្គនាយក</span>
+                <span class="stat-mini-title">ជំនួយការអគ្គនាយក</span>
                 <div class="d-flex align-items-baseline mt-1">
                   <span class="stat-mini-number text-indigo">{{ stats.assistant_pending || 0 }}</span>
                   <span class="stat-mini-tag ml-2 text-indigo">រង់ចាំចុះលេខ</span>
@@ -312,7 +319,7 @@
                 </a>
               </li>
 
-              <!-- Tab 6: ការិយាល័យអគ្គនាយក (Assistant Desk) -->
+              <!-- Tab 6: ជំនួយការអគ្គនាយក (Assistant Desk) -->
               <li class="nav-item" v-if="canAssist">
                 <a
                   class="nav-link font-weight-bold"
@@ -320,7 +327,7 @@
                   href="javascript:void(0)"
                   @click="switchTab('assistant_inbox')"
                 >
-                  <i class="fas fa-user-shield mr-1 text-danger"></i> ការិយាល័យអគ្គនាយក
+                  <i class="fas fa-user-shield mr-1 text-danger"></i> ជំនួយការអគ្គនាយក
                   <span class="badge badge-danger ml-1" v-if="stats.assistant_pending > 0">{{ stats.assistant_pending }}</span>
                 </a>
               </li>
@@ -469,7 +476,7 @@
                       </span>
                     </td>
 
-                    <!-- 2. លេខចូលការិយាល័យអគ្គនាយក -->
+                    <!-- 2. លេខចូលជំនួយការអគ្គនាយក -->
                     <td>
                       <span
                         v-if="doc.dg_inbound_number"
@@ -606,11 +613,21 @@
                           <i class="fas fa-eye"></i>
                         </button>
 
+                        <!-- Print Routing Slip Button -->
+                        <router-link
+                          :to="`/inbound-documents/${doc.id}/routing-slip`"
+                          target="_blank"
+                          class="btn btn-outline-secondary"
+                          title="បោះពុម្ពសន្លឹកតាមដានឯកសារ (Routing Slip & QR Code)"
+                        >
+                          <i class="fas fa-print text-primary"></i>
+                        </router-link>
+
                         <!-- Step 1 -> Step 2: Send to Assistant (by Receptionist) -->
                         <button
                           v-if="canRegister && doc.status === 'RECEPTION_DRAFT'"
                           class="btn btn-outline-primary"
-                          title="បញ្ជូនទៅការិយាល័យអគ្គនាយក"
+                          title="បញ្ជូនទៅជំនួយការអគ្គនាយក"
                           @click="sendToAssistantAction(doc)"
                         >
                           <i class="fas fa-paper-plane"></i>
@@ -923,7 +940,7 @@
                   v-model="createForm.send_immediately"
                 />
                 <label class="custom-control-label font-weight-bold text-primary" for="sendImmediatelyCheck">
-                  បញ្ជូនបន្តទៅកាន់ការិយាល័យអគ្គនាយកភ្លាមៗ (DG Assistant Inbox)
+                  បញ្ជូនបន្តទៅកាន់ជំនួយការអគ្គនាយកភ្លាមៗ (DG Assistant Inbox)
                 </label>
               </div>
 
@@ -940,13 +957,13 @@
       </div>
     </div>
 
-    <!-- ==================== MODAL 2: ជំនួយការទទួល និងចុះលេខការិយាល័យអគ្គនាយក ==================== -->
+    <!-- ==================== MODAL 2: ជំនួយការទទួល និងចុះលេខជំនួយការអគ្គនាយក ==================== -->
     <div class="custom-modal-backdrop" v-if="showAssistantReceiveModal">
       <div class="modal-dialog modal-md">
         <div class="modal-content shadow-lg border-0">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-barcode mr-2"></i>ចុះលេខចូលការិយាល័យអគ្គនាយក
+              <i class="fas fa-barcode mr-2"></i>ចុះលេខចូលជំនួយការអគ្គនាយក
             </h5>
             <button type="button" class="close text-white" @click="showAssistantReceiveModal = false">
               <span aria-hidden="true">&times;</span>
@@ -983,9 +1000,9 @@
                 </select>
               </div>
 
-              <!-- លេខចូលការិយាល័យអគ្គនាយក (Auto-generated with edit option) -->
+              <!-- លេខចូលជំនួយការអគ្គនាយក (Auto-generated with edit option) -->
               <div class="mb-3">
-                <label class="form-label font-weight-bold">លេខចូលការិយាល័យអគ្គនាយក <span class="text-danger">*</span></label>
+                <label class="form-label font-weight-bold">លេខចូលជំនួយការអគ្គនាយក <span class="text-danger">*</span></label>
                 <div class="input-group">
                   <input
                     type="text"
@@ -1598,8 +1615,20 @@
               </div>
             </div>
           </div>
-          <div class="modal-footer font-khmer">
-            <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
+          <div class="modal-footer font-khmer justify-content-between">
+            <div>
+              <router-link
+                v-if="selectedDoc"
+                :to="`/inbound-documents/${selectedDoc.id}/routing-slip`"
+                target="_blank"
+                class="btn btn-outline-primary"
+              >
+                <i class="fas fa-print mr-1"></i> បោះពុម្ពសន្លឹកតាមដាន (Routing Slip & QR)
+              </router-link>
+            </div>
+            <div>
+              <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1633,7 +1662,7 @@
                     <span class="font-weight-bold text-dark font-15">{{ selectedDoc.general_inbound_number }}</span>
                   </div>
                   <div class="col-sm-6 mb-2" v-if="selectedDoc.dg_inbound_number">
-                    <span class="text-muted small d-block">លេខចូលការិយាល័យអគ្គនាយក</span>
+                    <span class="text-muted small d-block">លេខចូលជំនួយការអគ្គនាយក</span>
                     <span class="font-weight-bold text-primary font-15">{{ selectedDoc.dg_inbound_number }}</span>
                   </div>
                   <div class="col-12 mb-2">
@@ -1757,6 +1786,118 @@
       </div>
     </div>
 
+    <!-- 9. Modal កំណត់ និងតេស្តការជូនដំណឹងតាម Telegram Bot -->
+    <div
+      class="modal fade show d-block font-khmer"
+      tabindex="-1"
+      v-if="showTelegramModal"
+      style="background: rgba(0, 0, 0, 0.55);"
+    >
+      <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-lg">
+          <div class="modal-header bg-info text-white py-3">
+            <h5 class="modal-title font-weight-bold">
+              <i class="fab fa-telegram-plane mr-2"></i>ការកំណត់ការជូនដំណឹងតាម Telegram Bot
+            </h5>
+            <button type="button" class="close text-white" @click="showTelegramModal = false">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <form @submit.prevent="saveTelegramSettings">
+            <div class="modal-body p-4">
+              <!-- Telegram Bot Info Banner -->
+              <div class="alert alert-light border border-info p-3 rounded mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="fab fa-telegram fa-2x text-info mr-2"></i>
+                  <div>
+                    <strong class="text-dark d-block">TRMS Official Telegram Bot</strong>
+                    <a href="https://t.me/trms_regulator_bot" target="_blank" class="text-primary font-weight-bold">
+                      @trms_regulator_bot <i class="fas fa-external-link-alt font-11"></i>
+                    </a>
+                  </div>
+                </div>
+                <div class="small text-muted" style="line-height: 1.5;">
+                  របៀបភ្ជាប់៖
+                  <ol class="pl-3 mb-0 mt-1">
+                    <li>ចុច link <b>@trms_regulator_bot</b> រួចចុច <b>Start</b> ក្នុង Telegram</li>
+                    <li>ស្វែងរក Chat ID របស់អ្នក (តាមរយៈ bot <code>@userinfobot</code>)</li>
+                    <li>ចម្លង Chat ID មកដាក់ក្នុងប្រអប់ខាងក្រោម រួចចុច <b>សាកល្បងផ្ញើសារ</b></li>
+                  </ol>
+                </div>
+              </div>
+
+              <!-- Chat ID Input -->
+              <div class="form-group mb-3">
+                <label class="font-weight-bold text-dark">
+                  Telegram Chat ID <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text"><i class="fas fa-id-badge"></i></span>
+                  </div>
+                  <input
+                    type="text"
+                    class="form-control font-monospace"
+                    v-model="telegramForm.chat_id"
+                    placeholder="ឧ. 123456789"
+                    required
+                  />
+                </div>
+                <small class="form-text text-muted">Telegram Chat ID គឺជាលេខសម្គាល់គណនី Telegram របស់អ្នក។</small>
+              </div>
+
+              <!-- Username Input -->
+              <div class="form-group mb-3">
+                <label class="font-weight-bold text-dark">
+                  Telegram Username (បើមាន)
+                </label>
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">@</span>
+                  </div>
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="telegramForm.username"
+                    placeholder="ឧ. username"
+                  />
+                </div>
+              </div>
+
+              <!-- Test Button & Status Message -->
+              <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded mb-2">
+                <span class="small text-muted">
+                  <i class="fas fa-info-circle mr-1"></i>សាកល្បងមុនពេលរក្សាទុក
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-info"
+                  :disabled="testingTelegram || !telegramForm.chat_id"
+                  @click="testTelegramConnection"
+                >
+                  <i class="fas fa-spinner fa-spin mr-1" v-if="testingTelegram"></i>
+                  <i class="fas fa-paper-plane mr-1" v-else></i>
+                  សាកល្បងផ្ញើសារ (Test)
+                </button>
+              </div>
+            </div>
+
+            <div class="modal-footer font-khmer bg-light">
+              <button type="button" class="btn btn-secondary" @click="showTelegramModal = false">
+                បោះបង់
+              </button>
+              <button type="submit" class="btn btn-primary px-4" :disabled="savingTelegram">
+                <i class="fas fa-spinner fa-spin mr-1" v-if="savingTelegram"></i>
+                <i class="fas fa-save mr-1" v-else></i>
+                រក្សាទុក
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -1782,6 +1923,8 @@ import {
   apiSubmitResponseDraft,
   apiProcessResponseAction,
   apiDeleteInboundDocument,
+  apiUpdateTelegramSettings,
+  apiTestTelegramConnection,
   getOriginalDownloadUrl,
   getAnnotatedDownloadUrl,
   getResponseDownloadUrl
@@ -1865,6 +2008,13 @@ const forwarding = ref(false);
 const showSubmitResponseModal = ref(false);
 const showReviewResponseModal = ref(false);
 const showDetailModal = ref(false);
+const showTelegramModal = ref(false);
+const testingTelegram = ref(false);
+const savingTelegram = ref(false);
+const telegramForm = reactive({
+  chat_id: '',
+  username: '',
+});
 
 // Files selected
 const selectedOriginalFile = ref(null);
@@ -2233,7 +2383,7 @@ const submitCreateDocument = async () => {
 
 const sendToAssistantAction = async (doc) => {
   const confirm = await Swal.fire({
-    title: 'បញ្ជូនទៅការិយាល័យអគ្គនាយក?',
+    title: 'បញ្ជូនទៅជំនួយការអគ្គនាយក?',
     text: `តើលោកអ្នកពិតជាចង់បញ្ជូនឯកសារលេខ ${doc.general_inbound_number} ទៅកាន់ជំនួយការអគ្គនាយកមែនទេ?`,
     icon: 'question',
     showCancelButton: true,
@@ -2545,6 +2695,76 @@ const deleteDocumentAction = async (doc) => {
     loadStats();
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចលុបឯកសារបានឡើយ!' });
+  }
+};
+
+// --- Telegram Settings Methods ---
+const openTelegramModal = () => {
+  telegramForm.chat_id = userStore.user?.telegram_chat_id || '';
+  telegramForm.username = userStore.user?.telegram_username || '';
+  showTelegramModal.value = true;
+};
+
+const testTelegramConnection = async () => {
+  if (!telegramForm.chat_id) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'សូមបញ្ចូល Telegram Chat ID',
+      text: 'សូមបញ្ចូល Chat ID ជាមុនសិនដើម្បីសាកល្បងផ្ញើសារ!'
+    });
+    return;
+  }
+
+  testingTelegram.value = true;
+  try {
+    const res = await apiTestTelegramConnection({ chat_id: telegramForm.chat_id });
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: res.data?.message || 'សារសាកល្បងត្រូវបានផ្ញើទៅកាន់ Telegram របស់អ្នកដោយជោគជ័យ!',
+      confirmButtonText: 'យល់ព្រម',
+    });
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យ!',
+      text: err.response?.data?.message || 'មិនអាចផ្ញើសារបានឡើយ! សូមពិនិត្យមើល Chat ID និងប្រាកដថាអ្នកបានចុច Start Bot @trms_regulator_bot រួចរាល់។',
+      confirmButtonText: 'យល់ព្រម',
+    });
+  } finally {
+    testingTelegram.value = false;
+  }
+};
+
+const saveTelegramSettings = async () => {
+  savingTelegram.value = true;
+  try {
+    const res = await apiUpdateTelegramSettings({
+      telegram_chat_id: telegramForm.chat_id,
+      telegram_username: telegramForm.username,
+    });
+
+    if (userStore.user) {
+      userStore.user.telegram_chat_id = telegramForm.chat_id;
+      userStore.user.telegram_username = telegramForm.username;
+    }
+
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: res.data?.message || 'បានរក្សាទុកព័ត៌មាន Telegram ដោយជោគជ័យ!',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+    showTelegramModal.value = false;
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យ!',
+      text: err.response?.data?.message || 'មិនអាចរក្សាទុកព័ត៌មាន Telegram បានឡើយ!',
+    });
+  } finally {
+    savingTelegram.value = false;
   }
 };
 
