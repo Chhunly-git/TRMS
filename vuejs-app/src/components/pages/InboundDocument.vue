@@ -47,7 +47,9 @@
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">ឯកសារចូលសរុប</span>
+                  <span class="text-muted small d-block font-weight-bold">
+                    {{ isRegularOfficer ? 'ឯកសារទទួលបានសរុប' : 'ឯកសារចូលសរុប' }}
+                  </span>
                   <h3 class="font-weight-bold mb-0 text-dark">{{ stats.total || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-info-light text-info">
@@ -293,7 +295,7 @@
                 </a>
               </li>
 
-              <!-- Tab 4: ឯកសារទាំងអស់ (All) -->
+              <!-- Tab 4: ឯកសារទាំងអស់ (All) / ឯកសារទទួលបានទាំងអស់ -->
               <li class="nav-item">
                 <a
                   class="nav-link font-weight-bold"
@@ -301,7 +303,7 @@
                   href="javascript:void(0)"
                   @click="switchTab('all')"
                 >
-                  <i class="fas fa-th-list mr-1"></i> ឯកសារទាំងអស់
+                  <i class="fas fa-th-list mr-1"></i> {{ isRegularOfficer ? 'ឯកសារទទួលបានទាំងអស់' : 'ឯកសារទាំងអស់' }}
                   <span class="badge badge-light ml-1">{{ stats.total || 0 }}</span>
                 </a>
               </li>
@@ -1942,6 +1944,9 @@ const isDg = computed(() => {
   if (isAdmin.value) return true;
   return userStore.position && Number(userStore.position.level) === 1;
 });
+const isRegularOfficer = computed(() => {
+  return !isAdmin.value && !canRegister.value && !canAssist.value && !isDg.value;
+});
 
 // --- State ---
 const loading = ref(false);
@@ -2116,9 +2121,10 @@ const paginationPages = computed(() => {
 // --- Actions Checkers ---
 const canAcknowledge = (doc) => {
   if (doc.status !== 'DISPATCHED' || doc.is_response_required) return false;
-  // If target user is viewer, or target dept is viewer's dept
+  // If target user is viewer, or target office/dept is viewer's office/dept
   return isAdmin.value ||
     doc.target_user_id === userStore.id ||
+    (doc.target_office_id && doc.target_office_id === userStore.office_id) ||
     (doc.target_department_id && doc.target_department_id === userStore.department_id);
 };
 
@@ -2130,6 +2136,7 @@ const canDraftResponse = (doc) => {
   if (!latest) {
     return isAdmin.value ||
       doc.target_user_id === userStore.id ||
+      (doc.target_office_id && doc.target_office_id === userStore.office_id) ||
       (doc.target_department_id && doc.target_department_id === userStore.department_id);
   }
   return latest.status === 'RETURNED' && (latest.drafted_by === userStore.id || isAdmin.value);
@@ -2207,18 +2214,19 @@ const syncTabFromRoute = () => {
   if (t && ['all', 'my_todo', 'my_unit', 'my_done', 'reception', 'assistant_inbox', 'dg_inbox', 'assigned_to_me', 'response_workflow'].includes(t)) {
     activeTab.value = t;
   } else {
-    activeTab.value = 'all';
+    activeTab.value = isRegularOfficer.value ? 'my_todo' : 'all';
   }
 };
 
 const switchTab = (tab) => {
   activeTab.value = tab;
   filters.page = 1;
-  const currentTab = route.query.tab || 'all';
+  const defaultTab = isRegularOfficer.value ? 'my_todo' : 'all';
+  const currentTab = route.query.tab || defaultTab;
   if (currentTab !== tab) {
     router.replace({
       name: 'inbound-documents',
-      query: tab === 'all' ? {} : { ...route.query, tab }
+      query: tab === defaultTab ? {} : { ...route.query, tab }
     });
   }
   loadDocuments();

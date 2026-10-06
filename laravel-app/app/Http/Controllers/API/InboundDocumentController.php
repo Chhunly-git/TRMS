@@ -116,6 +116,18 @@ class InboundDocumentController extends Controller
         $isDg = $isAdmin || ($viewer->position && (int) $viewer->position->level === 1);
 
         $scope = $request->input('scope', 'all');
+
+        // Security check for restricted desk scopes
+        if ($scope === 'reception' && !$isReceptionist) {
+            $scope = 'my_todo';
+        }
+        if ($scope === 'assistant_inbox' && !$isAssistant) {
+            $scope = 'my_todo';
+        }
+        if ($scope === 'dg_inbox' && !$isDg) {
+            $scope = 'my_todo';
+        }
+
         $query = InboundDocument::with([
             'registeredByUser:id,name,name_kh,email',
             'assistant:id,name,name_kh,email',
@@ -148,6 +160,9 @@ class InboundDocumentController extends Controller
                     });
             });
         }
+
+        // CRITICAL: Always enforce accessible boundary for non-privileged users across all queries
+        $this->scopeAccessibleByViewer($query, $viewer);
 
         // Filtering by status
         if ($request->filled('status')) {
@@ -219,25 +234,59 @@ class InboundDocumentController extends Controller
     public function stats(Request $request)
     {
         $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
 
-        $total = InboundDocument::count();
-        $receptionPending = InboundDocument::where('status', 'RECEPTION_DRAFT')->count();
-        $assistantPending = InboundDocument::whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED'])->count();
-        $dgPending = InboundDocument::where('status', 'SUBMITTED_TO_DG')->count();
-        $dispatched = InboundDocument::whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
-        $inResponse = InboundDocument::where('status', 'IN_RESPONSE_PROGRESS')->count();
-        $completed = InboundDocument::where('status', 'COMPLETED')->count();
+        $isPrivileged = $isAdmin || $isLeadership || $isAssistant;
+
+        // Base accessible query for viewer
+        $baseAccessibleQuery = $this->scopeAccessibleByViewer(InboundDocument::query(), $viewer);
+
+        $total = $isPrivileged
+            ? InboundDocument::count()
+            : (clone $baseAccessibleQuery)->count();
+
+        $receptionPending = ($isAdmin || $isReceptionist)
+            ? InboundDocument::where('status', 'RECEPTION_DRAFT')->count()
+            : 0;
+
+        $assistantPending = ($isAdmin || $isAssistant)
+            ? InboundDocument::whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED'])->count()
+            : 0;
+
+        $dgPending = ($isAdmin || $isLeadership)
+            ? InboundDocument::where('status', 'SUBMITTED_TO_DG')->count()
+            : 0;
+
+        $dispatched = $isPrivileged
+            ? InboundDocument::whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count()
+            : (clone $baseAccessibleQuery)->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
+
+        $inResponse = $isPrivileged
+            ? InboundDocument::where('status', 'IN_RESPONSE_PROGRESS')->count()
+            : (clone $baseAccessibleQuery)->where('status', 'IN_RESPONSE_PROGRESS')->count();
+
+        $completed = $isPrivileged
+            ? InboundDocument::where('status', 'COMPLETED')->count()
+            : (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
         $myTodo = $this->scopeMyTodo(InboundDocument::query(), $viewer)->count();
         $myDone = $this->scopeMyDone(InboundDocument::query(), $viewer)->count();
         $myUnit = $this->scopeMyUnit(InboundDocument::query(), $viewer)->count();
 
         $today = Carbon::today();
-        $overdueCount = InboundDocument::whereNotNull('deadline')
+        $deadlineBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
+
+        $overdueCount = (clone $deadlineBase)
+            ->whereNotNull('deadline')
             ->whereDate('deadline', '<', $today)
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
             ->count();
-        $dueSoonCount = InboundDocument::whereNotNull('deadline')
+
+        $dueSoonCount = (clone $deadlineBase)
+            ->whereNotNull('deadline')
             ->whereDate('deadline', '>=', $today)
             ->whereDate('deadline', '<=', $today->copy()->addDays(3))
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
@@ -258,6 +307,114 @@ class InboundDocumentController extends Controller
             'overdue' => $overdueCount,
             'due_soon' => $dueSoonCount,
         ]);
+    }
+
+    /**
+     * Scope: ឯកសារដែលអាចមើលឃើញដោយអ្នកប្រើប្រាស់ (Accessible by Viewer)
+     * Regular users can ONLY see documents they have received or are involved in.
+     */
+    protected function scopeAccessibleByViewer($query, $viewer)
+    {
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+
+        // Admin, Leadership (DG/DDG), and DG Assistant have full visibility across the system
+        if ($isAdmin || $isLeadership || $isAssistant) {
+            return $query;
+        }
+
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
+        $isDeptLeadership = ($viewer->position && (int) $viewer->position->level <= 4); // Dept Director / Deputy Director
+
+        return $query->where(function ($q) use ($viewer, $isReceptionist, $isDeptLeadership) {
+            // 1. Receptionist can see documents they registered or reception drafts
+            if ($isReceptionist) {
+                $q->orWhere('registered_by', $viewer->id)
+                  ->orWhere('status', 'RECEPTION_DRAFT');
+            }
+
+            // 2. Documents specifically assigned to this user
+            $q->orWhere('target_user_id', $viewer->id);
+
+            // 3. User was the one who registered it
+            $q->orWhere('registered_by', $viewer->id);
+
+            // 4. User acknowledged it
+            $q->orWhere('acknowledged_by', $viewer->id);
+
+            // 5. User is involved in response workflow (drafted, current reviewer, or in approval history)
+            $q->orWhereHas('responses', function ($rq) use ($viewer) {
+                $rq->where('drafted_by', $viewer->id)
+                   ->orWhere('current_approver_id', $viewer->id)
+                   ->orWhereHas('approvals', function ($aq) use ($viewer) {
+                       $aq->where('user_id', $viewer->id);
+                   });
+            });
+
+            // 6. User is in movement tracking history
+            $q->orWhereHas('movements', function ($mq) use ($viewer) {
+                $mq->where('user_id', $viewer->id);
+            });
+
+            // 7. For Department Director / Deputy Director:
+            // Can see all documents received by/dispatched to their department
+            if ($isDeptLeadership && $viewer->department_id) {
+                $q->orWhere(function ($dq) use ($viewer) {
+                    $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
+                       ->where(function ($subDq) use ($viewer) {
+                           $subDq->where('target_department_id', $viewer->department_id)
+                                 ->orWhereHas('targetOffice', function ($oq) use ($viewer) {
+                                     $oq->where('department_id', $viewer->department_id);
+                                 })
+                                 ->orWhereHas('targetUser', function ($uq) use ($viewer) {
+                                     $uq->where('department_id', $viewer->department_id);
+                                 });
+                       });
+                });
+            } else {
+                // 8. For Office Chief or Regular Officer:
+                // If dispatched to user's office and not targeted to another specific user (or targeted to them)
+                if ($viewer->office_id) {
+                    $q->orWhere(function ($oq) use ($viewer) {
+                        $oq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
+                           ->where('target_office_id', $viewer->office_id)
+                           ->where(function ($subOq) use ($viewer) {
+                               $subOq->whereNull('target_user_id')
+                                     ->orWhere('target_user_id', $viewer->id);
+                           });
+                    });
+                }
+
+                // If dispatched to user's department without specific office/officer
+                if ($viewer->department_id) {
+                    $q->orWhere(function ($dq) use ($viewer) {
+                        $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
+                           ->where('target_department_id', $viewer->department_id)
+                           ->whereNull('target_office_id')
+                           ->whereNull('target_user_id');
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * Check if a specific document is accessible by the viewer
+     */
+    protected function canUserAccessDocument($doc, $viewer): bool
+    {
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+
+        if ($isAdmin || $isLeadership || $isAssistant) {
+            return true;
+        }
+
+        $query = InboundDocument::where('id', $doc->id);
+        $this->scopeAccessibleByViewer($query, $viewer);
+        return $query->exists();
     }
 
     /**
@@ -299,7 +456,9 @@ class InboundDocumentController extends Controller
                 }
 
                 // 6. Assigned to this department (not yet delegated to an office or officer)
-                if ($viewer->department_id) {
+                // Only for Department leadership (level <= 4) or users without an office
+                $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
+                if ($viewer->department_id && ($isDeptDirector || empty($viewer->office_id))) {
                     $q->orWhere(function ($dq) use ($viewer) {
                         $dq->where('target_department_id', $viewer->department_id)
                            ->whereNull('target_office_id')
@@ -362,20 +521,25 @@ class InboundDocumentController extends Controller
             return $query;
         }
 
-        return $query->where(function ($q) use ($viewer) {
-            if ($viewer->department_id) {
-                $q->where('target_department_id', $viewer->department_id)
-                    ->orWhereHas('targetOffice', function ($oq) use ($viewer) {
-                        $oq->where('department_id', $viewer->department_id);
-                    })
-                    ->orWhereHas('targetUser', function ($uq) use ($viewer) {
-                        $uq->where('department_id', $viewer->department_id);
-                    });
+        $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
+
+        return $query->where(function ($q) use ($viewer, $isDeptDirector) {
+            // Only dispatched/in progress/completed documents
+            $q->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED']);
+
+            if ($isDeptDirector && $viewer->department_id) {
+                $q->where(function ($dq) use ($viewer) {
+                    $dq->where('target_department_id', $viewer->department_id)
+                       ->orWhereHas('targetOffice', fn($oq) => $oq->where('department_id', $viewer->department_id))
+                       ->orWhereHas('targetUser', fn($uq) => $uq->where('department_id', $viewer->department_id));
+                });
             } elseif ($viewer->office_id) {
-                $q->where('target_office_id', $viewer->office_id)
-                    ->orWhereHas('targetUser', function ($uq) use ($viewer) {
-                        $uq->where('office_id', $viewer->office_id);
-                    });
+                $q->where(function ($oq) use ($viewer) {
+                    $oq->where('target_office_id', $viewer->office_id)
+                       ->orWhereHas('targetUser', fn($uq) => $uq->where('office_id', $viewer->office_id));
+                });
+            } elseif ($viewer->department_id) {
+                $q->where('target_department_id', $viewer->department_id);
             } else {
                 $q->where('target_user_id', $viewer->id);
             }
@@ -387,7 +551,8 @@ class InboundDocumentController extends Controller
      */
     public function show($id, Request $request)
     {
-        $document = InboundDocument::with([
+        $viewer = $request->user();
+        $query = InboundDocument::with([
             'registeredByUser:id,name,name_kh,email',
             'assistant:id,name,name_kh,email',
             'dispatchedByUser:id,name,name_kh',
@@ -401,7 +566,14 @@ class InboundDocumentController extends Controller
             'responses.approvedByUser:id,name,name_kh',
             'responses.approvals.user:id,name,name_kh',
             'responses.approvals.forwardedTo:id,name,name_kh',
-        ])->findOrFail($id);
+        ]);
+
+        $this->scopeAccessibleByViewer($query, $viewer);
+
+        $document = $query->find($id);
+        if (!$document) {
+            return response()->json(['message' => 'ឯកសារនេះមិនមាន ឬលោកអ្នកមិនមានសិទ្ធិចូលមើលឡើយ!'], 404);
+        }
 
         return response()->json($document);
     }
@@ -438,7 +610,9 @@ class InboundDocumentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $doc = DB::transaction(function () use ($request, $viewer) {
+        $sendImmediately = filter_var($request->input('send_immediately', true), FILTER_VALIDATE_BOOLEAN);
+
+        $doc = DB::transaction(function () use ($request, $viewer, $sendImmediately) {
             $yy = date('y');
             $maxSeq = InboundDocument::where('general_inbound_year', $yy)->max('general_inbound_seq') ?? 0;
             $nextSeq = (int) $maxSeq + 1;
@@ -452,7 +626,6 @@ class InboundDocumentController extends Controller
                 $filePath = $file->store('inbound_documents/originals', 'public');
             }
 
-            $sendImmediately = filter_var($request->input('send_immediately', true), FILTER_VALIDATE_BOOLEAN);
             $initialStatus = $sendImmediately ? 'SUBMITTED_TO_ASSISTANT' : 'RECEPTION_DRAFT';
 
             $doc = InboundDocument::create([
@@ -900,6 +1073,19 @@ class InboundDocumentController extends Controller
         $viewer = $request->user();
         $doc = InboundDocument::findOrFail($id);
 
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $isAuthorized = $isAdmin
+            || $isLeadership
+            || ($doc->target_user_id === $viewer->id)
+            || ($doc->target_office_id && $doc->target_office_id === $viewer->office_id)
+            || ($doc->target_department_id && $doc->target_department_id === $viewer->department_id)
+            || $viewer->hasPermission('inbound-documents-assistant');
+
+        if (!$isAuthorized) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទទួលជ្រាបឯកសារនេះឡើយ!'], 403);
+        }
+
         if ($doc->is_response_required) {
             return response()->json(['message' => 'ឯកសារនេះតម្រូវឱ្យមានលិខិតឆ្លើយតប មិនអាចចុចត្រឹមទទួលជ្រាបបានទេ!'], 400);
         }
@@ -1024,6 +1210,17 @@ class InboundDocumentController extends Controller
     {
         $viewer = $request->user();
         $doc = InboundDocument::findOrFail($id);
+
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isAuthorized = $isAdmin
+            || ($doc->target_user_id === $viewer->id)
+            || ($doc->target_office_id && $doc->target_office_id === $viewer->office_id)
+            || ($doc->target_department_id && $doc->target_department_id === $viewer->department_id)
+            || $viewer->hasPermission('inbound-documents-assistant');
+
+        if (!$isAuthorized) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិរៀបចំលិខិតឆ្លើយតបលើឯកសារនេះឡើយ!'], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'title' => 'required|string',
@@ -1272,9 +1469,14 @@ class InboundDocumentController extends Controller
     /**
      * 14. ទាញយកឯកសារដើម (Download Original File)
      */
-    public function downloadOriginalFile($id)
+    public function downloadOriginalFile($id, Request $request)
     {
+        $viewer = $request->user();
         $doc = InboundDocument::findOrFail($id);
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារនេះឡើយ!'], 403);
+        }
+
         if (!$doc->original_file_path || !Storage::disk('public')->exists($doc->original_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារដើមឡើយ!'], 404);
         }
@@ -1288,9 +1490,14 @@ class InboundDocumentController extends Controller
     /**
      * 15. ទាញយកឯកសារមានចំណារអគ្គនាយក (Download Annotated File)
      */
-    public function downloadAnnotatedFile($id)
+    public function downloadAnnotatedFile($id, Request $request)
     {
+        $viewer = $request->user();
         $doc = InboundDocument::findOrFail($id);
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារនេះឡើយ!'], 403);
+        }
+
         if (!$doc->annotated_file_path || !Storage::disk('public')->exists($doc->annotated_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារមានចំណារឡើយ!'], 404);
         }
@@ -1304,9 +1511,14 @@ class InboundDocumentController extends Controller
     /**
      * 16. ទាញយកឯកសារឆ្លើយតប (Download Response File)
      */
-    public function downloadResponseFile($responseId)
+    public function downloadResponseFile($responseId, Request $request)
     {
-        $response = InboundDocumentResponse::findOrFail($responseId);
+        $viewer = $request->user();
+        $response = InboundDocumentResponse::with('inboundDocument')->findOrFail($responseId);
+        if ($response->inboundDocument && !$this->canUserAccessDocument($response->inboundDocument, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារឆ្លើយតបនេះឡើយ!'], 403);
+        }
+
         if (!$response->file_path || !Storage::disk('public')->exists($response->file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារឆ្លើយតបឡើយ!'], 404);
         }
@@ -1407,7 +1619,8 @@ class InboundDocumentController extends Controller
      */
     public function routingSlipData($id, Request $request)
     {
-        $doc = InboundDocument::with([
+        $viewer = $request->user();
+        $query = InboundDocument::with([
             'registeredByUser:id,name,name_kh,email,phone',
             'assistant:id,name,name_kh,email,phone',
             'dispatchedByUser:id,name,name_kh',
@@ -1425,7 +1638,14 @@ class InboundDocumentController extends Controller
                 $q->with('user:id,name,name_kh', 'forwardedTo:id,name,name_kh')
                   ->orderBy('id', 'asc');
             },
-        ])->findOrFail($id);
+        ]);
+
+        $this->scopeAccessibleByViewer($query, $viewer);
+
+        $doc = $query->find($id);
+        if (!$doc) {
+            return response()->json(['message' => 'ឯកសារនេះមិនមាន ឬលោកអ្នកមិនមានសិទ្ធិចូលមើលឡើយ!'], 404);
+        }
 
         $clientBaseUrl = config('app.url') ?? 'http://localhost:8000';
         $trackingUrl = "{$clientBaseUrl}/inbound-documents?id={$doc->id}&ref=" . urlencode($doc->general_inbound_number);

@@ -137,8 +137,9 @@ class TelegramService
         $this->sendMessage($this->defaultChatId, $msg);
 
         // Also notify assistants if any have telegram_chat_id
-        $assistants = User::whereHas('permissions', function ($q) {
-            $q->whereJsonContains('permissions', 'inbound-documents-assistant');
+        $assistants = User::where(function ($q) {
+            $q->whereJsonContains('permissions', 'inbound-documents-assistant')
+              ->orWhere('level', 'ADMIN');
         })->whereNotNull('telegram_chat_id')->get();
 
         foreach ($assistants as $assistant) {

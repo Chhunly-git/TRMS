@@ -319,7 +319,7 @@
                     </span>
                   </div>
                 </div>
-                <router-link to="/inbound-documents" class="stat-card-footer px-3 py-1 font-khmer text-xs d-flex justify-content-between align-items-center">
+                <router-link :to="{ name: 'inbound-documents', query: { tab: 'my_todo' } }" class="stat-card-footer px-3 py-1 font-khmer text-xs d-flex justify-content-between align-items-center">
                   <span>ចាត់ចែងឯកសារ</span>
                   <i class="fas fa-arrow-right"></i>
                 </router-link>
@@ -355,7 +355,7 @@
                     </span>
                   </div>
                 </div>
-                <router-link to="/inbound-documents" class="stat-card-footer px-3 py-1 font-khmer text-xs d-flex justify-content-between align-items-center">
+                <router-link :to="{ name: 'inbound-documents', query: { tab: 'my_todo', deadline_filter: (inboundStats.my_overdue_count > 0 ? 'overdue' : 'due_soon') } }" class="stat-card-footer px-3 py-1 font-khmer text-xs d-flex justify-content-between align-items-center">
                   <span>ពិនិត្យកាលកំណត់</span>
                   <i class="fas fa-arrow-right"></i>
                 </router-link>

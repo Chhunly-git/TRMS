@@ -289,7 +289,8 @@ class DashboardController extends Controller
                            ->whereNull('target_user_id');
                     });
                 }
-                if ($viewer->department_id) {
+                $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
+                if ($viewer->department_id && ($isDeptDirector || empty($viewer->office_id))) {
                     $q->orWhere(function ($dq) use ($viewer) {
                         $dq->where('target_department_id', $viewer->department_id)
                            ->whereNull('target_office_id')
