@@ -7,6 +7,7 @@ use App\Models\InboundDocument;
 use App\Models\InboundDocumentMovement;
 use App\Models\InboundDocumentResponse;
 use App\Models\InboundDocumentResponseApproval;
+use App\Models\InboundSenderOrganization;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -590,6 +591,7 @@ class InboundDocumentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'general_inbound_number' => 'nullable|string|max:100',
             'received_date' => 'required|date',
             'received_time' => 'required',
             'deliverer_name' => 'required|string|max:255',
@@ -617,6 +619,15 @@ class InboundDocumentController extends Controller
             $maxSeq = InboundDocument::where('general_inbound_year', $yy)->max('general_inbound_seq') ?? 0;
             $nextSeq = (int) $maxSeq + 1;
             $generalNumber = sprintf('%03d/%s', $nextSeq, $yy);
+
+            $customGeneralNumber = trim($request->input('general_inbound_number') ?? '');
+            if (!empty($customGeneralNumber)) {
+                $generalNumber = $customGeneralNumber;
+                if (preg_match('/^(\d+)\/(\d+)$/', $generalNumber, $m)) {
+                    $nextSeq = (int) $m[1];
+                    $yy = $m[2];
+                }
+            }
 
             $filePath = null;
             $fileName = null;
@@ -1702,5 +1713,159 @@ class InboundDocumentController extends Controller
         $result = $this->telegram->testConnection($chatId);
 
         return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * 22. បញ្ជីអង្គភាព/ស្ថាប័នផ្ញើឯកសារដែលបានកំណត់ទុកមុន (Get Preset Sender Organizations)
+     */
+    public function getSenderOrganizations(Request $request)
+    {
+        $all = filter_var($request->query('all', false), FILTER_VALIDATE_BOOLEAN);
+        $query = InboundSenderOrganization::query();
+        if (!$all) {
+            $query->where('is_active', true);
+        }
+        $organizations = $query->orderBy('order_index', 'asc')->orderBy('id', 'asc')->get();
+
+        return response()->json($organizations);
+    }
+
+    /**
+     * 23. បន្ថែមអង្គភាព/ស្ថាប័នថ្មី (Store New Sender Organization)
+     */
+    public function storeSenderOrganization(Request $request)
+    {
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist') && !$viewer->hasPermission('inbound-documents')) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិបន្ថែមស្ថាប័នឡើយ!'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name_kh' => 'required|string|max:255',
+            'name_en' => 'nullable|string|max:255',
+            'code' => 'nullable|string|max:50',
+            'category' => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $nameKh = trim($request->input('name_kh'));
+        $existing = InboundSenderOrganization::where('name_kh', $nameKh)->first();
+        if ($existing) {
+            if (!$existing->is_active) {
+                $existing->update(['is_active' => true]);
+            }
+            return response()->json([
+                'message' => 'ស្ថាប័ននេះមានរួចហើយ!',
+                'organization' => $existing,
+            ]);
+        }
+
+        $maxOrder = InboundSenderOrganization::max('order_index') ?? 0;
+        $org = InboundSenderOrganization::create([
+            'name_kh' => $nameKh,
+            'name_en' => $request->input('name_en'),
+            'code' => $request->input('code'),
+            'category' => $request->input('category', 'OTHER'),
+            'order_index' => $maxOrder + 1,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'បានបន្ថែមស្ថាប័នដោយជោគជ័យ!',
+            'organization' => $org,
+        ], 201);
+    }
+
+    /**
+     * 24. លុបអង្គភាព/ស្ថាប័ន (Delete Sender Organization)
+     */
+    public function deleteSenderOrganization($id, Request $request)
+    {
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist') && !$viewer->hasPermission('inbound-documents')) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបស្ថាប័នឡើយ!'], 403);
+        }
+
+        $org = InboundSenderOrganization::findOrFail($id);
+        $org->delete();
+
+        return response()->json(['message' => 'បានលុបស្ថាប័នដោយជោគជ័យ!']);
+    }
+
+    /**
+     * 25. មើលឯកសារដើមក្នុង Browser (View Original File Inline)
+     */
+    public function viewOriginalFile($id, Request $request)
+    {
+        $viewer = $request->user();
+        $doc = InboundDocument::findOrFail($id);
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារនេះឡើយ!'], 403);
+        }
+
+        if (!$doc->original_file_path || !Storage::disk('public')->exists($doc->original_file_path)) {
+            return response()->json(['message' => 'រកមិនឃើញឯកសារដើមឡើយ!'], 404);
+        }
+
+        $fullPath = Storage::disk('public')->path($doc->original_file_path);
+        $mimeType = Storage::disk('public')->mimeType($doc->original_file_path) ?: 'application/pdf';
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . addslashes($doc->original_file_name ?? basename($doc->original_file_path)) . '"',
+        ]);
+    }
+
+    /**
+     * 26. មើលឯកសារមានចំណារក្នុង Browser (View Annotated File Inline)
+     */
+    public function viewAnnotatedFile($id, Request $request)
+    {
+        $viewer = $request->user();
+        $doc = InboundDocument::findOrFail($id);
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារនេះឡើយ!'], 403);
+        }
+
+        if (!$doc->annotated_file_path || !Storage::disk('public')->exists($doc->annotated_file_path)) {
+            return response()->json(['message' => 'រកមិនឃើញឯកសារមានចំណារឡើយ!'], 404);
+        }
+
+        $fullPath = Storage::disk('public')->path($doc->annotated_file_path);
+        $mimeType = Storage::disk('public')->mimeType($doc->annotated_file_path) ?: 'application/pdf';
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . addslashes($doc->annotated_file_name ?? basename($doc->annotated_file_path)) . '"',
+        ]);
+    }
+
+    /**
+     * 27. មើលឯកសារឆ្លើយតបក្នុង Browser (View Response File Inline)
+     */
+    public function viewResponseFile($responseId, Request $request)
+    {
+        $viewer = $request->user();
+        $response = InboundDocumentResponse::with('inboundDocument')->findOrFail($responseId);
+        if ($response->inboundDocument && !$this->canUserAccessDocument($response->inboundDocument, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារឆ្លើយតបនេះឡើយ!'], 403);
+        }
+
+        if (!$response->file_path || !Storage::disk('public')->exists($response->file_path)) {
+            return response()->json(['message' => 'រកមិនឃើញឯកសារឆ្លើយតបឡើយ!'], 404);
+        }
+
+        $fullPath = Storage::disk('public')->path($response->file_path);
+        $mimeType = Storage::disk('public')->mimeType($response->file_path) ?: 'application/pdf';
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . addslashes($response->file_name ?? basename($response->file_path)) . '"',
+        ]);
     }
 }

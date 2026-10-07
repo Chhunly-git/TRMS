@@ -92,19 +92,40 @@ export function apiProcessResponseAction(id, formData) {
   });
 }
 
-// 15. ទាញយកឯកសារដើម
+// Helper: Get sanctum auth token for query string
+function getAuthTokenQuery() {
+  const token = localStorage.getItem('SANCTUM-TOKEN');
+  return token ? `?token=${encodeURIComponent(token)}` : '';
+}
+
+// 15. ទាញយកឯកសារដើម (Download Original)
 export function getOriginalDownloadUrl(id) {
-  return `${APP_API_URL}/inbound-documents/${id}/download-original`;
+  return `${APP_API_URL}/inbound-documents/${id}/download-original${getAuthTokenQuery()}`;
 }
 
-// 16. ទាញយកឯកសារមានចំណារអគ្គនាយក
+// 16. ទាញយកឯកសារមានចំណារអគ្គនាយក (Download Annotated)
 export function getAnnotatedDownloadUrl(id) {
-  return `${APP_API_URL}/inbound-documents/${id}/download-annotated`;
+  return `${APP_API_URL}/inbound-documents/${id}/download-annotated${getAuthTokenQuery()}`;
 }
 
-// 17. ទាញយកឯកសារឆ្លើយតប
+// 17. ទាញយកឯកសារឆ្លើយតប (Download Response)
 export function getResponseDownloadUrl(responseId) {
-  return `${APP_API_URL}/inbound-documents/responses/${responseId}/download`;
+  return `${APP_API_URL}/inbound-documents/responses/${responseId}/download${getAuthTokenQuery()}`;
+}
+
+// 17.1 មើលឯកសារដើមក្នុង Browser/Iframe (Inline View Original)
+export function getViewOriginalUrl(id) {
+  return `${APP_API_URL}/inbound-documents/${id}/view-original${getAuthTokenQuery()}`;
+}
+
+// 17.2 មើលឯកសារមានចំណារក្នុង Browser/Iframe (Inline View Annotated)
+export function getViewAnnotatedUrl(id) {
+  return `${APP_API_URL}/inbound-documents/${id}/view-annotated${getAuthTokenQuery()}`;
+}
+
+// 17.3 មើលឯកសារឆ្លើយតបក្នុង Browser/Iframe (Inline View Response)
+export function getViewResponseUrl(responseId) {
+  return `${APP_API_URL}/inbound-documents/responses/${responseId}/view${getAuthTokenQuery()}`;
 }
 
 // 18. លុបឯកសារចូល
@@ -126,3 +147,19 @@ export function apiUpdateTelegramSettings(data) {
 export function apiTestTelegramConnection(data = {}) {
   return axios.post(`${APP_API_URL}/inbound-documents/test-telegram`, data);
 }
+
+// 22. បញ្ជីអង្គភាព/ស្ថាប័នផ្ញើឯកសារដែលបានកំណត់ទុកមុន
+export function apiGetSenderOrganizations(params = {}) {
+  return axios.get(`${APP_API_URL}/inbound-documents/sender-organizations`, { params });
+}
+
+// 23. បន្ថែមអង្គភាព/ស្ថាប័នថ្មី
+export function apiCreateSenderOrganization(data) {
+  return axios.post(`${APP_API_URL}/inbound-documents/sender-organizations`, data);
+}
+
+// 24. លុបអង្គភាព/ស្ថាប័ន
+export function apiDeleteSenderOrganization(id) {
+  return axios.delete(`${APP_API_URL}/inbound-documents/sender-organizations/${id}`);
+}
+

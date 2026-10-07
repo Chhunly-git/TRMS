@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\BearerTokenFromQuery;
 use App\Http\Middleware\CheckEnabled;
 use App\Http\Middleware\UnicodeCorrection;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware
+            ->prepend([
+                BearerTokenFromQuery::class,
+            ])
             ->append([
                 UnicodeCorrection::class
             ])

@@ -705,6 +705,16 @@
                           <i class="fas fa-clipboard-check"></i>
                         </button>
 
+                        <!-- View / Preview PDF Button -->
+                        <button
+                          v-if="doc.annotated_file_path || doc.original_file_path"
+                          class="btn btn-outline-info"
+                          :title="doc.annotated_file_path ? 'មើលឯកសារមានចំណារ (PDF)' : 'មើលឯកសារ Scan ដើម (PDF)'"
+                          @click="doc.annotated_file_path ? previewAnnotatedDoc(doc) : previewOriginalDoc(doc)"
+                        >
+                          <i class="fas fa-eye"></i>
+                        </button>
+
                         <!-- Download Scans Menu / Button -->
                         <button
                           v-if="doc.original_file_path"
@@ -780,21 +790,22 @@
               <!-- Row 1: លេខចូលទូទៅ (Auto) & កាលបរិច្ឆេទ/ម៉ោង -->
               <div class="row">
                 <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">លេខចូលទូទៅ (Auto) <span class="text-danger">*</span></label>
+                  <label class="form-label font-weight-bold">លេខចូលទូទៅ <span class="text-danger">*</span></label>
                   <div class="input-group">
                     <input
                       type="text"
-                      class="form-control font-weight-bold font-monospace bg-light"
+                      class="form-control font-weight-bold font-monospace"
+                      placeholder="ឧ. 001/26"
                       v-model="createForm.general_inbound_number"
-                      readonly
+                      required
                     />
                     <div class="input-group-append">
-                      <button class="btn btn-outline-secondary" type="button" @click="fetchNextGeneralNumber" title="ទាញយកលេខថ្មី">
+                      <button class="btn btn-outline-secondary" type="button" @click="fetchNextGeneralNumber" title="បង្កើតលេខបន្ទាប់ដោយស្វ័យប្រវត្តិ">
                         <i class="fas fa-sync-alt"></i>
                       </button>
                     </div>
                   </div>
-                  <small class="text-muted">ទម្រង់លំនាំដើម៖ 001/26</small>
+                  <small class="text-muted">អាចវាយបញ្ចូលផ្ទាល់ ឬចុច icon ដើម្បីបង្កើតលេខស្វ័យប្រវត្តិ</small>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -831,15 +842,117 @@
                   />
                 </div>
 
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">មកពីអង្គភាព / ស្ថាប័ន <span class="text-danger">*</span></label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="ឧ. ក្រសួងសេដ្ឋកិច្ច, ក្រុមហ៊ុន..."
-                    v-model="createForm.sender_organization"
-                    required
-                  />
+                <div class="col-md-4 mb-3 position-relative">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label font-weight-bold mb-0">មកពីអង្គភាព / ស្ថាប័ន <span class="text-danger">*</span></label>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary"
+                      @click="openManageOrgModal"
+                      title="គ្រប់គ្រងស្ថាប័ន (បន្ថែម/លុប)"
+                    >
+                      <i class="fas fa-cog mr-1"></i>គ្រប់គ្រងស្ថាប័ន
+                    </button>
+                  </div>
+
+                  <!-- Searchable Select Trigger Button -->
+                  <div class="input-group">
+                    <button
+                      type="button"
+                      class="form-control text-left d-flex justify-content-between align-items-center bg-white"
+                      :class="{ 'border-primary ring-1': isOrgDropdownOpen }"
+                      @click="toggleOrgDropdown"
+                    >
+                      <span class="text-truncate mr-2 font-weight-500 font-14" :class="{ 'text-muted': !senderOrgSelection }">
+                        <template v-if="senderOrgSelection === '__OTHER__'">
+                          <i class="fas fa-edit text-warning mr-1"></i> ផ្សេងៗ ({{ customSenderOrg || 'វាយបញ្ចូលផ្ទាល់' }})
+                        </template>
+                        <template v-else-if="senderOrgSelection">
+                          <i class="fas fa-building text-primary mr-1"></i> {{ senderOrgSelection }}
+                        </template>
+                        <template v-else>
+                          <i class="fas fa-search text-muted mr-1"></i> -- ជ្រើសរើស ឬស្វែងរកស្ថាប័ន --
+                        </template>
+                      </span>
+                      <i class="fas text-muted font-12" :class="isOrgDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </button>
+                    <div class="input-group-append" v-if="senderOrgSelection">
+                      <button class="btn btn-outline-secondary" type="button" @click="clearSelectedOrg" title="សម្អាតជម្រើស">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Searchable Dropdown Popup -->
+                  <div
+                    v-if="isOrgDropdownOpen"
+                    class="position-absolute shadow-lg bg-white rounded border p-2 mt-1 w-100"
+                    style="z-index: 1050; left: 0; min-width: 320px;"
+                  >
+                    <!-- Search Input -->
+                    <div class="input-group input-group-sm mb-2">
+                      <div class="input-group-prepend">
+                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                      </div>
+                      <input
+                        type="text"
+                        class="form-control font-khmer font-13"
+                        placeholder="វាយស្វែងរក (ខ្មែរ / Code)..."
+                        v-model="orgSearchQuery"
+                        autofocus
+                      />
+                      <div class="input-group-append" v-if="orgSearchQuery">
+                        <button class="btn btn-light border" type="button" @click="orgSearchQuery = ''">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Items List -->
+                    <div style="max-height: 220px; overflow-y: auto;">
+                      <div
+                        v-for="org in filteredSenderOrganizations"
+                        :key="org.id"
+                        class="px-2 py-1-5 rounded cursor-pointer mb-1 d-flex justify-content-between align-items-center hover-bg-light"
+                        :class="{ 'bg-primary text-white': senderOrgSelection === org.name_kh }"
+                        @click="selectOrg(org)"
+                      >
+                        <span class="font-13 text-truncate mr-2">{{ org.name_kh }}</span>
+                        <span class="badge" :class="senderOrgSelection === org.name_kh ? 'badge-light text-primary' : 'badge-secondary font-11 font-monospace'">
+                          {{ org.code || org.category }}
+                        </span>
+                      </div>
+
+                      <!-- Other Option -->
+                      <div
+                        class="px-2 py-1-5 rounded cursor-pointer mt-1 border-top pt-2 d-flex align-items-center hover-bg-light text-primary font-weight-bold font-13"
+                        :class="{ 'bg-info-light': senderOrgSelection === '__OTHER__' }"
+                        @click="selectOtherOrg"
+                      >
+                        <i class="fas fa-edit mr-2 text-warning"></i> ផ្សេងៗ (វាយបញ្ចូលដោយផ្ទាល់ដៃ)
+                      </div>
+
+                      <!-- Empty Search Result -->
+                      <div v-if="filteredSenderOrganizations.length === 0 && orgSearchQuery" class="text-center text-muted py-2 font-13">
+                        <div>រកមិនឃើញស្ថាប័នត្រូវគ្នាឡើយ</div>
+                        <button type="button" class="btn btn-xs btn-outline-primary mt-1" @click="useQueryAsCustomOrg">
+                          <i class="fas fa-check mr-1"></i> ប្រើឈ្មោះ «{{ orgSearchQuery }}»
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Text Input if OTHER is chosen -->
+                  <div class="mt-2" v-if="senderOrgSelection === '__OTHER__'">
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="សូមវាយបញ្ចូលឈ្មោះអង្គភាព / ស្ថាប័ន..."
+                      v-model="customSenderOrg"
+                      @input="handleOrgSelectionChange"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1359,9 +1472,16 @@
               ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
               លិខិតឆ្លើយតប៖ <strong>{{ selectedResponse?.title }}</strong><br />
               អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh }}</strong>
-              <div class="mt-2" v-if="selectedResponse?.file_path">
-                <a :href="getResponseFileUrl(selectedResponse.id)" target="_blank" class="btn btn-xs btn-outline-primary">
-                  <i class="fas fa-download mr-1"></i> ទាញយកឯកសារព្រាងពិនិត្យ
+              <div class="mt-2 d-flex flex-wrap" v-if="selectedResponse?.file_path">
+                <button
+                  type="button"
+                  class="btn btn-xs btn-outline-info mr-2"
+                  @click="previewResponseDoc(selectedResponse)"
+                >
+                  <i class="fas fa-eye mr-1"></i> មើលឯកសារព្រាង (PDF)
+                </button>
+                <a :href="getResponseFileUrl(selectedResponse.id)" download class="btn btn-xs btn-outline-secondary">
+                  <i class="fas fa-download mr-1"></i> ទាញយក
                 </a>
               </div>
             </div>
@@ -1546,24 +1666,44 @@
                       <span class="font-weight-bold text-dark d-block mb-2">ឯកសារភ្ជាប់ / Scan៖</span>
                       <div class="d-flex flex-wrap gap-2">
                         <!-- Original Scan -->
-                        <a
-                          v-if="selectedDoc.original_file_path"
-                          :href="getOriginalFileUrl(selectedDoc.id)"
-                          target="_blank"
-                          class="btn btn-sm btn-outline-primary"
-                        >
-                          <i class="fas fa-file-pdf text-danger mr-1"></i> Scan ឯកសារដើម ({{ selectedDoc.original_file_name || 'ទាញយក' }})
-                        </a>
+                        <div class="btn-group mr-2 mb-2" v-if="selectedDoc.original_file_path">
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary font-khmer"
+                            @click="previewOriginalDoc(selectedDoc)"
+                            title="មើលឯកសារ Scan ដើម"
+                          >
+                            <i class="fas fa-eye text-primary mr-1"></i> មើលឯកសារដើម (PDF)
+                          </button>
+                          <a
+                            :href="getOriginalFileUrl(selectedDoc.id)"
+                            download
+                            class="btn btn-sm btn-outline-secondary"
+                            title="ទាញយកឯកសារដើម"
+                          >
+                            <i class="fas fa-download"></i>
+                          </a>
+                        </div>
 
                         <!-- Annotated Scan -->
-                        <a
-                          v-if="selectedDoc.annotated_file_path"
-                          :href="getAnnotatedFileUrl(selectedDoc.id)"
-                          target="_blank"
-                          class="btn btn-sm btn-outline-danger"
-                        >
-                          <i class="fas fa-signature mr-1"></i> Scan ចំណារអគ្គនាយក ({{ selectedDoc.annotated_file_name || 'ទាញយក' }})
-                        </a>
+                        <div class="btn-group mb-2" v-if="selectedDoc.annotated_file_path">
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger font-khmer"
+                            @click="previewAnnotatedDoc(selectedDoc)"
+                            title="មើលឯកសារមានចំណារ"
+                          >
+                            <i class="fas fa-signature text-danger mr-1"></i> មើលចំណារអគ្គនាយក (PDF)
+                          </button>
+                          <a
+                            :href="getAnnotatedFileUrl(selectedDoc.id)"
+                            download
+                            class="btn btn-sm btn-outline-secondary"
+                            title="ទាញយកចំណារអគ្គនាយក"
+                          >
+                            <i class="fas fa-download"></i>
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1605,9 +1745,16 @@
                         <div class="font-weight-bold text-primary">{{ resp.title }}</div>
                         <div class="text-muted">ស្ថានភាព៖ <span class="badge badge-info">{{ resp.status_kh }}</span> ({{ resp.stage_kh }})</div>
                         <div class="text-muted">រៀបចំដោយ៖ {{ resp.drafted_by_user?.name_kh }} | {{ formatDateTimeKh(resp.created_at) }}</div>
-                        <div class="mt-1" v-if="resp.file_path">
-                          <a :href="getResponseFileUrl(resp.id)" target="_blank" class="text-primary font-weight-bold">
-                            <i class="fas fa-download mr-1"></i> ទាញយកឯកសារព្រាង
+                        <div class="mt-2 d-flex flex-wrap" v-if="resp.file_path">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-info mr-2 font-khmer"
+                            @click="previewResponseDoc(resp)"
+                          >
+                            <i class="fas fa-eye mr-1"></i> មើលព្រាង (PDF)
+                          </button>
+                          <a :href="getResponseFileUrl(resp.id)" download class="btn btn-xs btn-outline-secondary">
+                            <i class="fas fa-download mr-1"></i> ទាញយក
                           </a>
                         </div>
                       </div>
@@ -1900,6 +2047,244 @@
       </div>
     </div>
 
+    <!-- 10. Modal មើលឯកសារ PDF (Inline PDF Viewer Modal) -->
+    <div
+      class="modal fade show d-block font-khmer"
+      tabindex="-1"
+      v-if="showPdfModal"
+      style="background: rgba(0, 0, 0, 0.75); z-index: 1060;"
+    >
+      <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 94vw; height: 92vh; margin: 2vh auto;">
+        <div class="modal-content h-100 shadow-lg border-0 rounded-lg overflow-hidden d-flex flex-column">
+          <div class="modal-header bg-dark text-white py-2 px-3 align-items-center flex-shrink-0">
+            <h5 class="modal-title font-khmer font-weight-bold font-15 mb-0 text-truncate" style="max-width: 60vw;">
+              <i class="fas fa-file-pdf text-danger mr-2"></i>{{ pdfModalTitle }}
+            </h5>
+            <div class="d-flex align-items-center">
+              <a
+                :href="pdfModalUrl"
+                target="_blank"
+                class="btn btn-xs btn-outline-light mr-2 font-khmer"
+                title="បើកក្នុងផ្ទាំងថ្មី (New Tab)"
+              >
+                <i class="fas fa-external-link-alt mr-1"></i> បើកផ្ទាំងថ្មី
+              </a>
+              <a
+                :href="pdfModalDownloadUrl"
+                download
+                class="btn btn-xs btn-warning text-dark font-weight-bold mr-2 font-khmer"
+                title="ទាញយកឯកសារ"
+              >
+                <i class="fas fa-download mr-1"></i> ទាញយក
+              </a>
+              <button type="button" class="close text-white ml-2" @click="closePdfModal">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+          </div>
+          <div class="modal-body p-0 position-relative flex-grow-1" style="background: #525659;">
+            <div
+              v-if="isPdfLoading"
+              class="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white"
+              style="background: rgba(0,0,0,0.5); z-index: 10; top: 0; left: 0;"
+            >
+              <div class="spinner-border text-light mb-2" role="status"></div>
+              <span class="font-khmer font-14">កំពុងផ្ទុកឯកសារ PDF...</span>
+            </div>
+            <iframe
+              :src="pdfModalUrl"
+              class="w-100 h-100 border-0"
+              @load="isPdfLoading = false"
+              style="min-height: 100%; display: block;"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11. Modal គ្រប់គ្រងស្ថាប័ន / អង្គភាពផ្ញើឯកសារ (Manage Sender Organizations Modal) -->
+    <div
+      class="modal fade show d-block font-khmer"
+      tabindex="-1"
+      v-if="showManageOrgModal"
+      style="background: rgba(0, 0, 0, 0.6); z-index: 1055;"
+    >
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-lg">
+          <div class="modal-header bg-dark-custom text-white py-3 align-items-center">
+            <h5 class="modal-title font-weight-bold mb-0">
+              <i class="fas fa-building text-warning mr-2"></i>គ្រប់គ្រងបញ្ជីស្ថាប័ន / អង្គភាពផ្ញើឯកសារ
+            </h5>
+            <button type="button" class="close text-white" @click="closeManageOrgModal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body p-3 font-khmer">
+            <!-- Nav Tabs -->
+            <ul class="nav nav-pills mb-3">
+              <li class="nav-item">
+                <a
+                  class="nav-link cursor-pointer"
+                  :class="{ active: manageOrgActiveTab === 'list' }"
+                  @click="manageOrgActiveTab = 'list'"
+                >
+                  <i class="fas fa-list mr-1"></i> បញ្ជីស្ថាប័នដែលមានស្រាប់ ({{ senderOrganizations.length }})
+                </a>
+              </li>
+              <li class="nav-item ml-2">
+                <a
+                  class="nav-link cursor-pointer"
+                  :class="{ active: manageOrgActiveTab === 'create' }"
+                  @click="manageOrgActiveTab = 'create'"
+                >
+                  <i class="fas fa-plus mr-1"></i> + បន្ថែមស្ថាប័នថ្មី
+                </a>
+              </li>
+            </ul>
+
+            <!-- Tab 1: List & Search & Delete -->
+            <div v-if="manageOrgActiveTab === 'list'">
+              <div class="input-group input-group-sm mb-3">
+                <div class="input-group-prepend">
+                  <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                </div>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="ស្វែងរកក្នុងបញ្ជីស្ថាប័ន (ឈ្មោះខ្មែរ / English / Code)..."
+                  v-model="manageOrgSearch"
+                />
+                <div class="input-group-append" v-if="manageOrgSearch">
+                  <button class="btn btn-outline-secondary" type="button" @click="manageOrgSearch = ''">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-hover table-bordered table-sm font-13 align-middle mb-0">
+                  <thead class="thead-light sticky-top">
+                    <tr>
+                      <th style="width: 50px;" class="text-center">#</th>
+                      <th>ឈ្មោះស្ថាប័ន (ខ្មែរ)</th>
+                      <th style="width: 100px;" class="text-center">កូដ</th>
+                      <th style="width: 130px;" class="text-center">ចំណាត់ថ្នាក់</th>
+                      <th style="width: 90px;" class="text-center">សកម្មភាព</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(org, idx) in filteredManageOrgs" :key="org.id">
+                      <td class="text-center text-muted">{{ idx + 1 }}</td>
+                      <td>
+                        <span class="font-weight-bold text-dark">{{ org.name_kh }}</span>
+                        <div v-if="org.name_en" class="font-11 text-muted">{{ org.name_en }}</div>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge badge-light border font-monospace">{{ org.code || '---' }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge badge-secondary">{{ getCategoryLabelKh(org.category) }}</span>
+                      </td>
+                      <td class="text-center">
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-outline-danger"
+                          @click="confirmDeleteOrg(org)"
+                          title="លុបស្ថាប័ននេះចេញពីបញ្ជី"
+                        >
+                          <i class="fas fa-trash-alt mr-1"></i>លុប
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredManageOrgs.length === 0">
+                      <td colspan="5" class="text-center text-muted py-4">
+                        មិនមានស្ថាប័នត្រូវគ្នានឹងការស្វែងរកឡើយ
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab 2: Create New -->
+            <div v-else-if="manageOrgActiveTab === 'create'">
+              <form @submit.prevent="submitCreateSenderOrg">
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold text-dark">
+                    ឈ្មោះស្ថាប័ន / អង្គភាព (ខ្មែរ) <span class="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="ឧ. ក្រសួងកសិកម្ម រុក្ខាប្រមាញ់ និងនេសាទ"
+                    v-model="newOrgForm.name_kh"
+                    required
+                  />
+                </div>
+
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold text-dark">
+                    ឈ្មោះជាភាសាអង់គ្លេស (បើមាន)
+                  </label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="ឧ. Ministry of Agriculture..."
+                    v-model="newOrgForm.name_en"
+                  />
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="font-weight-bold text-dark">
+                      អក្សរកាត់ / កូដ (Code)
+                    </label>
+                    <input
+                      type="text"
+                      class="form-control font-monospace"
+                      placeholder="ឧ. MAFF"
+                      v-model="newOrgForm.code"
+                    />
+                  </div>
+
+                  <div class="col-md-6 mb-3">
+                    <label class="font-weight-bold text-dark">
+                      ចំណាត់ថ្នាក់ស្ថាប័ន
+                    </label>
+                    <select class="form-control" v-model="newOrgForm.category">
+                      <option value="MINISTRY">ក្រសួង / ស្ថាប័នជាតិ</option>
+                      <option value="REGULATOR">និយ័តករ / អាជ្ញាធរ</option>
+                      <option value="DEPARTMENT">អង្គភាពរដ្ឋ / មន្ទីរ</option>
+                      <option value="COMPANY">ក្រុមហ៊ុន / វិស័យឯកជន</option>
+                      <option value="OTHER">ផ្សេងៗ</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="text-right mt-3">
+                  <button type="button" class="btn btn-secondary mr-2" @click="manageOrgActiveTab = 'list'">
+                    ត្រឡប់ទៅបញ្ជី
+                  </button>
+                  <button type="submit" class="btn btn-dark-custom px-4" :disabled="savingOrg">
+                    <i class="fas fa-spinner fa-spin mr-1" v-if="savingOrg"></i>
+                    <i class="fas fa-save mr-1" v-else></i>
+                    រក្សាទុកស្ថាប័ន
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="modal-footer font-khmer bg-light py-2">
+            <button type="button" class="btn btn-secondary btn-sm" @click="closeManageOrgModal">
+              បិទ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -1927,9 +2312,15 @@ import {
   apiDeleteInboundDocument,
   apiUpdateTelegramSettings,
   apiTestTelegramConnection,
+  apiGetSenderOrganizations,
+  apiCreateSenderOrganization,
+  apiDeleteSenderOrganization,
   getOriginalDownloadUrl,
   getAnnotatedDownloadUrl,
-  getResponseDownloadUrl
+  getResponseDownloadUrl,
+  getViewOriginalUrl,
+  getViewAnnotatedUrl,
+  getViewResponseUrl
 } from '@/functions/api/inboundDocument';
 
 const userStore = useUserStore();
@@ -2020,6 +2411,226 @@ const telegramForm = reactive({
   chat_id: '',
   username: '',
 });
+
+// --- PDF Viewer Modal State ---
+const showPdfModal = ref(false);
+const pdfModalTitle = ref('');
+const pdfModalUrl = ref('');
+const pdfModalDownloadUrl = ref('');
+const isPdfLoading = ref(true);
+
+const openPdfPreview = (title, viewUrl, downloadUrl) => {
+  pdfModalTitle.value = title || 'មើលឯកសារ PDF';
+  pdfModalUrl.value = viewUrl;
+  pdfModalDownloadUrl.value = downloadUrl || viewUrl;
+  isPdfLoading.value = true;
+  showPdfModal.value = true;
+};
+
+const closePdfModal = () => {
+  showPdfModal.value = false;
+  pdfModalUrl.value = '';
+};
+
+// --- Sender Organizations State ---
+const senderOrganizations = ref([]);
+const senderOrgSelection = ref('');
+const customSenderOrg = ref('');
+const orgSearchQuery = ref('');
+const isOrgDropdownOpen = ref(false);
+
+const filteredSenderOrganizations = computed(() => {
+  const q = orgSearchQuery.value.trim().toLowerCase();
+  if (!q) return senderOrganizations.value;
+  return senderOrganizations.value.filter(org => {
+    const kh = (org.name_kh || '').toLowerCase();
+    const en = (org.name_en || '').toLowerCase();
+    const code = (org.code || '').toLowerCase();
+    return kh.includes(q) || en.includes(q) || code.includes(q);
+  });
+});
+
+const toggleOrgDropdown = () => {
+  isOrgDropdownOpen.value = !isOrgDropdownOpen.value;
+  if (isOrgDropdownOpen.value) {
+    orgSearchQuery.value = '';
+  }
+};
+
+const selectOrg = (org) => {
+  senderOrgSelection.value = org.name_kh;
+  createForm.sender_organization = org.name_kh;
+  isOrgDropdownOpen.value = false;
+  orgSearchQuery.value = '';
+};
+
+const selectOtherOrg = () => {
+  senderOrgSelection.value = '__OTHER__';
+  createForm.sender_organization = customSenderOrg.value;
+  isOrgDropdownOpen.value = false;
+  orgSearchQuery.value = '';
+};
+
+const clearSelectedOrg = () => {
+  senderOrgSelection.value = '';
+  createForm.sender_organization = '';
+  customSenderOrg.value = '';
+  orgSearchQuery.value = '';
+};
+
+const useQueryAsCustomOrg = () => {
+  customSenderOrg.value = orgSearchQuery.value.trim();
+  senderOrgSelection.value = '__OTHER__';
+  createForm.sender_organization = customSenderOrg.value;
+  isOrgDropdownOpen.value = false;
+  orgSearchQuery.value = '';
+};
+
+// --- Manage Sender Organizations Modal State ---
+const showManageOrgModal = ref(false);
+const manageOrgActiveTab = ref('list'); // 'list' | 'create'
+const manageOrgSearch = ref('');
+const savingOrg = ref(false);
+const newOrgForm = reactive({
+  name_kh: '',
+  name_en: '',
+  code: '',
+  category: 'OTHER',
+});
+
+const filteredManageOrgs = computed(() => {
+  const q = manageOrgSearch.value.trim().toLowerCase();
+  if (!q) return senderOrganizations.value;
+  return senderOrganizations.value.filter(org => {
+    const kh = (org.name_kh || '').toLowerCase();
+    const en = (org.name_en || '').toLowerCase();
+    const code = (org.code || '').toLowerCase();
+    return kh.includes(q) || en.includes(q) || code.includes(q);
+  });
+});
+
+const getCategoryLabelKh = (cat) => {
+  switch (cat) {
+    case 'MINISTRY': return 'ក្រសួង';
+    case 'REGULATOR': return 'និយ័តករ';
+    case 'DEPARTMENT': return 'អង្គភាពរដ្ឋ';
+    case 'COMPANY': return 'ក្រុមហ៊ុន';
+    default: return 'ផ្សេងៗ';
+  }
+};
+
+const loadSenderOrganizations = async () => {
+  try {
+    const res = await apiGetSenderOrganizations();
+    senderOrganizations.value = res.data;
+  } catch (err) {
+    console.error('Failed to load sender organizations:', err);
+  }
+};
+
+const openManageOrgModal = () => {
+  manageOrgActiveTab.value = 'list';
+  manageOrgSearch.value = '';
+  newOrgForm.name_kh = '';
+  newOrgForm.name_en = '';
+  newOrgForm.code = '';
+  newOrgForm.category = 'OTHER';
+  showManageOrgModal.value = true;
+};
+
+const closeManageOrgModal = () => {
+  showManageOrgModal.value = false;
+};
+
+const confirmDeleteOrg = async (org) => {
+  const confirm = await Swal.fire({
+    title: 'លុបស្ថាប័ននេះ?',
+    text: `តើលោកអ្នកពិតជាចង់លុប "${org.name_kh}" ចេញពីបញ្ជីកំណត់ទុកជាមុនមែនទេ?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'បាទ/ចាស លុបចេញ',
+    cancelButtonText: 'បោះបង់'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    await apiDeleteSenderOrganization(org.id);
+    Swal.fire({
+      icon: 'success',
+      title: 'បានលុបជោគជ័យ!',
+      text: `បានលុបស្ថាប័ន "${org.name_kh}" រួចរាល់!`,
+      timer: 1500,
+      showConfirmButton: false,
+    });
+    await loadSenderOrganizations();
+    if (senderOrgSelection.value === org.name_kh) {
+      senderOrgSelection.value = '';
+      createForm.sender_organization = '';
+    }
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យ!',
+      text: err.response?.data?.message || 'មិនអាចលុបស្ថាប័ននេះបានឡើយ!',
+      confirmButtonText: 'យល់ព្រម',
+    });
+  }
+};
+
+const submitCreateSenderOrg = async () => {
+  if (!newOrgForm.name_kh.trim()) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'សូមបញ្ចូលឈ្មោះស្ថាប័ន!',
+      text: 'សូមបញ្ចូលឈ្មោះស្ថាប័ន ឬអង្គភាពជាភាសាខ្មែរ',
+      confirmButtonText: 'យល់ព្រម',
+    });
+    return;
+  }
+  savingOrg.value = true;
+  try {
+    const res = await apiCreateSenderOrganization({
+      name_kh: newOrgForm.name_kh.trim(),
+      name_en: newOrgForm.name_en ? newOrgForm.name_en.trim() : null,
+      code: newOrgForm.code ? newOrgForm.code.trim() : null,
+      category: newOrgForm.category || 'OTHER',
+    });
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: res.data.message || 'បានបន្ថែមស្ថាប័នដោយជោគជ័យ!',
+      confirmButtonText: 'យល់ព្រម',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+    await loadSenderOrganizations();
+    senderOrgSelection.value = res.data.organization?.name_kh || newOrgForm.name_kh.trim();
+    createForm.sender_organization = senderOrgSelection.value;
+    manageOrgActiveTab.value = 'list';
+    newOrgForm.name_kh = '';
+    newOrgForm.name_en = '';
+    newOrgForm.code = '';
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យ!',
+      text: err.response?.data?.message || 'មិនអាចបន្ថែមស្ថាប័នបានឡើយ!',
+      confirmButtonText: 'យល់ព្រម',
+    });
+  } finally {
+    savingOrg.value = false;
+  }
+};
+
+const handleOrgSelectionChange = () => {
+  if (senderOrgSelection.value === '__OTHER__') {
+    createForm.sender_organization = customSenderOrg.value;
+  } else {
+    createForm.sender_organization = senderOrgSelection.value;
+  }
+};
 
 // Files selected
 const selectedOriginalFile = ref(null);
@@ -2288,6 +2899,10 @@ const openCreateModal = async () => {
   createForm.deliverer_name = '';
   createForm.deliverer_phone = '';
   createForm.sender_organization = '';
+  senderOrgSelection.value = '';
+  customSenderOrg.value = '';
+  orgSearchQuery.value = '';
+  isOrgDropdownOpen.value = false;
   createForm.external_reference_number = '';
   createForm.external_document_date = '';
   createForm.deadline = '';
@@ -2299,6 +2914,9 @@ const openCreateModal = async () => {
   createForm.send_immediately = true;
   selectedOriginalFile.value = null;
   selectedOriginalFileName.value = '';
+  if (senderOrganizations.value.length === 0) {
+    loadSenderOrganizations();
+  }
   showCreateModal.value = true;
 };
 
@@ -2358,6 +2976,32 @@ const onDispatchDeptChange = () => {
 
 // --- Submit Handlers ---
 const submitCreateDocument = async () => {
+  if (senderOrgSelection.value === '__OTHER__') {
+    createForm.sender_organization = customSenderOrg.value.trim();
+  } else {
+    createForm.sender_organization = senderOrgSelection.value.trim();
+  }
+
+  if (!createForm.sender_organization) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'សូមបញ្ជាក់អង្គភាព/ស្ថាប័ន!',
+      text: 'សូមជ្រើសរើសស្ថាប័ន ឬជ្រើស "ផ្សេងៗ" រួចវាយបញ្ចូលឈ្មោះអង្គភាព/ស្ថាប័ន',
+      confirmButtonText: 'យល់ព្រម',
+    });
+    return;
+  }
+
+  if (!createForm.general_inbound_number || !createForm.general_inbound_number.trim()) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'សូមបញ្ជាក់លេខចូលទូទៅ!',
+      text: 'សូមវាយបញ្ចូលលេខចូលទូទៅ ឬចុចប៊ូតុងបង្កើតលេខស្វ័យប្រវត្តិ',
+      confirmButtonText: 'យល់ព្រម',
+    });
+    return;
+  }
+
   submitting.value = true;
   try {
     const formData = new FormData();
@@ -2776,7 +3420,22 @@ const saveTelegramSettings = async () => {
   }
 };
 
-// --- Download File Helpers ---
+// --- PDF Preview & Download Helpers ---
+const previewOriginalDoc = (doc) => {
+  const title = `ឯកសារដើម៖ ${doc.dg_inbound_number || doc.general_inbound_number || ''} - ${doc.title || ''}`;
+  openPdfPreview(title, getViewOriginalUrl(doc.id), getOriginalDownloadUrl(doc.id));
+};
+
+const previewAnnotatedDoc = (doc) => {
+  const title = `ឯកសារមានចំណារ៖ ${doc.dg_inbound_number || doc.general_inbound_number || ''} - ${doc.title || ''}`;
+  openPdfPreview(title, getViewAnnotatedUrl(doc.id), getAnnotatedDownloadUrl(doc.id));
+};
+
+const previewResponseDoc = (resp) => {
+  const title = `ឯកសារឆ្លើយតប៖ ${resp.title || ''}`;
+  openPdfPreview(title, getViewResponseUrl(resp.id), getResponseDownloadUrl(resp.id));
+};
+
 const downloadOriginal = (doc) => {
   window.open(getOriginalDownloadUrl(doc.id), '_blank');
 };
@@ -2840,6 +3499,7 @@ onMounted(() => {
   loadDocuments();
   loadStats();
   loadRecipientsOptions();
+  loadSenderOrganizations();
 });
 </script>
 
@@ -3129,5 +3789,16 @@ onMounted(() => {
   font-family: "Font Awesome 5 Free" !important;
   font-weight: 400 !important;
   font-style: normal !important;
+}
+
+.hover-bg-light:hover {
+  background-color: #f1f5f9;
+}
+.py-1-5 {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+.ring-1 {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 </style>

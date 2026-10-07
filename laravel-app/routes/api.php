@@ -126,11 +126,16 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/stats', [InboundDocumentController::class, 'stats']);
         Route::post('/telegram-settings', [InboundDocumentController::class, 'updateTelegramSettings']);
         Route::post('/test-telegram', [InboundDocumentController::class, 'testTelegram']);
+        Route::get('/sender-organizations', [InboundDocumentController::class, 'getSenderOrganizations']);
+        Route::post('/sender-organizations', [InboundDocumentController::class, 'storeSenderOrganization']);
+        Route::delete('/sender-organizations/{id}', [InboundDocumentController::class, 'deleteSenderOrganization']);
+        Route::get('/responses/{responseId}/download', [InboundDocumentController::class, 'downloadResponseFile']);
+        Route::get('/responses/{responseId}/view', [InboundDocumentController::class, 'viewResponseFile']);
         Route::get('/', [InboundDocumentController::class, 'index']);
-        Route::get('/{id}', [InboundDocumentController::class, 'show']);
-        Route::get('/{id}/routing-slip-data', [InboundDocumentController::class, 'routingSlipData']);
         Route::post('/', [InboundDocumentController::class, 'store']);
+        Route::get('/{id}', [InboundDocumentController::class, 'show']);
         Route::match(['PUT', 'POST'], '/{id}', [InboundDocumentController::class, 'update']);
+        Route::get('/{id}/routing-slip-data', [InboundDocumentController::class, 'routingSlipData']);
         Route::patch('/{id}/send-to-assistant', [InboundDocumentController::class, 'sendToAssistant']);
         Route::post('/{id}/assistant-receive', [InboundDocumentController::class, 'assistantReceiveAndSubmitToDg']);
         Route::post('/{id}/dg-annotate', [InboundDocumentController::class, 'dgAnnotate']);
@@ -142,7 +147,8 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::post('/{id}/response-action', [InboundDocumentController::class, 'processResponseAction']);
         Route::get('/{id}/download-original', [InboundDocumentController::class, 'downloadOriginalFile']);
         Route::get('/{id}/download-annotated', [InboundDocumentController::class, 'downloadAnnotatedFile']);
-        Route::get('/responses/{responseId}/download', [InboundDocumentController::class, 'downloadResponseFile']);
+        Route::get('/{id}/view-original', [InboundDocumentController::class, 'viewOriginalFile']);
+        Route::get('/{id}/view-annotated', [InboundDocumentController::class, 'viewAnnotatedFile']);
         Route::delete('/{id}', [InboundDocumentController::class, 'destroy']);
     });
     
