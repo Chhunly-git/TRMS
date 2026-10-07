@@ -774,797 +774,814 @@
     </section>
 
     <!-- ==================== MODAL 1: ចុះបញ្ជីឯកសារចូលថ្មី (RECEPTIONIST) ==================== -->
-    <div class="custom-modal-backdrop" v-if="showCreateModal">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-dark-custom text-white">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-file-signature text-warning mr-2"></i>ចុះបញ្ជីឯកសារចូលថ្មី (អ្នកទទួលឯកសារ)
-            </h5>
-            <button type="button" class="close text-white" @click="closeCreateModal">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <form @submit.prevent="submitCreateDocument">
-              <!-- Row 1: លេខចូលទូទៅ (Auto) & កាលបរិច្ឆេទ/ម៉ោង -->
-              <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">លេខចូលទូទៅ <span class="text-danger">*</span></label>
-                  <div class="input-group">
-                    <input
-                      type="text"
-                      class="form-control font-weight-bold font-monospace"
-                      placeholder="ឧ. 001/26"
-                      v-model="createForm.general_inbound_number"
-                      required
-                    />
-                    <div class="input-group-append">
-                      <button class="btn btn-outline-secondary" type="button" @click="fetchNextGeneralNumber" title="បង្កើតលេខបន្ទាប់ដោយស្វ័យប្រវត្តិ">
-                        <i class="fas fa-sync-alt"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <small class="text-muted">អាចវាយបញ្ចូលផ្ទាល់ ឬចុច icon ដើម្បីបង្កើតលេខស្វ័យប្រវត្តិ</small>
-                </div>
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showCreateModal">
+        <div class="modal-dialog modal-xl modal-dialog-centered my-auto" style="width: 100%; max-width: 1050px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column" style="max-height: 90vh;">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-file-signature text-warning mr-2"></i>ចុះបញ្ជីឯកសារចូលថ្មី (អ្នកទទួលឯកសារ)
+              </h5>
+              <button type="button" class="close text-white" @click="closeCreateModal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
 
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទចូល <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" v-model="createForm.received_date" required />
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">ម៉ោងចូល <span class="text-danger">*</span></label>
-                  <input type="time" class="form-control" v-model="createForm.received_time" required />
-                </div>
-              </div>
-
-              <!-- Row 2: ព័ត៌មានអ្នកយកមក & មកពីអង្គភាពណា -->
-              <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">ឈ្មោះអ្នកយកមក <span class="text-danger">*</span></label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="ឈ្មោះអ្នកប្រគល់ឯកសារ"
-                    v-model="createForm.deliverer_name"
-                    required
-                  />
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">លេខទំនាក់ទំនង</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="លេខទូរស័ព្ទអ្នកយកមក"
-                    v-model="createForm.deliverer_phone"
-                  />
-                </div>
-
-                <div class="col-md-4 mb-3 position-relative">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="form-label font-weight-bold mb-0">មកពីអង្គភាព / ស្ថាប័ន <span class="text-danger">*</span></label>
-                    <button
-                      type="button"
-                      class="btn btn-xs btn-outline-primary"
-                      @click="openManageOrgModal"
-                      title="គ្រប់គ្រងស្ថាប័ន (បន្ថែម/លុប)"
-                    >
-                      <i class="fas fa-cog mr-1"></i>គ្រប់គ្រងស្ថាប័ន
-                    </button>
-                  </div>
-
-                  <!-- Searchable Select Trigger Button -->
-                  <div class="input-group">
-                    <button
-                      type="button"
-                      class="form-control text-left d-flex justify-content-between align-items-center bg-white"
-                      :class="{ 'border-primary ring-1': isOrgDropdownOpen }"
-                      @click="toggleOrgDropdown"
-                    >
-                      <span class="text-truncate mr-2 font-weight-500 font-14" :class="{ 'text-muted': !senderOrgSelection }">
-                        <template v-if="senderOrgSelection === '__OTHER__'">
-                          <i class="fas fa-edit text-warning mr-1"></i> ផ្សេងៗ ({{ customSenderOrg || 'វាយបញ្ចូលផ្ទាល់' }})
-                        </template>
-                        <template v-else-if="senderOrgSelection">
-                          <i class="fas fa-building text-primary mr-1"></i> {{ senderOrgSelection }}
-                        </template>
-                        <template v-else>
-                          <i class="fas fa-search text-muted mr-1"></i> -- ជ្រើសរើស ឬស្វែងរកស្ថាប័ន --
-                        </template>
-                      </span>
-                      <i class="fas text-muted font-12" :class="isOrgDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                    </button>
-                    <div class="input-group-append" v-if="senderOrgSelection">
-                      <button class="btn btn-outline-secondary" type="button" @click="clearSelectedOrg" title="សម្អាតជម្រើស">
-                        <i class="fas fa-times"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Searchable Dropdown Popup -->
-                  <div
-                    v-if="isOrgDropdownOpen"
-                    class="position-absolute shadow-lg bg-white rounded border p-2 mt-1 w-100"
-                    style="z-index: 1050; left: 0; min-width: 320px;"
-                  >
-                    <!-- Search Input -->
-                    <div class="input-group input-group-sm mb-2">
-                      <div class="input-group-prepend">
-                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
-                      </div>
+            <form id="createInboundDocForm" @submit.prevent="submitCreateDocument" class="d-flex flex-column flex-grow-1 overflow-hidden m-0">
+              <div class="modal-body p-4 font-khmer flex-grow-1" style="overflow-y: auto; overflow-x: hidden; max-height: calc(88vh - 130px);">
+                <!-- Row 1: លេខចូលទូទៅ (Auto) & កាលបរិច្ឆេទ/ម៉ោង -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខចូលទូទៅ <span class="text-danger">*</span></label>
+                    <div class="input-group">
                       <input
                         type="text"
-                        class="form-control font-khmer font-13"
-                        placeholder="វាយស្វែងរក (ខ្មែរ / Code)..."
-                        v-model="orgSearchQuery"
-                        autofocus
+                        class="form-control font-weight-bold font-monospace"
+                        placeholder="ឧ. 001/26"
+                        v-model="createForm.general_inbound_number"
+                        required
                       />
-                      <div class="input-group-append" v-if="orgSearchQuery">
-                        <button class="btn btn-light border" type="button" @click="orgSearchQuery = ''">
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" @click="fetchNextGeneralNumber" title="បង្កើតលេខបន្ទាប់ដោយស្វ័យប្រវត្តិ">
+                          <i class="fas fa-sync-alt"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <small class="text-muted">អាចវាយបញ្ចូលផ្ទាល់ ឬចុច icon ដើម្បីបង្កើតលេខស្វ័យប្រវត្តិ</small>
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទចូល <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" v-model="createForm.received_date" required />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ម៉ោងចូល <span class="text-danger">*</span></label>
+                    <input type="time" class="form-control" v-model="createForm.received_time" required />
+                  </div>
+                </div>
+
+                <!-- Row 2: ព័ត៌មានអ្នកយកមក & មកពីអង្គភាពណា -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ឈ្មោះអ្នកយកមក <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="ឈ្មោះអ្នកប្រគល់ឯកសារ"
+                      v-model="createForm.deliverer_name"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខទំនាក់ទំនង</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="លេខទូរស័ព្ទអ្នកយកមក"
+                      v-model="createForm.deliverer_phone"
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <label class="form-label font-weight-bold mb-0">មកពីអង្គភាព / ស្ថាប័ន <span class="text-danger">*</span></label>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline-primary"
+                        @click="openManageOrgModal"
+                        title="គ្រប់គ្រងស្ថាប័ន (បន្ថែម/លុប)"
+                      >
+                        <i class="fas fa-cog mr-1"></i>គ្រប់គ្រងស្ថាប័ន
+                      </button>
+                    </div>
+
+                    <!-- Searchable Select Trigger Button -->
+                    <div class="input-group">
+                      <button
+                        type="button"
+                        class="form-control text-left d-flex justify-content-between align-items-center bg-white"
+                        :class="{ 'border-primary ring-1': isOrgDropdownOpen }"
+                        @click="toggleOrgDropdown"
+                      >
+                        <span class="text-truncate mr-2 font-weight-500 font-14" :class="{ 'text-muted': !senderOrgSelection }">
+                          <template v-if="senderOrgSelection === '__OTHER__'">
+                            <i class="fas fa-edit text-warning mr-1"></i> ផ្សេងៗ ({{ customSenderOrg || 'វាយបញ្ចូលផ្ទាល់' }})
+                          </template>
+                          <template v-else-if="senderOrgSelection">
+                            <i class="fas fa-building text-primary mr-1"></i> {{ senderOrgSelection }}
+                          </template>
+                          <template v-else>
+                            <i class="fas fa-search text-muted mr-1"></i> -- ជ្រើសរើស ឬស្វែងរកស្ថាប័ន --
+                          </template>
+                        </span>
+                        <i class="fas text-muted font-12" :class="isOrgDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                      </button>
+                      <div class="input-group-append" v-if="senderOrgSelection">
+                        <button class="btn btn-outline-secondary" type="button" @click="clearSelectedOrg" title="សម្អាតជម្រើស">
                           <i class="fas fa-times"></i>
                         </button>
                       </div>
                     </div>
 
-                    <!-- Items List -->
-                    <div style="max-height: 220px; overflow-y: auto;">
-                      <div
-                        v-for="org in filteredSenderOrganizations"
-                        :key="org.id"
-                        class="px-2 py-1-5 rounded cursor-pointer mb-1 d-flex justify-content-between align-items-center hover-bg-light"
-                        :class="{ 'bg-primary text-white': senderOrgSelection === org.name_kh }"
-                        @click="selectOrg(org)"
-                      >
-                        <span class="font-13 text-truncate mr-2">{{ org.name_kh }}</span>
-                        <span class="badge" :class="senderOrgSelection === org.name_kh ? 'badge-light text-primary' : 'badge-secondary font-11 font-monospace'">
-                          {{ org.code || org.category }}
-                        </span>
+                    <!-- Searchable Dropdown Popup -->
+                    <div
+                      v-if="isOrgDropdownOpen"
+                      class="position-absolute shadow-lg bg-white rounded border p-2 mt-1 w-100"
+                      style="z-index: 1050; left: 0; right: 0; width: 100%;"
+                    >
+                      <!-- Search Input -->
+                      <div class="input-group input-group-sm mb-2">
+                        <div class="input-group-prepend">
+                          <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                        </div>
+                        <input
+                          type="text"
+                          class="form-control font-khmer font-13"
+                          placeholder="វាយស្វែងរក (ខ្មែរ / Code)..."
+                          v-model="orgSearchQuery"
+                          autofocus
+                        />
+                        <div class="input-group-append" v-if="orgSearchQuery">
+                          <button class="btn btn-light border" type="button" @click="orgSearchQuery = ''">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        </div>
                       </div>
 
-                      <!-- Other Option -->
-                      <div
-                        class="px-2 py-1-5 rounded cursor-pointer mt-1 border-top pt-2 d-flex align-items-center hover-bg-light text-primary font-weight-bold font-13"
-                        :class="{ 'bg-info-light': senderOrgSelection === '__OTHER__' }"
-                        @click="selectOtherOrg"
-                      >
-                        <i class="fas fa-edit mr-2 text-warning"></i> ផ្សេងៗ (វាយបញ្ចូលដោយផ្ទាល់ដៃ)
-                      </div>
+                      <!-- Items List -->
+                      <div style="max-height: 220px; overflow-y: auto;">
+                        <div
+                          v-for="org in filteredSenderOrganizations"
+                          :key="org.id"
+                          class="px-2 py-1-5 rounded cursor-pointer mb-1 d-flex justify-content-between align-items-center hover-bg-light"
+                          :class="{ 'bg-primary text-white': senderOrgSelection === org.name_kh }"
+                          @click="selectOrg(org)"
+                        >
+                          <span class="font-13 text-truncate mr-2">{{ org.name_kh }}</span>
+                          <span class="badge" :class="senderOrgSelection === org.name_kh ? 'badge-light text-primary' : 'badge-secondary font-11 font-monospace'">
+                            {{ org.code || org.category }}
+                          </span>
+                        </div>
 
-                      <!-- Empty Search Result -->
-                      <div v-if="filteredSenderOrganizations.length === 0 && orgSearchQuery" class="text-center text-muted py-2 font-13">
-                        <div>រកមិនឃើញស្ថាប័នត្រូវគ្នាឡើយ</div>
-                        <button type="button" class="btn btn-xs btn-outline-primary mt-1" @click="useQueryAsCustomOrg">
-                          <i class="fas fa-check mr-1"></i> ប្រើឈ្មោះ «{{ orgSearchQuery }}»
-                        </button>
+                        <!-- Other Option -->
+                        <div
+                          class="px-2 py-1-5 rounded cursor-pointer mt-1 border-top pt-2 d-flex align-items-center hover-bg-light text-primary font-weight-bold font-13"
+                          :class="{ 'bg-info-light': senderOrgSelection === '__OTHER__' }"
+                          @click="selectOtherOrg"
+                        >
+                          <i class="fas fa-edit mr-2 text-warning"></i> ផ្សេងៗ (វាយបញ្ចូលដោយផ្ទាល់ដៃ)
+                        </div>
+
+                        <!-- Empty Search Result -->
+                        <div v-if="filteredSenderOrganizations.length === 0 && orgSearchQuery" class="text-center text-muted py-2 font-13">
+                          <div>រកមិនឃើញស្ថាប័នត្រូវគ្នាឡើយ</div>
+                          <button type="button" class="btn btn-xs btn-outline-primary mt-1" @click="useQueryAsCustomOrg">
+                            <i class="fas fa-check mr-1"></i> ប្រើឈ្មោះ «{{ orgSearchQuery }}»
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <!-- Text Input if OTHER is chosen -->
-                  <div class="mt-2" v-if="senderOrgSelection === '__OTHER__'">
+                    <!-- Text Input if OTHER is chosen -->
+                    <div class="mt-2" v-if="senderOrgSelection === '__OTHER__'">
+                      <input
+                        type="text"
+                        class="form-control"
+                        placeholder="សូមវាយបញ្ចូលឈ្មោះអង្គភាព / ស្ថាប័ន..."
+                        v-model="customSenderOrg"
+                        @input="handleOrgSelectionChange"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 3: លេខលិខិតដើមខាងក្រៅ, កាលបរិច្ឆេទលិខិតដើម & កាលកំណត់ (Deadline) -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខលិខិតដើមខាងក្រៅ (បើមាន)</label>
                     <input
                       type="text"
                       class="form-control"
-                      placeholder="សូមវាយបញ្ចូលឈ្មោះអង្គភាព / ស្ថាប័ន..."
-                      v-model="customSenderOrg"
-                      @input="handleOrgSelectionChange"
-                      required
+                      placeholder="ឧ. ១២៣ សហវ.អ.ន.ប."
+                      v-model="createForm.external_reference_number"
                     />
                   </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទលិខិតដើមខាងក្រៅ</label>
+                    <input type="date" class="form-control" v-model="createForm.external_document_date" />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold text-danger">
+                      <i class="far fa-calendar-times mr-1"></i>កាលកំណត់ (Deadline បើមាន)
+                    </label>
+                    <input type="date" class="form-control border-danger-subtle" v-model="createForm.deadline" />
+                  </div>
+                </div>
+
+                <!-- Row 4: កម្មវត្ថុ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្មវត្ថុ / ខ្លឹមសារសង្ខេប <span class="text-danger">*</span></label>
+                  <textarea
+                    class="form-control"
+                    rows="3"
+                    placeholder="សូមបញ្ជាក់កម្មវត្ថុនៃឯកសារចូល..."
+                    v-model="createForm.title"
+                    required
+                  ></textarea>
+                </div>
+
+                <!-- Row 5: ប្រភេទឯកសារ, កម្រិតបន្ទាន់, កម្រិតសម្ងាត់ -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ប្រភេទឯកសារ</label>
+                    <select class="form-control" v-model="createForm.document_type">
+                      <option value="LETTER">លិខិត</option>
+                      <option value="PRAKAS">ប្រកាស</option>
+                      <option value="DECISION">សេចក្តីសម្រេច</option>
+                      <option value="REPORT">របាយការណ៍</option>
+                      <option value="INVITATION">លិខិតអញ្ជើញ</option>
+                      <option value="OTHER">ផ្សេងៗ</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
+                    <select class="form-control" v-model="createForm.urgency">
+                      <option value="NORMAL">ធម្មតា</option>
+                      <option value="MEDIUM">មធ្យម</option>
+                      <option value="URGENT">បន្ទាន់</option>
+                      <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កម្រិតសម្ងាត់</label>
+                    <select class="form-control" v-model="createForm.confidentiality">
+                      <option value="NORMAL">ធម្មតា</option>
+                      <option value="CONFIDENTIAL">សម្ងាត់</option>
+                      <option value="TOP_SECRET">សម្ងាត់បំផុត</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Row 6: Upload Scan ឯកសារដើម -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">
+                    <i class="fas fa-file-upload text-primary mr-1"></i>Scan ឯកសារដើម (PDF / រូបភាព)
+                  </label>
+                  <div class="custom-file">
+                    <input
+                      type="file"
+                      class="custom-file-input"
+                      id="originalFileInput"
+                      @change="handleOriginalFileChange"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <label class="custom-file-label" for="originalFileInput">
+                      {{ selectedOriginalFileName || 'ជ្រើសរើសឯកសារ Scan...' }}
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Checkbox: Send immediately to DG assistant -->
+                <div class="custom-control custom-checkbox mt-3 mb-2">
+                  <input
+                    type="checkbox"
+                    class="custom-control-input"
+                    id="sendImmediatelyCheck"
+                    v-model="createForm.send_immediately"
+                  />
+                  <label class="custom-control-label font-weight-bold text-primary" for="sendImmediatelyCheck">
+                    បញ្ជូនបន្តទៅកាន់ជំនួយការអគ្គនាយកភ្លាមៗ (DG Assistant Inbox)
+                  </label>
                 </div>
               </div>
 
-              <!-- Row 3: លេខលិខិតដើមខាងក្រៅ, កាលបរិច្ឆេទលិខិតដើម & កាលកំណត់ (Deadline) -->
-              <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">លេខលិខិតដើមខាងក្រៅ (បើមាន)</label>
+              <!-- Pinned Footer at bottom of dialog -->
+              <div class="modal-footer bg-light py-2 px-4 border-top flex-shrink-0 font-khmer justify-content-between">
+                <button type="button" class="btn btn-secondary px-3" @click="closeCreateModal">
+                  <i class="fas fa-times mr-1"></i> បោះបង់
+                </button>
+                <button type="submit" form="createInboundDocForm" class="btn btn-primary px-4 shadow-sm font-weight-bold" :disabled="submitting">
+                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i class="fas fa-save mr-1" v-else></i> រក្សាទុក
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== MODAL 2: ជំនួយការទទួល និងចុះលេខជំនួយការអគ្គនាយក ==================== -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showAssistantReceiveModal">
+        <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 600px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-barcode mr-2"></i>ចុះលេខចូលជំនួយការអគ្គនាយក
+              </h5>
+              <button type="button" class="close text-white" @click="showAssistantReceiveModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+              <div class="alert alert-info py-2 font-13 mb-3">
+                ឯកសារលេខទូទៅ៖ <strong>{{ selectedDoc?.general_inbound_number }}</strong><br />
+                មកពី៖ <strong>{{ selectedDoc?.sender_organization }}</strong>
+              </div>
+
+              <form @submit.prevent="submitAssistantReceive">
+                <!-- ប្រភេទប្រភពឯកសារ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">ជ្រើសរើសប្រភេទឯកសារ / ប្រភព <span class="text-danger">*</span></label>
+                  <select
+                    class="form-control"
+                    v-model="assistantReceiveForm.dg_inbound_category"
+                    @change="fetchNextDgNumber"
+                    required
+                  >
+                    <optgroup label="ឯកសារខាងក្រៅ">
+                      <option value="COMPANY">ក្រុមហ៊ុន (AA001/26)</option>
+                      <option value="MEF">ក្រសួងសេដ្ឋកិច្ច និងហិរញ្ញវត្ថុ (E001/26)</option>
+                      <option value="FSA_REGULATOR">អ.ស.ហ. និងនិយ័តករ (NF001/26)</option>
+                    </optgroup>
+                    <optgroup label="ឯកសារទទួលបានពីនាយកដ្ឋានមកវិញ">
+                      <option value="DEPT_GENERAL_AFFAIRS">A - នាយកដ្ឋានកិច្ចការទូទៅ (A001/26)</option>
+                      <option value="DEPT_REGISTRATION">R - នាយកដ្ឋានចុះបញ្ជី (R001/26)</option>
+                      <option value="DEPT_RESEARCH">T - នាយកដ្ឋានស្រាវជ្រាវ (T001/26)</option>
+                      <option value="DEPT_LEGAL">L - នាយកដ្ឋានគតិយុត្ត (L001/26)</option>
+                      <option value="PROJECT_ACSEP">AS - គម្រោង ACSEP (AS001/26)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <!-- លេខចូលជំនួយការអគ្គនាយក (Auto-generated with edit option) -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">លេខចូលជំនួយការអគ្គនាយក <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control font-weight-bold font-monospace text-primary font-16"
+                      v-model="assistantReceiveForm.custom_dg_number"
+                      required
+                    />
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-secondary" type="button" @click="fetchNextDgNumber" title="ទាញយកលេខឡើងវិញ">
+                        <i class="fas fa-sync-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <small class="text-muted">ប្រព័ន្ធគណនាលេខស្វ័យប្រវត្តិតាមប្រភេទខាងលើ (អាចកែប្រែដោយដៃបានបើចាំបាច់)</small>
+                </div>
+
+                <!-- កាលបរិច្ឆេទជំនួយការចុះចូល -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទចុះចូល <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" v-model="assistantReceiveForm.dg_received_date" required />
+                </div>
+
+                <!-- កំណត់សម្គាល់របស់ជំនួយការ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កំណត់សម្គាល់បន្ថែម (បើមាន)</label>
+                  <textarea class="form-control" rows="2" v-model="assistantReceiveForm.dg_assistant_notes"></textarea>
+                </div>
+
+                <div class="modal-footer px-0 pb-0 pt-3 border-top">
+                  <button type="button" class="btn btn-secondary" @click="showAssistantReceiveModal = false">បោះបង់</button>
+                  <button type="submit" class="btn btn-primary" :disabled="submitting">
+                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                    <i class="fas fa-check mr-1"></i> ចុះលេខ & ដាក់ជូនអគ្គនាយក
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== MODAL 3: ចំណារឯកឧត្តមអគ្គនាយក (DG ANNOTATION) ==================== -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showDgAnnotateModal">
+        <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 650px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-danger text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-pen-nib mr-2"></i>ចំណារឯកឧត្តមអគ្គនាយក
+              </h5>
+              <button type="button" class="close text-white" @click="showDgAnnotateModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+              <div class="alert alert-secondary py-2 font-13 mb-3">
+                លេខចូល អ.ន.៖ <strong class="text-primary">{{ selectedDoc?.dg_inbound_number }}</strong><br />
+                កម្មវត្ថុ៖ {{ selectedDoc?.title }}
+              </div>
+
+              <form @submit.prevent="submitDgAnnotate">
+                <!-- ខ្លឹមសារចំណារ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">ខ្លឹមសារចំណាររបស់ឯកឧត្តមអគ្គនាយក <span class="text-danger">*</span></label>
+                  <textarea
+                    class="form-control"
+                    rows="4"
+                    placeholder="សូមកត់ត្រាខ្លឹមសារចំណារ..."
+                    v-model="dgAnnotateForm.dg_annotation"
+                    required
+                  ></textarea>
+                </div>
+
+                <!-- លក្ខខណ្ឌតម្រូវឱ្យឆ្លើយតប (Path A vs Path B) -->
+                <div class="card bg-light border-warning p-3 mb-3">
+                  <label class="form-label font-weight-bold mb-2">តម្រូវការលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
+                  <div class="custom-control custom-radio mb-2">
+                    <input
+                      type="radio"
+                      id="radioNoResponse"
+                      class="custom-control-input"
+                      :value="false"
+                      v-model="dgAnnotateForm.is_response_required"
+                    />
+                    <label class="custom-control-label" for="radioNoResponse">
+                      <strong>សម្រាប់ជ្រាប / មិនបាច់ឆ្លើយតប (Path A)</strong>
+                      <div class="small text-muted">អង្គភាព ឬមន្ត្រីទទួល ត្រឹមតែចុច «ទទួលជ្រាប» ដើម្បីបញ្ចប់</div>
+                    </label>
+                  </div>
+
+                  <div class="custom-control custom-radio">
+                    <input
+                      type="radio"
+                      id="radioRequireResponse"
+                      class="custom-control-input"
+                      :value="true"
+                      v-model="dgAnnotateForm.is_response_required"
+                    />
+                    <label class="custom-control-label text-danger" for="radioRequireResponse">
+                      <strong>តម្រូវឱ្យមានលិខិតឆ្លើយតប (Path B)</strong>
+                      <div class="small text-muted">មន្ត្រីទទួលបន្ទុកត្រូវរៀបចំសេចក្តីព្រាងលិខិតឆ្លើយតប និងឆ្លងតាមឋានានុក្រមជូនអគ្គនាយក</div>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- កាលបរិច្ឆេទកំណត់ / Deadline -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold text-danger">
+                    <i class="far fa-calendar-times mr-1"></i>កាលបរិច្ឆេទកំណត់ / Deadline (បើមាន)
+                  </label>
+                  <input
+                    type="date"
+                    class="form-control border-danger-subtle font-weight-bold"
+                    v-model="dgAnnotateForm.deadline"
+                  />
+                  <small class="text-muted">កំណត់កាលបរិច្ឆេទដែលត្រូវចាត់ចែង ឬឆ្លើយតបឱ្យបានរួចរាល់ (បើមាន)</small>
+                </div>
+
+                <div class="modal-footer px-0 pb-0 pt-3 border-top">
+                  <button type="button" class="btn btn-secondary" @click="showDgAnnotateModal = false">បោះបង់</button>
+                  <button type="submit" class="btn btn-danger" :disabled="submitting">
+                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                    <i class="fas fa-save mr-1"></i> រក្សាទុកចំណារ
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== MODAL 4: ជំនួយការ SCAN ចំណារ និងចែកចាយ ==================== -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showAssistantDispatchModal">
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-warning text-dark py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-share-square mr-2"></i>Scan ចំណារអគ្គនាយក និងចែកចាយបន្ត
+              </h5>
+              <button type="button" class="close text-dark" @click="showAssistantDispatchModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+              <div class="alert alert-info py-2 font-13 mb-3">
+                ឯកសារ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong> |
+                ចំណារ៖ <strong class="text-danger">{{ selectedDoc?.dg_annotation }}</strong> |
+                ប្រភេទ៖ <strong>{{ selectedDoc?.is_response_required ? 'តម្រូវឱ្យឆ្លើយតប' : 'សម្រាប់ជ្រាប' }}</strong>
+              </div>
+
+              <form @submit.prevent="submitAssistantDispatch">
+                <!-- Upload Scan ដែលមានចំណារ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">
+                    <i class="fas fa-file-upload text-primary mr-1"></i>Scan ឯកសារដែលមានចំណារអគ្គនាយក
+                  </label>
+                  <div class="custom-file">
+                    <input
+                      type="file"
+                      class="custom-file-input"
+                      id="annotatedFileInput"
+                      @change="handleAnnotatedFileChange"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <label class="custom-file-label" for="annotatedFileInput">
+                      {{ selectedAnnotatedFileName || 'ជ្រើសរើសឯកសារ Scan ចំណារ...' }}
+                    </label>
+                  </div>
+                </div>
+
+                <!-- គោលដៅចែកចាយ Target Type -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្រិតចែកចាយ <span class="text-danger">*</span></label>
+                  <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'DEPARTMENT' }">
+                      <input type="radio" value="DEPARTMENT" v-model="dispatchForm.target_type" /> ថ្នាក់នាយកដ្ឋាន
+                    </label>
+                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICE' }">
+                      <input type="radio" value="OFFICE" v-model="dispatchForm.target_type" /> ថ្នាក់ការិយាល័យ
+                    </label>
+                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICER' }">
+                      <input type="radio" value="OFFICER" v-model="dispatchForm.target_type" /> មន្ត្រីទទួលបន្ទុកជាក់លាក់
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Dropdowns based on Target Type -->
+                <div class="row">
+                  <!-- Select Department -->
+                  <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'DEPARTMENT' || dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
+                    <label class="form-label font-weight-bold">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
+                    <select class="form-control" v-model="dispatchForm.target_department_id" @change="onDispatchDeptChange">
+                      <option value="">-- ជ្រើសរើសនាយកដ្ឋាន --</option>
+                      <option v-for="d in recipientOptions.departments" :key="d.id" :value="d.id">
+                        {{ d.name_kh }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Select Office -->
+                  <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
+                    <label class="form-label font-weight-bold">ការិយាល័យ</label>
+                    <select class="form-control" v-model="dispatchForm.target_office_id">
+                      <option value="">-- ជ្រើសរើសការិយាល័យ --</option>
+                      <option v-for="o in filteredDispatchOffices" :key="o.id" :value="o.id">
+                        {{ o.name_kh }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Select Specific Officer -->
+                  <div class="col-md-12 mb-3" v-if="dispatchForm.target_type === 'OFFICER'">
+                    <label class="form-label font-weight-bold">មន្ត្រីទទួលបន្ទុកចាត់ចែង <span class="text-danger">*</span></label>
+                    <select class="form-control" v-model="dispatchForm.target_user_id" required>
+                      <option value="">-- ជ្រើសរើសមន្ត្រី --</option>
+                      <option v-for="u in filteredDispatchUsers" :key="u.id" :value="u.id">
+                        {{ u.name_kh || u.name }} - {{ u.position?.title_kh || '' }} ({{ u.department?.name_kh || '' }})
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Dispatch Notes -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">សេចក្តីណែនាំ / កំណត់សម្គាល់បញ្ជូន</label>
+                  <textarea class="form-control" rows="2" placeholder="កំណត់សម្គាល់សម្រាប់អ្នកទទួល..." v-model="dispatchForm.dispatch_notes"></textarea>
+                </div>
+
+                <div class="modal-footer px-0 pb-0 pt-3 border-top">
+                  <button type="button" class="btn btn-secondary" @click="showAssistantDispatchModal = false">បោះបង់</button>
+                  <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
+                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                    <i class="fas fa-paper-plane mr-1"></i> ចែកចាយឯកសារ
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== MODAL 5: ដាក់ស្នើព្រាងលិខិតឆ្លើយតប (PATH B DRAFT) ==================== -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showSubmitResponseModal">
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-warning text-dark py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-reply-all mr-2"></i>រៀបចំ និងឆ្លងសេចក្តីព្រាងលិខិតឆ្លើយតប
+              </h5>
+              <button type="button" class="close text-dark" @click="showSubmitResponseModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+              <div class="alert alert-secondary py-2 font-13 mb-3">
+                ឆ្លើយតបលើឯកសារលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
+                កម្មវត្ថុដើម៖ {{ selectedDoc?.title }}<br />
+                ចំណារអគ្គនាយក៖ <span class="text-danger font-weight-bold">{{ selectedDoc?.dg_annotation }}</span>
+              </div>
+
+              <form @submit.prevent="submitResponseDraftAction">
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្មវត្ថុលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
                   <input
                     type="text"
                     class="form-control"
-                    placeholder="ឧ. ១២៣ សហវ.អ.ន.ប."
-                    v-model="createForm.external_reference_number"
-                  />
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទលិខិតដើមខាងក្រៅ</label>
-                  <input type="date" class="form-control" v-model="createForm.external_document_date" />
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold text-danger">
-                    <i class="far fa-calendar-times mr-1"></i>កាលកំណត់ (Deadline បើមាន)
-                  </label>
-                  <input type="date" class="form-control border-danger-subtle" v-model="createForm.deadline" />
-                </div>
-              </div>
-
-              <!-- Row 4: កម្មវត្ថុ -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កម្មវត្ថុ / ខ្លឹមសារសង្ខេប <span class="text-danger">*</span></label>
-                <textarea
-                  class="form-control"
-                  rows="3"
-                  placeholder="សូមបញ្ជាក់កម្មវត្ថុនៃឯកសារចូល..."
-                  v-model="createForm.title"
-                  required
-                ></textarea>
-              </div>
-
-              <!-- Row 5: ប្រភេទឯកសារ, កម្រិតបន្ទាន់, កម្រិតសម្ងាត់ -->
-              <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">ប្រភេទឯកសារ</label>
-                  <select class="form-control" v-model="createForm.document_type">
-                    <option value="LETTER">លិខិត</option>
-                    <option value="PRAKAS">ប្រកាស</option>
-                    <option value="DECISION">សេចក្តីសម្រេច</option>
-                    <option value="REPORT">របាយការណ៍</option>
-                    <option value="INVITATION">លិខិតអញ្ជើញ</option>
-                    <option value="OTHER">ផ្សេងៗ</option>
-                  </select>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
-                  <select class="form-control" v-model="createForm.urgency">
-                    <option value="NORMAL">ធម្មតា</option>
-                    <option value="MEDIUM">មធ្យម</option>
-                    <option value="URGENT">បន្ទាន់</option>
-                    <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
-                  </select>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <label class="form-label font-weight-bold">កម្រិតសម្ងាត់</label>
-                  <select class="form-control" v-model="createForm.confidentiality">
-                    <option value="NORMAL">ធម្មតា</option>
-                    <option value="CONFIDENTIAL">សម្ងាត់</option>
-                    <option value="TOP_SECRET">សម្ងាត់បំផុត</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Row 6: Upload Scan ឯកសារដើម -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">
-                  <i class="fas fa-file-upload text-primary mr-1"></i>Scan ឯកសារដើម (PDF / រូបភាព)
-                </label>
-                <div class="custom-file">
-                  <input
-                    type="file"
-                    class="custom-file-input"
-                    id="originalFileInput"
-                    @change="handleOriginalFileChange"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                  />
-                  <label class="custom-file-label" for="originalFileInput">
-                    {{ selectedOriginalFileName || 'ជ្រើសរើសឯកសារ Scan...' }}
-                  </label>
-                </div>
-              </div>
-
-              <!-- Checkbox: Send immediately to DG assistant -->
-              <div class="custom-control custom-checkbox mt-3 mb-2">
-                <input
-                  type="checkbox"
-                  class="custom-control-input"
-                  id="sendImmediatelyCheck"
-                  v-model="createForm.send_immediately"
-                />
-                <label class="custom-control-label font-weight-bold text-primary" for="sendImmediatelyCheck">
-                  បញ្ជូនបន្តទៅកាន់ជំនួយការអគ្គនាយកភ្លាមៗ (DG Assistant Inbox)
-                </label>
-              </div>
-
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="closeCreateModal">បោះបង់</button>
-                <button type="submit" class="btn btn-primary" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-save mr-1"></i> រក្សាទុក
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL 2: ជំនួយការទទួល និងចុះលេខជំនួយការអគ្គនាយក ==================== -->
-    <div class="custom-modal-backdrop" v-if="showAssistantReceiveModal">
-      <div class="modal-dialog modal-md">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-barcode mr-2"></i>ចុះលេខចូលជំនួយការអគ្គនាយក
-            </h5>
-            <button type="button" class="close text-white" @click="showAssistantReceiveModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <div class="alert alert-info py-2 font-13 mb-3">
-              ឯកសារលេខទូទៅ៖ <strong>{{ selectedDoc?.general_inbound_number }}</strong><br />
-              មកពី៖ <strong>{{ selectedDoc?.sender_organization }}</strong>
-            </div>
-
-            <form @submit.prevent="submitAssistantReceive">
-              <!-- ប្រភេទប្រភពឯកសារ -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">ជ្រើសរើសប្រភេទឯកសារ / ប្រភព <span class="text-danger">*</span></label>
-                <select
-                  class="form-control"
-                  v-model="assistantReceiveForm.dg_inbound_category"
-                  @change="fetchNextDgNumber"
-                  required
-                >
-                  <optgroup label="ឯកសារខាងក្រៅ">
-                    <option value="COMPANY">ក្រុមហ៊ុន (AA001/26)</option>
-                    <option value="MEF">ក្រសួងសេដ្ឋកិច្ច និងហិរញ្ញវត្ថុ (E001/26)</option>
-                    <option value="FSA_REGULATOR">អ.ស.ហ. និងនិយ័តករ (NF001/26)</option>
-                  </optgroup>
-                  <optgroup label="ឯកសារទទួលបានពីនាយកដ្ឋានមកវិញ">
-                    <option value="DEPT_GENERAL_AFFAIRS">A - នាយកដ្ឋានកិច្ចការទូទៅ (A001/26)</option>
-                    <option value="DEPT_REGISTRATION">R - នាយកដ្ឋានចុះបញ្ជី (R001/26)</option>
-                    <option value="DEPT_RESEARCH">T - នាយកដ្ឋានស្រាវជ្រាវ (T001/26)</option>
-                    <option value="DEPT_LEGAL">L - នាយកដ្ឋានគតិយុត្ត (L001/26)</option>
-                    <option value="PROJECT_ACSEP">AS - គម្រោង ACSEP (AS001/26)</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              <!-- លេខចូលជំនួយការអគ្គនាយក (Auto-generated with edit option) -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">លេខចូលជំនួយការអគ្គនាយក <span class="text-danger">*</span></label>
-                <div class="input-group">
-                  <input
-                    type="text"
-                    class="form-control font-weight-bold font-monospace text-primary font-16"
-                    v-model="assistantReceiveForm.custom_dg_number"
+                    placeholder="កម្មវត្ថុលិខិតឆ្លើយតប..."
+                    v-model="responseForm.title"
                     required
                   />
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" @click="fetchNextDgNumber" title="ទាញយកលេខឡើងវិញ">
-                      <i class="fas fa-sync-alt"></i>
-                    </button>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">ខ្លឹមសារសង្ខេប / សេចក្តីរាយការណ៍</label>
+                  <textarea
+                    class="form-control"
+                    rows="4"
+                    placeholder="ខ្លឹមសារសង្ខេបនៃលិខិត ឬកំណត់បង្ហាញ..."
+                    v-model="responseForm.content"
+                  ></textarea>
+                </div>
+
+                <!-- Upload File Draft -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">
+                    <i class="fas fa-file-word text-primary mr-1"></i>ភ្ជាប់ឯកសារព្រាង (Word / PDF)
+                  </label>
+                  <div class="custom-file">
+                    <input
+                      type="file"
+                      class="custom-file-input"
+                      id="responseFileInput"
+                      @change="handleResponseFileChange"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    />
+                    <label class="custom-file-label" for="responseFileInput">
+                      {{ selectedResponseFileName || 'ជ្រើសរើសឯកសារព្រាង...' }}
+                    </label>
                   </div>
                 </div>
-                <small class="text-muted">ប្រព័ន្ធគណនាលេខស្វ័យប្រវត្តិតាមប្រភេទខាងលើ (អាចកែប្រែដោយដៃបានបើចាំបាច់)</small>
-              </div>
 
-              <!-- កាលបរិច្ឆេទជំនួយការចុះចូល -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កាលបរិច្ឆេទចុះចូល <span class="text-danger">*</span></label>
-                <input type="date" class="form-control" v-model="assistantReceiveForm.dg_received_date" required />
-              </div>
-
-              <!-- កំណត់សម្គាល់របស់ជំនួយការ -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កំណត់សម្គាល់បន្ថែម (បើមាន)</label>
-                <textarea class="form-control" rows="2" v-model="assistantReceiveForm.dg_assistant_notes"></textarea>
-              </div>
-
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="showAssistantReceiveModal = false">បោះបង់</button>
-                <button type="submit" class="btn btn-primary" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-check mr-1"></i> ចុះលេខ & ដាក់ជូនអគ្គនាយក
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL 3: ចំណារឯកឧត្តមអគ្គនាយក (DG ANNOTATION) ==================== -->
-    <div class="custom-modal-backdrop" v-if="showDgAnnotateModal">
-      <div class="modal-dialog modal-md">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-danger text-white">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-pen-nib mr-2"></i>ចំណារឯកឧត្តមអគ្គនាយក
-            </h5>
-            <button type="button" class="close text-white" @click="showDgAnnotateModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <div class="alert alert-secondary py-2 font-13 mb-3">
-              លេខចូល អ.ន.៖ <strong class="text-primary">{{ selectedDoc?.dg_inbound_number }}</strong><br />
-              កម្មវត្ថុ៖ {{ selectedDoc?.title }}
-            </div>
-
-            <form @submit.prevent="submitDgAnnotate">
-              <!-- ខ្លឹមសារចំណារ -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">ខ្លឹមសារចំណាររបស់ឯកឧត្តមអគ្គនាយក <span class="text-danger">*</span></label>
-                <textarea
-                  class="form-control"
-                  rows="4"
-                  placeholder="សូមកត់ត្រាខ្លឹមសារចំណារ..."
-                  v-model="dgAnnotateForm.dg_annotation"
-                  required
-                ></textarea>
-              </div>
-
-              <!-- លក្ខខណ្ឌតម្រូវឱ្យឆ្លើយតប (Path A vs Path B) -->
-              <div class="card bg-light border-warning p-3 mb-3">
-                <label class="form-label font-weight-bold mb-2">តម្រូវការលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                <div class="custom-control custom-radio mb-2">
-                  <input
-                    type="radio"
-                    id="radioNoResponse"
-                    class="custom-control-input"
-                    :value="false"
-                    v-model="dgAnnotateForm.is_response_required"
-                  />
-                  <label class="custom-control-label" for="radioNoResponse">
-                    <strong>សម្រាប់ជ្រាប / មិនបាច់ឆ្លើយតប (Path A)</strong>
-                    <div class="small text-muted">អង្គភាព ឬមន្ត្រីទទួល ត្រឹមតែចុច «ទទួលជ្រាប» ដើម្បីបញ្ចប់</div>
+                <!-- Next Reviewer Selection (Hierarchy Candidate) -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">
+                    <i class="fas fa-user-check text-success mr-1"></i>ជ្រើសរើសថ្នាក់ដឹកនាំពិនិត្យបន្តតាមឋានានុក្រម <span class="text-danger">*</span>
                   </label>
-                </div>
-
-                <div class="custom-control custom-radio">
-                  <input
-                    type="radio"
-                    id="radioRequireResponse"
-                    class="custom-control-input"
-                    :value="true"
-                    v-model="dgAnnotateForm.is_response_required"
-                  />
-                  <label class="custom-control-label text-danger" for="radioRequireResponse">
-                    <strong>តម្រូវឱ្យមានលិខិតឆ្លើយតប (Path B)</strong>
-                    <div class="small text-muted">មន្ត្រីទទួលបន្ទុកត្រូវរៀបចំសេចក្តីព្រាងលិខិតឆ្លើយតប និងឆ្លងតាមឋានានុក្រមជូនអគ្គនាយក</div>
-                  </label>
-                </div>
-              </div>
-
-              <!-- កាលបរិច្ឆេទកំណត់ / Deadline -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold text-danger">
-                  <i class="far fa-calendar-times mr-1"></i>កាលបរិច្ឆេទកំណត់ / Deadline (បើមាន)
-                </label>
-                <input
-                  type="date"
-                  class="form-control border-danger-subtle font-weight-bold"
-                  v-model="dgAnnotateForm.deadline"
-                />
-                <small class="text-muted">កំណត់កាលបរិច្ឆេទដែលត្រូវចាត់ចែង ឬឆ្លើយតបឱ្យបានរួចរាល់ (បើមាន)</small>
-              </div>
-
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="showDgAnnotateModal = false">បោះបង់</button>
-                <button type="submit" class="btn btn-danger" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-save mr-1"></i> រក្សាទុកចំណារ
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL 4: ជំនួយការ SCAN ចំណារ និងចែកចាយ ==================== -->
-    <div class="custom-modal-backdrop" v-if="showAssistantDispatchModal">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-share-square mr-2"></i>Scan ចំណារអគ្គនាយក និងចែកចាយបន្ត
-            </h5>
-            <button type="button" class="close text-dark" @click="showAssistantDispatchModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <div class="alert alert-info py-2 font-13 mb-3">
-              ឯកសារ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong> |
-              ចំណារ៖ <strong class="text-danger">{{ selectedDoc?.dg_annotation }}</strong> |
-              ប្រភេទ៖ <strong>{{ selectedDoc?.is_response_required ? 'តម្រូវឱ្យឆ្លើយតប' : 'សម្រាប់ជ្រាប' }}</strong>
-            </div>
-
-            <form @submit.prevent="submitAssistantDispatch">
-              <!-- Upload Scan ដែលមានចំណារ -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">
-                  <i class="fas fa-file-upload text-primary mr-1"></i>Scan ឯកសារដែលមានចំណារអគ្គនាយក
-                </label>
-                <div class="custom-file">
-                  <input
-                    type="file"
-                    class="custom-file-input"
-                    id="annotatedFileInput"
-                    @change="handleAnnotatedFileChange"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                  />
-                  <label class="custom-file-label" for="annotatedFileInput">
-                    {{ selectedAnnotatedFileName || 'ជ្រើសរើសឯកសារ Scan ចំណារ...' }}
-                  </label>
-                </div>
-              </div>
-
-              <!-- គោលដៅចែកចាយ Target Type -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កម្រិតចែកចាយ <span class="text-danger">*</span></label>
-                <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
-                  <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'DEPARTMENT' }">
-                    <input type="radio" value="DEPARTMENT" v-model="dispatchForm.target_type" /> ថ្នាក់នាយកដ្ឋាន
-                  </label>
-                  <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICE' }">
-                    <input type="radio" value="OFFICE" v-model="dispatchForm.target_type" /> ថ្នាក់ការិយាល័យ
-                  </label>
-                  <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICER' }">
-                    <input type="radio" value="OFFICER" v-model="dispatchForm.target_type" /> មន្ត្រីទទួលបន្ទុកជាក់លាក់
-                  </label>
-                </div>
-              </div>
-
-              <!-- Dropdowns based on Target Type -->
-              <div class="row">
-                <!-- Select Department -->
-                <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'DEPARTMENT' || dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
-                  <label class="form-label font-weight-bold">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
-                  <select class="form-control" v-model="dispatchForm.target_department_id" @change="onDispatchDeptChange">
-                    <option value="">-- ជ្រើសរើសនាយកដ្ឋាន --</option>
-                    <option v-for="d in recipientOptions.departments" :key="d.id" :value="d.id">
-                      {{ d.name_kh }}
+                  <select class="form-control font-weight-bold text-dark" v-model="responseForm.forwarded_to_id" required>
+                    <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
+                    <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
+                      {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
                     </option>
                   </select>
+                  <small class="text-muted">ប្រព័ន្ធបានចម្រាញ់បេក្ខភាពថ្នាក់ដឹកនាំដែលស្ថិតនៅក្នុងឋានានុក្រមផ្ទាល់របស់លោកអ្នក</small>
                 </div>
 
-                <!-- Select Office -->
-                <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
-                  <label class="form-label font-weight-bold">ការិយាល័យ</label>
-                  <select class="form-control" v-model="dispatchForm.target_office_id">
-                    <option value="">-- ជ្រើសរើសការិយាល័យ --</option>
-                    <option v-for="o in filteredDispatchOffices" :key="o.id" :value="o.id">
-                      {{ o.name_kh }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Select Specific Officer -->
-                <div class="col-md-12 mb-3" v-if="dispatchForm.target_type === 'OFFICER'">
-                  <label class="form-label font-weight-bold">មន្ត្រីទទួលបន្ទុកចាត់ចែង <span class="text-danger">*</span></label>
-                  <select class="form-control" v-model="dispatchForm.target_user_id" required>
-                    <option value="">-- ជ្រើសរើសមន្ត្រី --</option>
-                    <option v-for="u in filteredDispatchUsers" :key="u.id" :value="u.id">
-                      {{ u.name_kh || u.name }} - {{ u.position?.title_kh || '' }} ({{ u.department?.name_kh || '' }})
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Dispatch Notes -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">សេចក្តីណែនាំ / កំណត់សម្គាល់បញ្ជូន</label>
-                <textarea class="form-control" rows="2" placeholder="កំណត់សម្គាល់សម្រាប់អ្នកទទួល..." v-model="dispatchForm.dispatch_notes"></textarea>
-              </div>
-
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="showAssistantDispatchModal = false">បោះបង់</button>
-                <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-paper-plane mr-1"></i> ចែកចាយឯកសារ
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL 5: ដាក់ស្នើព្រាងលិខិតឆ្លើយតប (PATH B DRAFT) ==================== -->
-    <div class="custom-modal-backdrop" v-if="showSubmitResponseModal">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-reply-all mr-2"></i>រៀបចំ និងឆ្លងសេចក្តីព្រាងលិខិតឆ្លើយតប
-            </h5>
-            <button type="button" class="close text-dark" @click="showSubmitResponseModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <div class="alert alert-secondary py-2 font-13 mb-3">
-              ឆ្លើយតបលើឯកសារលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
-              កម្មវត្ថុដើម៖ {{ selectedDoc?.title }}<br />
-              ចំណារអគ្គនាយក៖ <span class="text-danger font-weight-bold">{{ selectedDoc?.dg_annotation }}</span>
-            </div>
-
-            <form @submit.prevent="submitResponseDraftAction">
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កម្មវត្ថុលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="កម្មវត្ថុលិខិតឆ្លើយតប..."
-                  v-model="responseForm.title"
-                  required
-                />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">ខ្លឹមសារសង្ខេប / សេចក្តីរាយការណ៍</label>
-                <textarea
-                  class="form-control"
-                  rows="4"
-                  placeholder="ខ្លឹមសារសង្ខេបនៃលិខិត ឬកំណត់បង្ហាញ..."
-                  v-model="responseForm.content"
-                ></textarea>
-              </div>
-
-              <!-- Upload File Draft -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">
-                  <i class="fas fa-file-word text-primary mr-1"></i>ភ្ជាប់ឯកសារព្រាង (Word / PDF)
-                </label>
-                <div class="custom-file">
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កំណត់សម្គាល់ឆ្លង</label>
                   <input
-                    type="file"
-                    class="custom-file-input"
-                    id="responseFileInput"
-                    @change="handleResponseFileChange"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    type="text"
+                    class="form-control"
+                    placeholder="សូមគោរពជូន..."
+                    v-model="responseForm.comment"
                   />
-                  <label class="custom-file-label" for="responseFileInput">
-                    {{ selectedResponseFileName || 'ជ្រើសរើសឯកសារព្រាង...' }}
-                  </label>
                 </div>
-              </div>
 
-              <!-- Next Reviewer Selection (Hierarchy Candidate) -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">
-                  <i class="fas fa-user-check text-success mr-1"></i>ជ្រើសរើសថ្នាក់ដឹកនាំពិនិត្យបន្តតាមឋានានុក្រម <span class="text-danger">*</span>
-                </label>
-                <select class="form-control font-weight-bold text-dark" v-model="responseForm.forwarded_to_id" required>
-                  <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                  <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
-                    {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
-                  </option>
-                </select>
-                <small class="text-muted">ប្រព័ន្ធបានចម្រាញ់បេក្ខភាពថ្នាក់ដឹកនាំដែលស្ថិតនៅក្នុងឋានានុក្រមផ្ទាល់របស់លោកអ្នក</small>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">កំណត់សម្គាល់ឆ្លង</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="សូមគោរពជូន..."
-                  v-model="responseForm.comment"
-                />
-              </div>
-
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="showSubmitResponseModal = false">បោះបង់</button>
-                <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-paper-plane mr-1"></i> ដាក់ស្នើឆ្លង
-                </button>
-              </div>
-            </form>
+                <div class="modal-footer px-0 pb-0 pt-3 border-top">
+                  <button type="button" class="btn btn-secondary" @click="showSubmitResponseModal = false">បោះបង់</button>
+                  <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
+                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                    <i class="fas fa-paper-plane mr-1"></i> ដាក់ស្នើឆ្លង
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ==================== MODAL 6: ថ្នាក់ដឹកនាំពិនិត្យ & ចារឆ្លងលិខិតឆ្លើយតប (REVIEW ACTION) ==================== -->
-    <div class="custom-modal-backdrop" v-if="showReviewResponseModal">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-dark-custom text-white">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-clipboard-check text-warning mr-2"></i>ពិនិត្យ និងចារឆ្លងលិខិតឆ្លើយតប
-            </h5>
-            <button type="button" class="close text-white" @click="showReviewResponseModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer">
-            <div class="alert alert-secondary py-2 font-13 mb-3">
-              ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
-              លិខិតឆ្លើយតប៖ <strong>{{ selectedResponse?.title }}</strong><br />
-              អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh }}</strong>
-              <div class="mt-2 d-flex flex-wrap" v-if="selectedResponse?.file_path">
-                <button
-                  type="button"
-                  class="btn btn-xs btn-outline-info mr-2"
-                  @click="previewResponseDoc(selectedResponse)"
-                >
-                  <i class="fas fa-eye mr-1"></i> មើលឯកសារព្រាង (PDF)
-                </button>
-                <a :href="getResponseFileUrl(selectedResponse.id)" download class="btn btn-xs btn-outline-secondary">
-                  <i class="fas fa-download mr-1"></i> ទាញយក
-                </a>
-              </div>
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showReviewResponseModal">
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-clipboard-check text-warning mr-2"></i>ពិនិត្យ និងចារឆ្លងលិខិតឆ្លើយតប
+              </h5>
+              <button type="button" class="close text-white" @click="showReviewResponseModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
             </div>
-
-            <form @submit.prevent="submitReviewAction">
-              <!-- Action Selection -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">សកម្មភាពសម្រេច <span class="text-danger">*</span></label>
-                <div class="btn-group btn-group-toggle w-100">
-                  <label class="btn btn-outline-primary font-khmer" :class="{ active: reviewActionForm.action === 'FORWARD' }" v-if="!isDg">
-                    <input type="radio" value="FORWARD" v-model="reviewActionForm.action" />
-                    <i class="fas fa-share mr-1"></i> បញ្ជូនបន្តឡើងលើ
-                  </label>
-                  <label class="btn btn-outline-danger font-khmer" :class="{ active: reviewActionForm.action === 'RETURN' }">
-                    <input type="radio" value="RETURN" v-model="reviewActionForm.action" />
-                    <i class="fas fa-undo mr-1"></i> បញ្ជូនត្រឡប់កែសម្រួល
-                  </label>
-                  <label class="btn btn-outline-success font-khmer font-weight-bold" :class="{ active: reviewActionForm.action === 'DG_APPROVE' }" v-if="isDg || isAdmin">
-                    <input type="radio" value="DG_APPROVE" v-model="reviewActionForm.action" />
-                    <i class="fas fa-signature mr-1"></i> ឯកភាព & ចុះហត្ថលេខា (អគ្គនាយក)
-                  </label>
+            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+              <div class="alert alert-secondary py-2 font-13 mb-3">
+                ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
+                លិខិតឆ្លើយតប៖ <strong>{{ selectedResponse?.title }}</strong><br />
+                អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh }}</strong>
+                <div class="mt-2 d-flex flex-wrap" v-if="selectedResponse?.file_path">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-outline-info mr-2"
+                    @click="previewResponseDoc(selectedResponse)"
+                  >
+                    <i class="fas fa-eye mr-1"></i> មើលឯកសារព្រាង (PDF)
+                  </button>
+                  <a :href="getResponseFileUrl(selectedResponse.id)" download class="btn btn-xs btn-outline-secondary">
+                    <i class="fas fa-download mr-1"></i> ទាញយក
+                  </a>
                 </div>
               </div>
 
-              <!-- If Action is FORWARD: select next reviewer -->
-              <div class="mb-3" v-if="reviewActionForm.action === 'FORWARD'">
-                <label class="form-label font-weight-bold">ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ <span class="text-danger">*</span></label>
-                <select class="form-control font-weight-bold" v-model="reviewActionForm.forwarded_to_id" required>
-                  <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                  <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
-                    {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
-                  </option>
-                </select>
-              </div>
+              <form @submit.prevent="submitReviewAction">
+                <!-- Action Selection -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">សកម្មភាពសម្រេច <span class="text-danger">*</span></label>
+                  <div class="btn-group btn-group-toggle w-100">
+                    <label class="btn btn-outline-primary font-khmer" :class="{ active: reviewActionForm.action === 'FORWARD' }" v-if="!isDg">
+                      <input type="radio" value="FORWARD" v-model="reviewActionForm.action" />
+                      <i class="fas fa-share mr-1"></i> បញ្ជូនបន្តឡើងលើ
+                    </label>
+                    <label class="btn btn-outline-danger font-khmer" :class="{ active: reviewActionForm.action === 'RETURN' }">
+                      <input type="radio" value="RETURN" v-model="reviewActionForm.action" />
+                      <i class="fas fa-undo mr-1"></i> បញ្ជូនត្រឡប់កែសម្រួល
+                    </label>
+                    <label class="btn btn-outline-success font-khmer font-weight-bold" :class="{ active: reviewActionForm.action === 'DG_APPROVE' }" v-if="isDg || isAdmin">
+                      <input type="radio" value="DG_APPROVE" v-model="reviewActionForm.action" />
+                      <i class="fas fa-signature mr-1"></i> ឯកភាព & ចុះហត្ថលេខា (អគ្គនាយក)
+                    </label>
+                  </div>
+                </div>
 
-              <!-- If Action is DG_APPROVE: optional response number -->
-              <div class="mb-3" v-if="reviewActionForm.action === 'DG_APPROVE'">
-                <label class="form-label font-weight-bold">លេខលិខិតចេញជាផ្លូវការ (បើមាន)</label>
-                <input
-                  type="text"
-                  class="form-control font-weight-bold font-monospace"
-                  placeholder="ឧ. ៤៥៦ ន.ប.ធ."
-                  v-model="reviewActionForm.response_number"
-                />
-              </div>
+                <!-- If Action is FORWARD: select next reviewer -->
+                <div class="mb-3" v-if="reviewActionForm.action === 'FORWARD'">
+                  <label class="form-label font-weight-bold">ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ <span class="text-danger">*</span></label>
+                  <select class="form-control font-weight-bold" v-model="reviewActionForm.forwarded_to_id" required>
+                    <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
+                    <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
+                      {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
+                    </option>
+                  </select>
+                </div>
 
-              <!-- Review Comment / Annotation -->
-              <div class="mb-3">
-                <label class="form-label font-weight-bold">ចំណារ / មតិយោបល់ណែនាំ</label>
-                <textarea
-                  class="form-control"
-                  rows="3"
-                  placeholder="មតិយោបល់ ឬការកែសម្រួល..."
-                  v-model="reviewActionForm.comment"
-                ></textarea>
-              </div>
+                <!-- If Action is DG_APPROVE: optional response number -->
+                <div class="mb-3" v-if="reviewActionForm.action === 'DG_APPROVE'">
+                  <label class="form-label font-weight-bold">លេខលិខិតចេញជាផ្លូវការ (បើមាន)</label>
+                  <input
+                    type="text"
+                    class="form-control font-weight-bold font-monospace"
+                    placeholder="ឧ. ៤៥៦ ន.ប.ធ."
+                    v-model="reviewActionForm.response_number"
+                  />
+                </div>
 
-              <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                <button type="button" class="btn btn-secondary" @click="showReviewResponseModal = false">បោះបង់</button>
-                <button type="submit" class="btn btn-primary" :disabled="submitting">
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-check mr-1"></i> អនុវត្តសកម្មភាព
-                </button>
-              </div>
-            </form>
+                <!-- Review Comment / Annotation -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">ចំណារ / មតិយោបល់ណែនាំ</label>
+                  <textarea
+                    class="form-control"
+                    rows="3"
+                    placeholder="មតិយោបល់ ឬការកែសម្រួល..."
+                    v-model="reviewActionForm.comment"
+                  ></textarea>
+                </div>
+
+                <div class="modal-footer px-0 pb-0 pt-3 border-top">
+                  <button type="button" class="btn btn-secondary" @click="showReviewResponseModal = false">បោះបង់</button>
+                  <button type="submit" class="btn btn-primary" :disabled="submitting">
+                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                    <i class="fas fa-check mr-1"></i> អនុវត្តសកម្មភាព
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ==================== MODAL 7: មើលព័ត៌មានលម្អិត & ប្រវត្តិលំហូរ (DETAIL & AUDIT) ==================== -->
-    <div class="custom-modal-backdrop" v-if="showDetailModal">
-      <div class="modal-dialog modal-xl">
-        <div class="modal-content shadow-lg border-0">
-          <div class="modal-header bg-dark-custom text-white">
-            <h5 class="modal-title font-khmer font-weight-bold">
-              <i class="fas fa-info-circle text-info mr-2"></i>ព័ត៌មានលម្អិត និងប្រវត្តិលំហូរឯកសារ
-            </h5>
-            <button type="button" class="close text-white" @click="showDetailModal = false">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body p-4 font-khmer" v-if="selectedDoc">
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showDetailModal">
+        <div class="modal-dialog modal-xl modal-dialog-centered my-auto" style="width: 100%; max-width: 1140px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column" style="max-height: 92vh;">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-info-circle text-info mr-2"></i>ព័ត៌មានលម្អិត និងប្រវត្តិលំហូរឯកសារ
+              </h5>
+              <button type="button" class="close text-white" @click="showDetailModal = false">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 font-khmer flex-grow-1" v-if="selectedDoc" style="overflow-y: auto; max-height: calc(90vh - 120px);">
             <div class="row">
               <!-- Left Column: Document Overview -->
               <div class="col-lg-7 mb-3">
@@ -1764,354 +1781,362 @@
               </div>
             </div>
           </div>
-          <div class="modal-footer font-khmer justify-content-between">
-            <div>
-              <router-link
-                v-if="selectedDoc"
-                :to="`/inbound-documents/${selectedDoc.id}/routing-slip`"
-                target="_blank"
-                class="btn btn-outline-primary"
-              >
-                <i class="fas fa-print mr-1"></i> បោះពុម្ពសន្លឹកតាមដាន (Routing Slip & QR)
-              </router-link>
-            </div>
-            <div>
-              <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
+            <div class="modal-footer font-khmer justify-content-between bg-light py-2 px-4 border-top flex-shrink-0">
+              <div>
+                <router-link
+                  v-if="selectedDoc"
+                  :to="`/inbound-documents/${selectedDoc.id}/routing-slip`"
+                  target="_blank"
+                  class="btn btn-outline-primary"
+                >
+                  <i class="fas fa-print mr-1"></i> បោះពុម្ពសន្លឹកតាមដាន (Routing Slip & QR)
+                </router-link>
+              </div>
+              <div>
+                <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 8. Modal ចាត់ចែង និងបញ្ជូនបន្តតាមឋានានុក្រម (Cascading Forward Modal) -->
-    <div
-      class="modal fade show d-block font-khmer"
-      tabindex="-1"
-      v-if="showForwardModal && selectedDoc"
-      style="background: rgba(0, 0, 0, 0.55);"
-    >
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-lg">
-          <div class="modal-header bg-primary text-white py-3">
-            <h5 class="modal-title font-weight-bold">
-              <i class="fas fa-directions mr-2"></i>ចាត់ចែង និងបញ្ជូនបន្តតាមឋានានុក្រម
-            </h5>
-            <button type="button" class="close text-white" @click="showForwardModal = false">
-              <span>&times;</span>
-            </button>
-          </div>
+    <Teleport to="body">
+      <div
+        class="modal fade show d-block font-khmer"
+        tabindex="-1"
+        v-if="showForwardModal && selectedDoc"
+        style="background: rgba(0, 0, 0, 0.6); z-index: 1060;"
+      >
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
+          <div class="modal-content border-0 shadow-2xl rounded-lg overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+              <h5 class="modal-title font-weight-bold">
+                <i class="fas fa-directions mr-2"></i>ចាត់ចែង និងបញ្ជូនបន្តតាមឋានានុក្រម
+              </h5>
+              <button type="button" class="close text-white" @click="showForwardModal = false">
+                <span>&times;</span>
+              </button>
+            </div>
 
-          <form @submit.prevent="handleForwardSubmit">
-            <div class="modal-body p-4">
-              <!-- Summary Card -->
-              <div class="card bg-light border-0 rounded-lg p-3 mb-3">
-                <div class="row">
-                  <div class="col-sm-6 mb-2">
-                    <span class="text-muted small d-block">លេខចូលទូទៅ</span>
-                    <span class="font-weight-bold text-dark font-15">{{ selectedDoc.general_inbound_number }}</span>
-                  </div>
-                  <div class="col-sm-6 mb-2" v-if="selectedDoc.dg_inbound_number">
-                    <span class="text-muted small d-block">លេខចូលជំនួយការអគ្គនាយក</span>
-                    <span class="font-weight-bold text-primary font-15">{{ selectedDoc.dg_inbound_number }}</span>
-                  </div>
-                  <div class="col-12 mb-2">
-                    <span class="text-muted small d-block">កម្មវត្ថុ</span>
-                    <span class="font-weight-bold text-dark">{{ selectedDoc.title }}</span>
-                  </div>
-                  <div class="col-12" v-if="selectedDoc.dg_annotation">
-                    <span class="text-muted small d-block font-weight-bold text-danger">ខ្លឹមសារចំណារឯកឧត្តមអគ្គនាយក៖</span>
-                    <div class="p-2 bg-white rounded border border-danger-subtle font-13 text-dark">
-                      {{ selectedDoc.dg_annotation }}
+            <form @submit.prevent="handleForwardSubmit">
+              <div class="modal-body p-4">
+                <!-- Summary Card -->
+                <div class="card bg-light border-0 rounded-lg p-3 mb-3">
+                  <div class="row">
+                    <div class="col-sm-6 mb-2">
+                      <span class="text-muted small d-block">លេខចូលទូទៅ</span>
+                      <span class="font-weight-bold text-dark font-15">{{ selectedDoc.general_inbound_number }}</span>
+                    </div>
+                    <div class="col-sm-6 mb-2" v-if="selectedDoc.dg_inbound_number">
+                      <span class="text-muted small d-block">លេខចូលជំនួយការអគ្គនាយក</span>
+                      <span class="font-weight-bold text-primary font-15">{{ selectedDoc.dg_inbound_number }}</span>
+                    </div>
+                    <div class="col-12 mb-2">
+                      <span class="text-muted small d-block">កម្មវត្ថុ</span>
+                      <span class="font-weight-bold text-dark">{{ selectedDoc.title }}</span>
+                    </div>
+                    <div class="col-12" v-if="selectedDoc.dg_annotation">
+                      <span class="text-muted small d-block font-weight-bold text-danger">ខ្លឹមសារចំណារឯកឧត្តមអគ្គនាយក៖</span>
+                      <div class="p-2 bg-white rounded border border-danger-subtle font-13 text-dark">
+                        {{ selectedDoc.dg_annotation }}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Target Type Selector -->
-              <div class="form-group mb-3">
-                <label class="font-weight-bold text-dark">
-                  ជ្រើសរើសប្រភេទគោលដៅចាត់ចែងបន្ត <span class="text-danger">*</span>
-                </label>
-                <div class="d-flex flex-wrap gap-3">
-                  <div class="custom-control custom-radio mr-4">
-                    <input
-                      type="radio"
-                      id="fwdTargetDept"
-                      name="fwd_target_type"
-                      class="custom-control-input"
-                      value="DEPARTMENT"
-                      v-model="forwardForm.target_type"
-                    />
-                    <label class="custom-control-label cursor-pointer" for="fwdTargetDept">
-                      <i class="fas fa-building text-secondary mr-1"></i>នាយកដ្ឋាន
-                    </label>
+                <!-- Target Type Selector -->
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold text-dark">
+                    ជ្រើសរើសប្រភេទគោលដៅចាត់ចែងបន្ត <span class="text-danger">*</span>
+                  </label>
+                  <div class="d-flex flex-wrap gap-3">
+                    <div class="custom-control custom-radio mr-4">
+                      <input
+                        type="radio"
+                        id="fwdTargetDept"
+                        name="fwd_target_type"
+                        class="custom-control-input"
+                        value="DEPARTMENT"
+                        v-model="forwardForm.target_type"
+                      />
+                      <label class="custom-control-label cursor-pointer" for="fwdTargetDept">
+                        <i class="fas fa-building text-secondary mr-1"></i>នាយកដ្ឋាន
+                      </label>
+                    </div>
+                    <div class="custom-control custom-radio mr-4">
+                      <input
+                        type="radio"
+                        id="fwdTargetOffice"
+                        name="fwd_target_type"
+                        class="custom-control-input"
+                        value="OFFICE"
+                        v-model="forwardForm.target_type"
+                      />
+                      <label class="custom-control-label cursor-pointer" for="fwdTargetOffice">
+                        <i class="fas fa-door-closed text-info mr-1"></i>ការិយាល័យ
+                      </label>
+                    </div>
+                    <div class="custom-control custom-radio">
+                      <input
+                        type="radio"
+                        id="fwdTargetOfficer"
+                        name="fwd_target_type"
+                        class="custom-control-input"
+                        value="OFFICER"
+                        v-model="forwardForm.target_type"
+                      />
+                      <label class="custom-control-label cursor-pointer" for="fwdTargetOfficer">
+                        <i class="fas fa-user-circle text-primary mr-1"></i>មន្ត្រីជាក់លាក់
+                      </label>
+                    </div>
                   </div>
-                  <div class="custom-control custom-radio mr-4">
-                    <input
-                      type="radio"
-                      id="fwdTargetOffice"
-                      name="fwd_target_type"
-                      class="custom-control-input"
-                      value="OFFICE"
-                      v-model="forwardForm.target_type"
-                    />
-                    <label class="custom-control-label cursor-pointer" for="fwdTargetOffice">
-                      <i class="fas fa-door-closed text-info mr-1"></i>ការិយាល័យ
-                    </label>
-                  </div>
-                  <div class="custom-control custom-radio">
-                    <input
-                      type="radio"
-                      id="fwdTargetOfficer"
-                      name="fwd_target_type"
-                      class="custom-control-input"
-                      value="OFFICER"
-                      v-model="forwardForm.target_type"
-                    />
-                    <label class="custom-control-label cursor-pointer" for="fwdTargetOfficer">
-                      <i class="fas fa-user-circle text-primary mr-1"></i>មន្ត្រីជាក់លាក់
-                    </label>
-                  </div>
+                </div>
+
+                <!-- Department Dropdown -->
+                <div class="form-group mb-3" v-if="forwardForm.target_type === 'DEPARTMENT'">
+                  <label class="font-weight-bold text-dark">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
+                  <select class="form-control" v-model="forwardForm.target_department_id" required>
+                    <option value="" disabled>-- សូមជ្រើសរើសនាយកដ្ឋាន --</option>
+                    <option v-for="d in recipientOptions.departments" :key="d.id" :value="d.id">
+                      {{ d.name_kh }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Office Dropdown -->
+                <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICE'">
+                  <label class="font-weight-bold text-dark">ការិយាល័យគោលដៅ <span class="text-danger">*</span></label>
+                  <select class="form-control" v-model="forwardForm.target_office_id" required>
+                    <option value="" disabled>-- សូមជ្រើសរើសការិយាល័យ --</option>
+                    <option v-for="o in recipientOptions.offices" :key="o.id" :value="o.id">
+                      {{ o.name_kh }} ({{ o.department?.name_kh }})
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Officer Dropdown -->
+                <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICER'">
+                  <label class="font-weight-bold text-dark">មន្ត្រីទទួលបន្ទុក <span class="text-danger">*</span></label>
+                  <select class="form-control" v-model="forwardForm.target_user_id" required>
+                    <option value="" disabled>-- សូមជ្រើសរើសមន្ត្រី --</option>
+                    <option v-for="u in recipientOptions.users" :key="u.id" :value="u.id">
+                      {{ u.name_kh || u.name }} - {{ u.position?.name_kh || 'មន្ត្រី' }} ({{ u.department?.name_kh }})
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Forwarding Notes / Instruction -->
+                <div class="form-group mb-0">
+                  <label class="font-weight-bold text-dark">ចំណារណែនាំបន្ត (Forwarding Notes / Instruction)</label>
+                  <textarea
+                    class="form-control"
+                    rows="3"
+                    v-model="forwardForm.forwarding_notes"
+                    placeholder="ឧ. ជូនលោកប្រធាននាយកដ្ឋានពិនិត្យ និងចាត់ចែងបន្ត / ជូនលោក X រៀបចំសេចក្តីព្រាងឆ្លើយតប..."
+                  ></textarea>
                 </div>
               </div>
 
-              <!-- Department Dropdown -->
-              <div class="form-group mb-3" v-if="forwardForm.target_type === 'DEPARTMENT'">
-                <label class="font-weight-bold text-dark">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
-                <select class="form-control" v-model="forwardForm.target_department_id" required>
-                  <option value="" disabled>-- សូមជ្រើសរើសនាយកដ្ឋាន --</option>
-                  <option v-for="d in recipientOptions.departments" :key="d.id" :value="d.id">
-                    {{ d.name_kh }}
-                  </option>
-                </select>
+              <div class="modal-footer font-khmer bg-light">
+                <button type="button" class="btn btn-secondary" @click="showForwardModal = false">
+                  បោះបង់
+                </button>
+                <button type="submit" class="btn btn-primary px-4" :disabled="forwarding">
+                  <i class="fas fa-paper-plane mr-1" v-if="!forwarding"></i>
+                  <i class="fas fa-spinner fa-spin mr-1" v-else></i>
+                  បញ្ជូនបន្ត
+                </button>
               </div>
-
-              <!-- Office Dropdown -->
-              <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICE'">
-                <label class="font-weight-bold text-dark">ការិយាល័យគោលដៅ <span class="text-danger">*</span></label>
-                <select class="form-control" v-model="forwardForm.target_office_id" required>
-                  <option value="" disabled>-- សូមជ្រើសរើសការិយាល័យ --</option>
-                  <option v-for="o in recipientOptions.offices" :key="o.id" :value="o.id">
-                    {{ o.name_kh }} ({{ o.department?.name_kh }})
-                  </option>
-                </select>
-              </div>
-
-              <!-- Officer Dropdown -->
-              <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICER'">
-                <label class="font-weight-bold text-dark">មន្ត្រីទទួលបន្ទុក <span class="text-danger">*</span></label>
-                <select class="form-control" v-model="forwardForm.target_user_id" required>
-                  <option value="" disabled>-- សូមជ្រើសរើសមន្ត្រី --</option>
-                  <option v-for="u in recipientOptions.users" :key="u.id" :value="u.id">
-                    {{ u.name_kh || u.name }} - {{ u.position?.name_kh || 'មន្ត្រី' }} ({{ u.department?.name_kh }})
-                  </option>
-                </select>
-              </div>
-
-              <!-- Forwarding Notes / Instruction -->
-              <div class="form-group mb-0">
-                <label class="font-weight-bold text-dark">ចំណារណែនាំបន្ត (Forwarding Notes / Instruction)</label>
-                <textarea
-                  class="form-control"
-                  rows="3"
-                  v-model="forwardForm.forwarding_notes"
-                  placeholder="ឧ. ជូនលោកប្រធាននាយកដ្ឋានពិនិត្យ និងចាត់ចែងបន្ត / ជូនលោក X រៀបចំសេចក្តីព្រាងឆ្លើយតប..."
-                ></textarea>
-              </div>
-            </div>
-
-            <div class="modal-footer font-khmer bg-light">
-              <button type="button" class="btn btn-secondary" @click="showForwardModal = false">
-                បោះបង់
-              </button>
-              <button type="submit" class="btn btn-primary px-4" :disabled="forwarding">
-                <i class="fas fa-paper-plane mr-1" v-if="!forwarding"></i>
-                <i class="fas fa-spinner fa-spin mr-1" v-else></i>
-                បញ្ជូនបន្ត
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 9. Modal កំណត់ និងតេស្តការជូនដំណឹងតាម Telegram Bot -->
-    <div
-      class="modal fade show d-block font-khmer"
-      tabindex="-1"
-      v-if="showTelegramModal"
-      style="background: rgba(0, 0, 0, 0.55);"
-    >
-      <div class="modal-dialog modal-md modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-lg">
-          <div class="modal-header bg-info text-white py-3">
-            <h5 class="modal-title font-weight-bold">
-              <i class="fab fa-telegram-plane mr-2"></i>ការកំណត់ការជូនដំណឹងតាម Telegram Bot
-            </h5>
-            <button type="button" class="close text-white" @click="showTelegramModal = false">
-              <span>&times;</span>
-            </button>
+    <Teleport to="body">
+      <div
+        class="modal fade show d-block font-khmer"
+        tabindex="-1"
+        v-if="showTelegramModal"
+        style="background: rgba(0, 0, 0, 0.6); z-index: 1060;"
+      >
+        <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 600px;">
+          <div class="modal-content border-0 shadow-2xl rounded-lg overflow-hidden">
+            <div class="modal-header bg-info text-white py-3">
+              <h5 class="modal-title font-weight-bold">
+                <i class="fab fa-telegram-plane mr-2"></i>ការកំណត់ការជូនដំណឹងតាម Telegram Bot
+              </h5>
+              <button type="button" class="close text-white" @click="showTelegramModal = false">
+                <span>&times;</span>
+              </button>
+            </div>
+
+            <form @submit.prevent="saveTelegramSettings">
+              <div class="modal-body p-4">
+                <!-- Telegram Bot Info Banner -->
+                <div class="alert alert-light border border-info p-3 rounded mb-3">
+                  <div class="d-flex align-items-center mb-2">
+                    <i class="fab fa-telegram fa-2x text-info mr-2"></i>
+                    <div>
+                      <strong class="text-dark d-block">TRMS Official Telegram Bot</strong>
+                      <a href="https://t.me/trms_regulator_bot" target="_blank" class="text-primary font-weight-bold">
+                        @trms_regulator_bot <i class="fas fa-external-link-alt font-11"></i>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="small text-muted" style="line-height: 1.5;">
+                    របៀបភ្ជាប់៖
+                    <ol class="pl-3 mb-0 mt-1">
+                      <li>ចុច link <b>@trms_regulator_bot</b> រួចចុច <b>Start</b> ក្នុង Telegram</li>
+                      <li>ស្វែងរក Chat ID របស់អ្នក (តាមរយៈ bot <code>@userinfobot</code>)</li>
+                      <li>ចម្លង Chat ID មកដាក់ក្នុងប្រអប់ខាងក្រោម រួចចុច <b>សាកល្បងផ្ញើសារ</b></li>
+                    </ol>
+                  </div>
+                </div>
+
+                <!-- Chat ID Input -->
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold text-dark">
+                    Telegram Chat ID <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text"><i class="fas fa-id-badge"></i></span>
+                    </div>
+                    <input
+                      type="text"
+                      class="form-control font-monospace"
+                      v-model="telegramForm.chat_id"
+                      placeholder="ឧ. 123456789"
+                      required
+                    />
+                  </div>
+                  <small class="form-text text-muted">Telegram Chat ID គឺជាលេខសម្គាល់គណនី Telegram របស់អ្នក។</small>
+                </div>
+
+                <!-- Username Input -->
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold text-dark">
+                    Telegram Username (បើមាន)
+                  </label>
+                  <div class="input-group">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text">@</span>
+                    </div>
+                    <input
+                      type="text"
+                      class="form-control"
+                      v-model="telegramForm.username"
+                      placeholder="ឧ. username"
+                    />
+                  </div>
+                </div>
+
+                <!-- Test Button & Status Message -->
+                <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded mb-2">
+                  <span class="small text-muted">
+                    <i class="fas fa-info-circle mr-1"></i>សាកល្បងមុនពេលរក្សាទុក
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-info"
+                    :disabled="testingTelegram || !telegramForm.chat_id"
+                    @click="testTelegramConnection"
+                  >
+                    <i class="fas fa-spinner fa-spin mr-1" v-if="testingTelegram"></i>
+                    <i class="fas fa-paper-plane mr-1" v-else></i>
+                    សាកល្បងផ្ញើសារ (Test)
+                  </button>
+                </div>
+              </div>
+
+              <div class="modal-footer font-khmer bg-light">
+                <button type="button" class="btn btn-secondary" @click="showTelegramModal = false">
+                  បោះបង់
+                </button>
+                <button type="submit" class="btn btn-primary px-4" :disabled="savingTelegram">
+                  <i class="fas fa-spinner fa-spin mr-1" v-if="savingTelegram"></i>
+                  <i class="fas fa-save mr-1" v-else></i>
+                  រក្សាទុក
+                </button>
+              </div>
+            </form>
           </div>
+        </div>
+      </div>
+    </Teleport>
 
-          <form @submit.prevent="saveTelegramSettings">
-            <div class="modal-body p-4">
-              <!-- Telegram Bot Info Banner -->
-              <div class="alert alert-light border border-info p-3 rounded mb-3">
-                <div class="d-flex align-items-center mb-2">
-                  <i class="fab fa-telegram fa-2x text-info mr-2"></i>
-                  <div>
-                    <strong class="text-dark d-block">TRMS Official Telegram Bot</strong>
-                    <a href="https://t.me/trms_regulator_bot" target="_blank" class="text-primary font-weight-bold">
-                      @trms_regulator_bot <i class="fas fa-external-link-alt font-11"></i>
-                    </a>
-                  </div>
-                </div>
-                <div class="small text-muted" style="line-height: 1.5;">
-                  របៀបភ្ជាប់៖
-                  <ol class="pl-3 mb-0 mt-1">
-                    <li>ចុច link <b>@trms_regulator_bot</b> រួចចុច <b>Start</b> ក្នុង Telegram</li>
-                    <li>ស្វែងរក Chat ID របស់អ្នក (តាមរយៈ bot <code>@userinfobot</code>)</li>
-                    <li>ចម្លង Chat ID មកដាក់ក្នុងប្រអប់ខាងក្រោម រួចចុច <b>សាកល្បងផ្ញើសារ</b></li>
-                  </ol>
-                </div>
-              </div>
-
-              <!-- Chat ID Input -->
-              <div class="form-group mb-3">
-                <label class="font-weight-bold text-dark">
-                  Telegram Chat ID <span class="text-danger">*</span>
-                </label>
-                <div class="input-group">
-                  <div class="input-group-prepend">
-                    <span class="input-group-text"><i class="fas fa-id-badge"></i></span>
-                  </div>
-                  <input
-                    type="text"
-                    class="form-control font-monospace"
-                    v-model="telegramForm.chat_id"
-                    placeholder="ឧ. 123456789"
-                    required
-                  />
-                </div>
-                <small class="form-text text-muted">Telegram Chat ID គឺជាលេខសម្គាល់គណនី Telegram របស់អ្នក។</small>
-              </div>
-
-              <!-- Username Input -->
-              <div class="form-group mb-3">
-                <label class="font-weight-bold text-dark">
-                  Telegram Username (បើមាន)
-                </label>
-                <div class="input-group">
-                  <div class="input-group-prepend">
-                    <span class="input-group-text">@</span>
-                  </div>
-                  <input
-                    type="text"
-                    class="form-control"
-                    v-model="telegramForm.username"
-                    placeholder="ឧ. username"
-                  />
-                </div>
-              </div>
-
-              <!-- Test Button & Status Message -->
-              <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded mb-2">
-                <span class="small text-muted">
-                  <i class="fas fa-info-circle mr-1"></i>សាកល្បងមុនពេលរក្សាទុក
-                </span>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-info"
-                  :disabled="testingTelegram || !telegramForm.chat_id"
-                  @click="testTelegramConnection"
+    <!-- 10. Modal មើលឯកសារ PDF (Inline PDF Viewer Modal) -->
+    <Teleport to="body">
+      <div
+        class="modal fade show d-block font-khmer"
+        tabindex="-1"
+        v-if="showPdfModal"
+        style="background: rgba(0, 0, 0, 0.75); z-index: 1075;"
+      >
+        <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 94vw; height: 92vh; margin: 2vh auto;">
+          <div class="modal-content h-100 shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column">
+            <div class="modal-header bg-dark text-white py-2 px-3 align-items-center flex-shrink-0">
+              <h5 class="modal-title font-khmer font-weight-bold font-15 mb-0 text-truncate" style="max-width: 60vw;">
+                <i class="fas fa-file-pdf text-danger mr-2"></i>{{ pdfModalTitle }}
+              </h5>
+              <div class="d-flex align-items-center">
+                <a
+                  :href="pdfModalUrl"
+                  target="_blank"
+                  class="btn btn-xs btn-outline-light mr-2 font-khmer"
+                  title="បើកក្នុងផ្ទាំងថ្មី (New Tab)"
                 >
-                  <i class="fas fa-spinner fa-spin mr-1" v-if="testingTelegram"></i>
-                  <i class="fas fa-paper-plane mr-1" v-else></i>
-                  សាកល្បងផ្ញើសារ (Test)
+                  <i class="fas fa-external-link-alt mr-1"></i> បើកផ្ទាំងថ្មី
+                </a>
+                <a
+                  :href="pdfModalDownloadUrl"
+                  download
+                  class="btn btn-xs btn-warning text-dark font-weight-bold mr-2 font-khmer"
+                  title="ទាញយកឯកសារ"
+                >
+                  <i class="fas fa-download mr-1"></i> ទាញយក
+                </a>
+                <button type="button" class="close text-white ml-2" @click="closePdfModal">
+                  <span aria-hidden="true">&times;</span>
                 </button>
               </div>
             </div>
-
-            <div class="modal-footer font-khmer bg-light">
-              <button type="button" class="btn btn-secondary" @click="showTelegramModal = false">
-                បោះបង់
-              </button>
-              <button type="submit" class="btn btn-primary px-4" :disabled="savingTelegram">
-                <i class="fas fa-spinner fa-spin mr-1" v-if="savingTelegram"></i>
-                <i class="fas fa-save mr-1" v-else></i>
-                រក្សាទុក
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- 10. Modal មើលឯកសារ PDF (Inline PDF Viewer Modal) -->
-    <div
-      class="modal fade show d-block font-khmer"
-      tabindex="-1"
-      v-if="showPdfModal"
-      style="background: rgba(0, 0, 0, 0.75); z-index: 1060;"
-    >
-      <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 94vw; height: 92vh; margin: 2vh auto;">
-        <div class="modal-content h-100 shadow-lg border-0 rounded-lg overflow-hidden d-flex flex-column">
-          <div class="modal-header bg-dark text-white py-2 px-3 align-items-center flex-shrink-0">
-            <h5 class="modal-title font-khmer font-weight-bold font-15 mb-0 text-truncate" style="max-width: 60vw;">
-              <i class="fas fa-file-pdf text-danger mr-2"></i>{{ pdfModalTitle }}
-            </h5>
-            <div class="d-flex align-items-center">
-              <a
-                :href="pdfModalUrl"
-                target="_blank"
-                class="btn btn-xs btn-outline-light mr-2 font-khmer"
-                title="បើកក្នុងផ្ទាំងថ្មី (New Tab)"
+            <div class="modal-body p-0 position-relative flex-grow-1" style="background: #525659;">
+              <div
+                v-if="isPdfLoading"
+                class="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white"
+                style="background: rgba(0,0,0,0.5); z-index: 10; top: 0; left: 0;"
               >
-                <i class="fas fa-external-link-alt mr-1"></i> បើកផ្ទាំងថ្មី
-              </a>
-              <a
-                :href="pdfModalDownloadUrl"
-                download
-                class="btn btn-xs btn-warning text-dark font-weight-bold mr-2 font-khmer"
-                title="ទាញយកឯកសារ"
-              >
-                <i class="fas fa-download mr-1"></i> ទាញយក
-              </a>
-              <button type="button" class="close text-white ml-2" @click="closePdfModal">
-                <span aria-hidden="true">&times;</span>
-              </button>
+                <div class="spinner-border text-light mb-2" role="status"></div>
+                <span class="font-khmer font-14">កំពុងផ្ទុកឯកសារ PDF...</span>
+              </div>
+              <iframe
+                :src="pdfModalUrl"
+                class="w-100 h-100 border-0"
+                @load="isPdfLoading = false"
+                style="min-height: 100%; display: block;"
+              ></iframe>
             </div>
-          </div>
-          <div class="modal-body p-0 position-relative flex-grow-1" style="background: #525659;">
-            <div
-              v-if="isPdfLoading"
-              class="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white"
-              style="background: rgba(0,0,0,0.5); z-index: 10; top: 0; left: 0;"
-            >
-              <div class="spinner-border text-light mb-2" role="status"></div>
-              <span class="font-khmer font-14">កំពុងផ្ទុកឯកសារ PDF...</span>
-            </div>
-            <iframe
-              :src="pdfModalUrl"
-              class="w-100 h-100 border-0"
-              @load="isPdfLoading = false"
-              style="min-height: 100%; display: block;"
-            ></iframe>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 11. Modal គ្រប់គ្រងស្ថាប័ន / អង្គភាពផ្ញើឯកសារ (Manage Sender Organizations Modal) -->
-    <div
-      class="modal fade show d-block font-khmer"
-      tabindex="-1"
-      v-if="showManageOrgModal"
-      style="background: rgba(0, 0, 0, 0.6); z-index: 1055;"
-    >
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-lg">
-          <div class="modal-header bg-dark-custom text-white py-3 align-items-center">
+    <Teleport to="body">
+      <div
+        class="modal fade show d-block font-khmer"
+        tabindex="-1"
+        v-if="showManageOrgModal"
+        style="background: rgba(0, 0, 0, 0.65); z-index: 1070;"
+      >
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 850px;">
+          <div class="modal-content border-0 shadow-2xl rounded-lg overflow-hidden">
+            <div class="modal-header bg-dark-custom text-white py-3 align-items-center">
             <h5 class="modal-title font-weight-bold mb-0">
               <i class="fas fa-building text-warning mr-2"></i>គ្រប់គ្រងបញ្ជីស្ថាប័ន / អង្គភាពផ្ញើឯកសារ
             </h5>
@@ -2284,6 +2309,7 @@
         </div>
       </div>
     </div>
+  </Teleport>
 
   </div>
 </template>
@@ -3738,30 +3764,39 @@ onMounted(() => {
 }
 
 /* Modals */
-.custom-modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1050;
-  overflow-y: auto;
-  padding: 1.5rem 1rem;
+.custom-modal-backdrop,
+:deep(.custom-modal-backdrop) {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  z-index: 1060 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 2rem 1rem !important;
 }
 
-.modal-dialog {
-  margin: auto;
+.custom-modal-backdrop .modal-dialog,
+:deep(.custom-modal-backdrop .modal-dialog) {
+  margin: auto !important;
+  max-height: 92vh;
+}
+
+.custom-modal-backdrop .modal-content,
+:deep(.custom-modal-backdrop .modal-content) {
+  border-radius: 10px;
   max-height: 90vh;
 }
 
-.modal-content {
-  border-radius: 8px;
-  max-height: 88vh;
-  overflow-y: auto;
+.shadow-2xl {
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Timeline */
