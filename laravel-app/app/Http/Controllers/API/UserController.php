@@ -10,6 +10,8 @@ use App\Http\Requests\User\ReadUserRequest;
 use App\Http\Requests\User\ToggleUserStatusRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\User\UserResource;
+use App\Models\Department;
+use App\Models\Office;
 use App\Models\Position;
 use App\Models\User;
 use Exception;
@@ -729,5 +731,239 @@ public function getProfile(Request $request)
             'message' => 'បានកំណត់សិទ្ធិប្រើប្រាស់ដោយជោគជ័យ',
             'user' => new UserResource($user->load(['department', 'office', 'position']))
         ], 200);
+    }
+
+    /**
+     * Batch import users from Excel
+     */
+    public function importUsers(Request $request)
+    {
+        $request->validate([
+            'users' => 'required|array|min:1',
+            'users.*.name_kh' => 'required|string|max:255',
+            'users.*.email' => 'required|email|max:255',
+        ]);
+
+        $rows = $request->input('users');
+
+        $departments = Department::all();
+        $offices = Office::all();
+        $positions = Position::all();
+
+        $existingIds = User::pluck('id')->toArray();
+        $existingEmails = User::pluck('email')->map(fn($e) => strtolower(trim($e)))->toArray();
+        $existingEmployeeCodes = User::whereNotNull('employee_code')
+            ->pluck('employee_code')
+            ->map(fn($c) => strtolower(trim($c)))
+            ->toArray();
+
+        $imported = [];
+        $errors = [];
+        $seenBatchIds = [];
+        $seenBatchEmails = [];
+        $seenBatchCodes = [];
+
+        $parseDate = function ($d) {
+            if (empty($d)) return null;
+            $trimmed = trim((string)$d);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $trimmed)) return $trimmed;
+            $ts = strtotime($trimmed);
+            return $ts ? date('Y-m-d', $ts) : null;
+        };
+
+        $defaultPasswordHash = Hash::make('123456');
+
+        DB::beginTransaction();
+        try {
+            foreach ($rows as $index => $row) {
+                $rowNum = $index + 2;
+                $nameKh = trim($row['name_kh'] ?? '');
+                $nameEn = trim($row['name_en'] ?? '');
+                $email = strtolower(trim($row['email'] ?? ''));
+                $empCode = trim($row['employee_code'] ?? '');
+                $rawId = trim((string)($row['id'] ?? ''));
+
+                $customId = null;
+                if (!empty($rawId)) {
+                    if (!ctype_digit($rawId) || (int)$rawId < 1) {
+                        $errors[] = "ជួរទី {$rowNum} ({$nameKh}): ID '{$rawId}' ត្រូវតែជាលេខវិជ្ជមាន";
+                        continue;
+                    }
+                    $parsedId = (int)$rawId;
+                    if (in_array($parsedId, $existingIds) || in_array($parsedId, $seenBatchIds)) {
+                        $errors[] = "ជួរទី {$rowNum} ({$nameKh}): ID '{$parsedId}' មានក្នុងប្រព័ន្ធរួចហើយ (មិនអាចជាន់គ្នាជាមួយគណនី Admin ឬអ្នកផ្សេងឡើយ)";
+                        continue;
+                    }
+                    $customId = $parsedId;
+                    $seenBatchIds[] = $parsedId;
+                }
+
+                if (empty($nameKh)) {
+                    $errors[] = "ជួរទី {$rowNum}: គ្មានគោត្តនាម និងនាម (ខ្មែរ)";
+                    continue;
+                }
+
+                if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = "ជួរទី {$rowNum} ({$nameKh}): អ៊ីមែល '{$email}' មិនត្រឹមត្រូវ";
+                    continue;
+                }
+
+                if (in_array($email, $existingEmails) || in_array($email, $seenBatchEmails)) {
+                    $errors[] = "ជួរទី {$rowNum} ({$nameKh}): អ៊ីមែល '{$email}' មានក្នុងប្រព័ន្ធរួចហើយ";
+                    continue;
+                }
+                $seenBatchEmails[] = $email;
+
+                if (!empty($empCode)) {
+                    $empCodeLower = strtolower($empCode);
+                    if (in_array($empCodeLower, $existingEmployeeCodes) || in_array($empCodeLower, $seenBatchCodes)) {
+                        $errors[] = "ជួរទី {$rowNum} ({$nameKh}): អត្តលេខ '{$empCode}' មានក្នុងប្រព័ន្ធរួចហើយ";
+                        continue;
+                    }
+                    $seenBatchCodes[] = $empCodeLower;
+                }
+
+                // Match Department
+                $departmentId = null;
+                $deptVal = trim($row['department'] ?? $row['department_name'] ?? $row['department_id'] ?? '');
+                if (!empty($deptVal)) {
+                    $d = $departments->first(function ($dept) use ($deptVal) {
+                        return strcasecmp($dept->code, $deptVal) === 0
+                            || mb_stripos($dept->name_kh, $deptVal) !== false
+                            || (string)$dept->id === (string)$deptVal;
+                    });
+                    if ($d) $departmentId = $d->id;
+                }
+
+                // Match Office
+                $officeId = null;
+                $offVal = trim($row['office'] ?? $row['office_name'] ?? $row['office_id'] ?? '');
+                if (!empty($offVal)) {
+                    $o = $offices->first(function ($off) use ($offVal, $departmentId) {
+                        $matchName = strcasecmp($off->code, $offVal) === 0
+                            || mb_stripos($off->name_kh, $offVal) !== false
+                            || (string)$off->id === (string)$offVal;
+                        if ($departmentId) {
+                            return $matchName && $off->department_id == $departmentId;
+                        }
+                        return $matchName;
+                    });
+                    if (!$o) {
+                        $o = $offices->first(function ($off) use ($offVal) {
+                            return strcasecmp($off->code, $offVal) === 0
+                                || mb_stripos($off->name_kh, $offVal) !== false
+                                || (string)$off->id === (string)$offVal;
+                        });
+                    }
+                    if ($o) {
+                        $officeId = $o->id;
+                        if (!$departmentId && $o->department_id) {
+                            $departmentId = $o->department_id;
+                        }
+                    }
+                }
+
+                // Match Position
+                $positionId = null;
+                $posVal = trim($row['position'] ?? $row['position_name'] ?? $row['position_id'] ?? '');
+                if (!empty($posVal)) {
+                    $p = $positions->first(function ($pos) use ($posVal) {
+                        return mb_stripos($pos->title_kh, $posVal) !== false
+                            || (string)$pos->id === (string)$posVal;
+                    });
+                    if ($p) $positionId = $p->id;
+                }
+
+                // Gender: enum('Male', 'Female')
+                $rawGender = trim($row['gender'] ?? 'ប្រុស');
+                $gender = 'Male';
+                if (mb_stripos($rawGender, 'ស្រី') !== false || strtoupper($rawGender) === 'FEMALE' || strtoupper($rawGender) === 'F') {
+                    $gender = 'Female';
+                }
+
+                // Employee Type: enum('CIVIL_SERVICE','STATUTORY','CONTRACT','OTHER')
+                $rawEmpType = trim($row['employee_type'] ?? 'CIVIL_SERVICE');
+                $empType = 'CIVIL_SERVICE';
+                if (mb_stripos($rawEmpType, 'កិច្ចសន្យា') !== false || strtoupper($rawEmpType) === 'CONTRACT') {
+                    $empType = 'CONTRACT';
+                } elseif (mb_stripos($rawEmpType, 'កម្មសិក្សា') !== false || strtoupper($rawEmpType) === 'STATUTORY') {
+                    $empType = 'STATUTORY';
+                } elseif (mb_stripos($rawEmpType, 'ផ្សេង') !== false || strtoupper($rawEmpType) === 'OTHER') {
+                    $empType = 'OTHER';
+                }
+
+                // Officer Status
+                $rawStatus = trim($row['officer_status'] ?? 'ACTIVE');
+                $officerStatus = 'ACTIVE';
+                if (mb_stripos($rawStatus, 'លាឈប់') !== false || strtoupper($rawStatus) === 'RESIGNED') {
+                    $officerStatus = 'RESIGNED';
+                } elseif (mb_stripos($rawStatus, 'ចូលនិវត្តន៍') !== false || strtoupper($rawStatus) === 'RETIRED') {
+                    $officerStatus = 'RETIRED';
+                } elseif (mb_stripos($rawStatus, 'ផ្លាស់ប្តូរ') !== false || strtoupper($rawStatus) === 'TRANSFERRED') {
+                    $officerStatus = 'TRANSFERRED';
+                } elseif (mb_stripos($rawStatus, 'ព្យួរ') !== false || strtoupper($rawStatus) === 'SUSPENDED') {
+                    $officerStatus = 'SUSPENDED';
+                }
+
+                $rawPass = trim((string)($row['password'] ?? ''));
+                $password = (empty($rawPass) || $rawPass === '123456') ? $defaultPasswordHash : Hash::make($rawPass);
+
+                $userData = [
+                    'name' => !empty($nameKh) ? $nameKh : ($nameEn ?: 'System User'),
+                    'name_kh' => $nameKh,
+                    'name_en' => $nameEn ?: null,
+                    'email' => $email,
+                    'password' => $password,
+                    'gender' => $gender,
+                    'phone' => trim($row['phone'] ?? '') ?: null,
+                    'dob' => $parseDate($row['dob'] ?? null),
+                    'employee_code' => !empty($empCode) ? $empCode : null,
+                    'mef_card_number' => trim($row['mef_card_number'] ?? '') ?: null,
+                    'national_id_number' => trim($row['national_id_number'] ?? '') ?: null,
+                    'birth_place' => trim($row['birth_place'] ?? '') ?: null,
+                    'current_address' => trim($row['current_address'] ?? '') ?: null,
+                    'first_service_date' => $parseDate($row['first_service_date'] ?? null),
+                    'department_id' => $departmentId,
+                    'office_id' => $officeId,
+                    'position_id' => $positionId,
+                    'employee_type' => $empType,
+                    'officer_status' => $officerStatus,
+                    'level' => strtoupper(trim($row['level'] ?? 'USER')) === 'ADMIN' ? 'ADMIN' : 'USER',
+                    'status' => 'ACTIVE',
+                ];
+
+                $user = new User();
+                $user->forceFill($userData);
+                if ($customId !== null) {
+                    $user->id = $customId;
+                }
+                $user->save();
+
+                $imported[] = [
+                    'id' => $user->id,
+                    'name_kh' => $user->name_kh,
+                    'email' => $user->email,
+                ];
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'នាំចូលទិន្នន័យមន្ត្រីបានជោគជ័យ',
+                'imported_count' => count($imported),
+                'failed_count' => count($errors),
+                'errors' => $errors,
+                'imported' => $imported,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'មានបញ្ហាក្នុងការនាំចូលទិន្នន័យ៖ ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

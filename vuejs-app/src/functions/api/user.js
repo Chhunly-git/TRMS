@@ -45,3 +45,8 @@ export function apiGetMyProfile() {
 export function apiGetUserById(id) {
   return axios.get(`${APP_API_URL}/users/${id}`);
 }
+
+// នាំចូលទិន្នន័យមន្ត្រីពី Excel ជា Batch
+export function apiImportUsers(data) {
+  return axios.post(`${APP_API_URL}/manage/users/import`, data);
+}

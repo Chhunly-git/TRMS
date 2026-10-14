@@ -163,7 +163,7 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::put('/permissions/{id}', [UserController::class, 'updateUserPermissions']);
             Route::patch('/toggle-status/{id}', [UserController::class, 'toggleUserStatus']);
             Route::delete('/delete/{id}', [UserController::class, 'deleteUser']);
-         
+            Route::post('/import', [UserController::class, 'importUsers']);
         });
        
         // Backups Routes

@@ -42,7 +42,7 @@
           <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div
               class="card stat-card shadow-sm border-0 rounded-lg h-100 cursor-pointer transition-all"
-              :class="{ 'active-stat-card border-primary': activeTab === 'all' }"
+              :class="{ 'active-stat-card border-primary': activeTab === 'all' && !filters.status && !filters.deadline_filter }"
               @click="switchTab('all')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
@@ -589,8 +589,11 @@
                         </span>
                       </div>
                       <div v-else-if="doc.target_office">
-                        <span class="font-weight-bold font-12 text-dark">
+                        <span class="font-weight-bold font-12 text-dark d-block">
                           <i class="fas fa-door-closed text-info mr-1"></i>{{ doc.target_office.name_kh }}
+                        </span>
+                        <span class="small text-muted" v-if="doc.target_department">
+                          {{ doc.target_department.name_kh }}
                         </span>
                       </div>
                       <div v-else-if="doc.target_department">
@@ -712,7 +715,7 @@
                           :title="doc.annotated_file_path ? 'មើលឯកសារមានចំណារ (PDF)' : 'មើលឯកសារ Scan ដើម (PDF)'"
                           @click="doc.annotated_file_path ? previewAnnotatedDoc(doc) : previewOriginalDoc(doc)"
                         >
-                          <i class="fas fa-eye"></i>
+                          <i class="fas fa-file-pdf text-danger"></i>
                         </button>
 
                         <!-- Download Scans Menu / Button -->
@@ -722,7 +725,7 @@
                           title="ទាញយកឯកសារ Scan ដើម"
                           @click="downloadOriginal(doc)"
                         >
-                          <i class="fas fa-file-pdf text-danger"></i>
+                          <i class="fas fa-download text-secondary"></i>
                         </button>
 
                         <!-- Delete Button (Registrar / Admin) -->
@@ -2758,11 +2761,20 @@ const paginationPages = computed(() => {
 // --- Actions Checkers ---
 const canAcknowledge = (doc) => {
   if (doc.status !== 'DISPATCHED' || doc.is_response_required) return false;
-  // If target user is viewer, or target office/dept is viewer's office/dept
-  return isAdmin.value ||
-    doc.target_user_id === userStore.id ||
-    (doc.target_office_id && doc.target_office_id === userStore.office_id) ||
-    (doc.target_department_id && doc.target_department_id === userStore.department_id);
+  if (isAdmin.value) return true;
+  // If targeted specifically to this user
+  if (doc.target_user_id) {
+    return doc.target_user_id === userStore.id;
+  }
+  // If targeted to office without specific user -> only Office Chief / Deputy Chief (level <= 6)
+  if (doc.target_office_id && doc.target_office_id === userStore.office_id) {
+    return userStore.position && Number(userStore.position.level) <= 6;
+  }
+  // If targeted to department without office/user -> only Department Director / Deputy Director (level <= 4)
+  if (doc.target_department_id && doc.target_department_id === userStore.department_id) {
+    return userStore.position && Number(userStore.position.level) <= 4;
+  }
+  return false;
 };
 
 const canDraftResponse = (doc) => {
@@ -2771,10 +2783,17 @@ const canDraftResponse = (doc) => {
   // If no responses drafted yet, or returned to viewer
   const latest = doc.latest_response;
   if (!latest) {
-    return isAdmin.value ||
-      doc.target_user_id === userStore.id ||
-      (doc.target_office_id && doc.target_office_id === userStore.office_id) ||
-      (doc.target_department_id && doc.target_department_id === userStore.department_id);
+    if (isAdmin.value) return true;
+    if (doc.target_user_id) {
+      return doc.target_user_id === userStore.id;
+    }
+    if (doc.target_office_id && doc.target_office_id === userStore.office_id) {
+      return userStore.position && Number(userStore.position.level) <= 6;
+    }
+    if (doc.target_department_id && doc.target_department_id === userStore.department_id) {
+      return userStore.position && Number(userStore.position.level) <= 4;
+    }
+    return false;
   }
   return latest.status === 'RETURNED' && (latest.drafted_by === userStore.id || isAdmin.value);
 };
@@ -2792,14 +2811,14 @@ const canForward = (doc) => {
   if (isAdmin.value) return true;
   // DG or Deputy DG (level 1 or 2)
   if (userStore.position && Number(userStore.position.level) <= 2) return true;
-  // Assigned officer
-  if (doc.target_user_id && doc.target_user_id === userStore.id) return true;
-  // Assigned department head or department member
-  if (doc.target_department_id && doc.target_department_id === userStore.department_id) return true;
-  // Assigned office head or office member
-  if (doc.target_office_id && doc.target_office_id === userStore.office_id) return true;
   // Assistant
   if (canAssist.value) return true;
+  // Assigned officer can forward/delegate further
+  if (doc.target_user_id && doc.target_user_id === userStore.id) return true;
+  // Assigned department head (level <= 4)
+  if (doc.target_department_id && doc.target_department_id === userStore.department_id && userStore.position && Number(userStore.position.level) <= 4) return true;
+  // Assigned office head (level <= 6)
+  if (doc.target_office_id && doc.target_office_id === userStore.office_id && userStore.position && Number(userStore.position.level) <= 6) return true;
   return false;
 };
 
@@ -2857,6 +2876,8 @@ const syncTabFromRoute = () => {
 
 const switchTab = (tab) => {
   activeTab.value = tab;
+  filters.status = '';
+  filters.deadline_filter = '';
   filters.page = 1;
   const defaultTab = isRegularOfficer.value ? 'my_todo' : 'all';
   const currentTab = route.query.tab || defaultTab;
@@ -2873,6 +2894,8 @@ watch(
   () => route.query.tab,
   () => {
     syncTabFromRoute();
+    filters.status = '';
+    filters.deadline_filter = '';
     filters.page = 1;
     loadDocuments();
   }
@@ -2883,6 +2906,8 @@ const toggleDeadlineFilter = (type) => {
     filters.deadline_filter = '';
   } else {
     filters.deadline_filter = type;
+    filters.status = '';
+    activeTab.value = 'all';
   }
   filters.page = 1;
   loadDocuments();
@@ -2893,6 +2918,8 @@ const toggleStatusFilter = (statusVal) => {
     filters.status = '';
   } else {
     filters.status = statusVal;
+    filters.deadline_filter = '';
+    activeTab.value = 'all';
   }
   filters.page = 1;
   loadDocuments();

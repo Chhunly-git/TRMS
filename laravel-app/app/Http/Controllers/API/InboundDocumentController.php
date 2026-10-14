@@ -273,9 +273,14 @@ class InboundDocumentController extends Controller
             ? InboundDocument::where('status', 'COMPLETED')->count()
             : (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
-        $myTodo = $this->scopeMyTodo(InboundDocument::query(), $viewer)->count();
-        $myDone = $this->scopeMyDone(InboundDocument::query(), $viewer)->count();
-        $myUnit = $this->scopeMyUnit(InboundDocument::query(), $viewer)->count();
+        $myTodoQuery = $this->scopeMyTodo(InboundDocument::query(), $viewer);
+        $myTodo = $isPrivileged ? $myTodoQuery->count() : $this->scopeAccessibleByViewer($myTodoQuery, $viewer)->count();
+
+        $myDoneQuery = $this->scopeMyDone(InboundDocument::query(), $viewer);
+        $myDone = $isPrivileged ? $myDoneQuery->count() : $this->scopeAccessibleByViewer($myDoneQuery, $viewer)->count();
+
+        $myUnitQuery = $this->scopeMyUnit(InboundDocument::query(), $viewer);
+        $myUnit = $isPrivileged ? $myUnitQuery->count() : $this->scopeAccessibleByViewer($myUnitQuery, $viewer)->count();
 
         $today = Carbon::today();
         $deadlineBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
@@ -327,8 +332,9 @@ class InboundDocumentController extends Controller
 
         $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
         $isDeptLeadership = ($viewer->position && (int) $viewer->position->level <= 4); // Dept Director / Deputy Director
+        $isOfficeLeadership = ($viewer->position && (int) $viewer->position->level <= 6); // Office Chief / Deputy Chief
 
-        return $query->where(function ($q) use ($viewer, $isReceptionist, $isDeptLeadership) {
+        return $query->where(function ($q) use ($viewer, $isReceptionist, $isDeptLeadership, $isOfficeLeadership) {
             // 1. Receptionist can see documents they registered or reception drafts
             if ($isReceptionist) {
                 $q->orWhere('registered_by', $viewer->id)
@@ -373,30 +379,16 @@ class InboundDocumentController extends Controller
                                  });
                        });
                 });
-            } else {
-                // 8. For Office Chief or Regular Officer:
-                // If dispatched to user's office and not targeted to another specific user (or targeted to them)
-                if ($viewer->office_id) {
-                    $q->orWhere(function ($oq) use ($viewer) {
-                        $oq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
-                           ->where('target_office_id', $viewer->office_id)
-                           ->where(function ($subOq) use ($viewer) {
-                               $subOq->whereNull('target_user_id')
-                                     ->orWhere('target_user_id', $viewer->id);
-                           });
-                    });
-                }
-
-                // If dispatched to user's department without specific office/officer
-                if ($viewer->department_id) {
-                    $q->orWhere(function ($dq) use ($viewer) {
-                        $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
-                           ->where('target_department_id', $viewer->department_id)
-                           ->whereNull('target_office_id')
-                           ->whereNull('target_user_id');
-                    });
-                }
+            } elseif ($isOfficeLeadership && $viewer->office_id) {
+                // 8. For Office Chief / Deputy Office Chief:
+                // Can see all documents dispatched to their office
+                $q->orWhere(function ($oq) use ($viewer) {
+                    $oq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
+                       ->where('target_office_id', $viewer->office_id);
+                });
             }
+            // Regular Officers (level > 6):
+            // Can ONLY see documents where target_user_id == viewer->id, or registered, acknowledged, or involved in responses/movements.
         });
     }
 
@@ -449,7 +441,9 @@ class InboundDocumentController extends Controller
                 $q->orWhere('target_user_id', $viewer->id);
 
                 // 5. Assigned to this office (not yet delegated to a specific officer)
-                if ($viewer->office_id) {
+                // Only for Office Chief / Deputy Chief (level <= 6) or Admin
+                $isOfficeChief = ($viewer->position && (int)$viewer->position->level <= 6);
+                if ($viewer->office_id && ($isOfficeChief || $isAdmin)) {
                     $q->orWhere(function ($oq) use ($viewer) {
                         $oq->where('target_office_id', $viewer->office_id)
                            ->whereNull('target_user_id');
@@ -457,9 +451,9 @@ class InboundDocumentController extends Controller
                 }
 
                 // 6. Assigned to this department (not yet delegated to an office or officer)
-                // Only for Department leadership (level <= 4) or users without an office
+                // Only for Department leadership (level <= 4) or Admin
                 $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
-                if ($viewer->department_id && ($isDeptDirector || empty($viewer->office_id))) {
+                if ($viewer->department_id && ($isDeptDirector || $isAdmin)) {
                     $q->orWhere(function ($dq) use ($viewer) {
                         $dq->where('target_department_id', $viewer->department_id)
                            ->whereNull('target_office_id')
@@ -523,8 +517,9 @@ class InboundDocumentController extends Controller
         }
 
         $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
+        $isOfficeLeadership = ($viewer->position && (int)$viewer->position->level <= 6);
 
-        return $query->where(function ($q) use ($viewer, $isDeptDirector) {
+        return $query->where(function ($q) use ($viewer, $isDeptDirector, $isOfficeLeadership) {
             // Only dispatched/in progress/completed documents
             $q->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED']);
 
@@ -534,13 +529,20 @@ class InboundDocumentController extends Controller
                        ->orWhereHas('targetOffice', fn($oq) => $oq->where('department_id', $viewer->department_id))
                        ->orWhereHas('targetUser', fn($uq) => $uq->where('department_id', $viewer->department_id));
                 });
-            } elseif ($viewer->office_id) {
+            } elseif ($isOfficeLeadership && $viewer->office_id) {
                 $q->where(function ($oq) use ($viewer) {
                     $oq->where('target_office_id', $viewer->office_id)
                        ->orWhereHas('targetUser', fn($uq) => $uq->where('office_id', $viewer->office_id));
                 });
+            } elseif ($viewer->office_id) {
+                // Regular officer with office:
+                // Only documents assigned to them within their office
+                $q->where('target_office_id', $viewer->office_id)
+                  ->where('target_user_id', $viewer->id);
             } elseif ($viewer->department_id) {
-                $q->where('target_department_id', $viewer->department_id);
+                // Regular officer with department:
+                $q->where('target_department_id', $viewer->department_id)
+                  ->where('target_user_id', $viewer->id);
             } else {
                 $q->where('target_user_id', $viewer->id);
             }

@@ -9,7 +9,13 @@
               <i class="fas fa-users-cog mr-2 text-success"></i>គ្រប់គ្រងព័ត៌មានមន្ត្រី
             </h1>
           </div>
-          <div class="col-sm-6 text-right">
+          <div class="col-sm-6 text-right d-flex justify-content-end align-items-center">
+            <button class="btn btn-outline-success shadow-sm font-khmer mr-2" @click="downloadUserExcelTemplate">
+              <i class="fas fa-file-excel mr-1"></i> ទាញយកគំរូ Excel
+            </button>
+            <button class="btn btn-outline-primary shadow-sm font-khmer mr-2" @click="openImportModal">
+              <i class="fas fa-file-upload mr-1"></i> នាំចូលទិន្នន័យ (Import)
+            </button>
             <button class="btn btn-dark-custom shadow-sm font-khmer" @click="openCreateModal">
               <i class="fas fa-user-plus mr-1"></i> បន្ថែមមន្ត្រីថ្មី
             </button>
@@ -1579,11 +1585,150 @@
         </div>
       </div>
     </div>
+
+    <!-- ==================== Modal នាំចូលទិន្នន័យពី Excel ==================== -->
+    <div v-if="showImportModal" class="custom-modal-backdrop" @click.self="closeImportModal">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable my-auto" role="document">
+        <div class="modal-content shadow-lg border-0 font-khmer rounded-lg overflow-hidden" style="max-height: calc(100vh - 60px); display: flex; flex-direction: column;">
+          <div class="modal-header text-white py-3 flex-shrink-0" style="background: linear-gradient(135deg, #112d26 0%, #1e4d41 100%);">
+            <h5 class="modal-title font-weight-bold d-flex align-items-center mb-0">
+              <i class="fas fa-file-excel text-success mr-2"></i>
+              នាំចូលទិន្នន័យមន្ត្រីពី Excel (.xlsx, .xls, .csv)
+            </h5>
+            <button type="button" class="close text-white" @click="closeImportModal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body p-4 bg-light flex-grow-1" style="overflow-y: auto;">
+            <!-- Step 1: File Upload / Drag & Drop -->
+            <div v-if="!parsedRows.length" class="text-center p-5 border rounded-lg bg-white"
+                 @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="onFileDrop"
+                 :style="{ border: isDragging ? '2px dashed #e2b13c !important' : '2px dashed #28a745 !important', backgroundColor: isDragging ? '#fdf8ea !important' : '#ffffff' }">
+              <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
+              <h5 class="font-weight-bold font-khmer mb-2">ទម្លាក់ File Excel មកទីនេះ ឬចុចដើម្បីជ្រើសរើស</h5>
+              <p class="text-muted font-khmer mb-3 small">គាំទ្រប្រភេទ File: .xlsx, .xls, .csv (ទំហំអតិបរមា 10MB)</p>
+              <input type="file" ref="fileInputRef" class="d-none" accept=".xlsx, .xls, .csv" @change="onExcelFileChange">
+              <div class="d-flex justify-content-center gap-2">
+                <button class="btn btn-outline-primary font-khmer mr-2 shadow-sm" @click="$refs.fileInputRef.click()">
+                  <i class="fas fa-folder-open mr-1"></i> រើស File ពីកុំព្យូទ័រ
+                </button>
+                <button class="btn btn-outline-success font-khmer shadow-sm" @click="downloadUserExcelTemplate">
+                  <i class="fas fa-download mr-1"></i> ទាញយកទម្រង់គំរូ (.xlsx)
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Data Preview & Validation -->
+            <div v-else>
+              <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 p-3 bg-white border rounded shadow-sm">
+                <div>
+                  <h6 class="font-weight-bold font-khmer mb-1">
+                    <i class="fas fa-file-alt text-primary mr-1"></i> {{ importFileName }}
+                  </h6>
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <span class="badge badge-info mr-1">សរុប៖ {{ parsedRows.length }} ជួរ</span>
+                    <span class="badge badge-success mr-1">ត្រឹមត្រូវ៖ {{ validCount }} នាក់</span>
+                    <span class="badge badge-danger" v-if="invalidCount > 0">មិនត្រឹមត្រូវ/ខ្វះទិន្នន័យ៖ {{ invalidCount }} ជួរ</span>
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-sm btn-outline-secondary font-khmer" @click="resetImportFile">
+                    <i class="fas fa-redo mr-1"></i> រើស File ផ្សេង
+                  </button>
+                </div>
+              </div>
+
+              <!-- Alert if errors -->
+              <div class="alert alert-warning py-2 px-3 small font-khmer border-0 shadow-sm" v-if="invalidCount > 0">
+                <i class="fas fa-exclamation-triangle mr-1 text-warning"></i>
+                ជួរដែលមានពណ៌ក្រហម នឹងមិនត្រូវបាននាំចូលទេ (ដោយសារខ្វះឈ្មោះ ឬអ៊ីមែលមិនត្រឹមត្រូវ/ជាន់គ្នា)។
+              </div>
+
+              <!-- Preview Table -->
+              <div class="table-responsive bg-white rounded border shadow-sm" style="max-height: 420px; overflow-y: auto;">
+                <table class="table table-sm table-bordered table-hover font-khmer mb-0" style="font-size: 0.88rem;">
+                  <thead class="thead-light sticky-top">
+                    <tr>
+                      <th class="text-center" style="width: 50px;">ល.រ</th>
+                      <th class="text-center" style="width: 70px;">ID</th>
+                      <th>ឈ្មោះ (ខ្មែរ)</th>
+                      <th>ឈ្មោះ (ឡាតាំង)</th>
+                      <th>ភេទ</th>
+                      <th>អ៊ីមែល</th>
+                      <th>លេខទូរស័ព្ទ</th>
+                      <th>នាយកដ្ឋាន</th>
+                      <th>ការិយាល័យ</th>
+                      <th>មុខតំណែង</th>
+                      <th>ស្ថានភាព</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, idx) in parsedRows" :key="idx" :class="{ 'table-danger': !row._isValid }">
+                      <td class="text-center font-weight-bold">{{ idx + 1 }}</td>
+                      <td class="text-center">
+                        <span class="badge badge-secondary font-weight-bold" v-if="row.id">#{{ row.id }}</span>
+                        <span class="text-muted small" v-else>Auto</span>
+                      </td>
+                      <td class="font-weight-bold text-dark">{{ row.name_kh || '-' }}</td>
+                      <td>{{ row.name_en || '-' }}</td>
+                      <td>{{ row.gender || '-' }}</td>
+                      <td>
+                        <code>{{ row.email || '-' }}</code>
+                        <div class="text-danger small font-weight-bold" v-if="row._error">
+                          <i class="fas fa-times-circle mr-1"></i>{{ row._error }}
+                        </div>
+                      </td>
+                      <td>{{ row.phone || '-' }}</td>
+                      <td>{{ row.department || '-' }}</td>
+                      <td>{{ row.office || '-' }}</td>
+                      <td>{{ row.position || '-' }}</td>
+                      <td class="text-center">
+                        <span class="badge badge-success px-2 py-1" v-if="row._isValid">
+                          <i class="fas fa-check mr-1"></i>ត្រឹមត្រូវ
+                        </span>
+                        <span class="badge badge-danger px-2 py-1" v-else>
+                          <i class="fas fa-exclamation-circle mr-1"></i>កំហុស
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer bg-white py-3 px-4 flex-shrink-0 d-flex justify-content-between align-items-center border-top">
+            <span class="text-muted small">
+              <i class="fas fa-shield-alt text-success mr-1"></i> ប្រព័ន្ធនឹងផ្ទៀងផ្ទាត់ និងបង្កើតគណនីដោយស្វ័យប្រវត្ត
+            </span>
+            <div>
+              <button type="button" class="btn btn-secondary font-khmer mr-2" @click="closeImportModal">បោះបង់</button>
+              <button
+                type="button"
+                class="btn btn-success font-khmer px-4 shadow-sm"
+                :disabled="importing || validCount === 0"
+                @click="submitImport"
+                v-if="parsedRows.length"
+              >
+                <span v-if="importing">
+                  <i class="fas fa-spinner fa-spin mr-1"></i> កំពុងនាំចូល...
+                </span>
+                <span v-else>
+                  <i class="fas fa-cloud-upload-alt mr-1"></i> បញ្ជាក់ការនាំចូល ({{ validCount }} នាក់)
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import Swal from 'sweetalert2';
+import * as XLSX from 'xlsx';
 import {
   apiGetUsers,
   apiReadUser,
@@ -1592,13 +1737,386 @@ import {
   apiToggleUserStatus,
   apiDeleteUser,
   apiUpdateUserPermissions,
+  apiImportUsers,
 } from '@/functions/api/user';
 import { apiGetDepartments } from '@/functions/api/department';
-import { apiGetOfficesByDepartment } from '@/functions/api/office';
+import { apiGetOffices, apiGetOfficesByDepartment } from '@/functions/api/office';
 import { apiGetPositions } from '@/functions/api/position';
 import { useUserStore } from '@/stores/user';
 
 const userStore = useUserStore();
+
+// --- Excel Import Modal State ---
+const showImportModal = ref(false);
+const isDragging = ref(false);
+const fileInputRef = ref(null);
+const importFileName = ref('');
+const parsedRows = ref([]);
+const importing = ref(false);
+
+const validCount = computed(() => parsedRows.value.filter(r => r._isValid).length);
+const invalidCount = computed(() => parsedRows.value.filter(r => !r._isValid).length);
+
+const openImportModal = () => {
+  showImportModal.value = true;
+  parsedRows.value = [];
+  importFileName.value = '';
+  isDragging.value = false;
+};
+
+const closeImportModal = () => {
+  showImportModal.value = false;
+  parsedRows.value = [];
+  importFileName.value = '';
+  isDragging.value = false;
+};
+
+const resetImportFile = () => {
+  parsedRows.value = [];
+  importFileName.value = '';
+  if (fileInputRef.value) fileInputRef.value.value = '';
+};
+
+const onFileDrop = (e) => {
+  isDragging.value = false;
+  const files = e.dataTransfer?.files;
+  if (files && files.length) {
+    processExcelFile(files[0]);
+  }
+};
+
+const onExcelFileChange = (e) => {
+  const file = e.target.files[0];
+  if (file) processExcelFile(file);
+};
+
+const processExcelFile = (file) => {
+  importFileName.value = file.name;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const seenEmails = new Set();
+      const seenIds = new Set();
+
+      parsedRows.value = rawRows.map((r) => {
+        const rawIdVal = r['ID (លេខសម្គាល់)'] !== undefined ? r['ID (លេខសម្គាល់)'] : (r['ID'] !== undefined ? r['ID'] : (r['id'] !== undefined ? r['id'] : ''));
+        let parsedId = null;
+        const trimmedId = String(rawIdVal !== null && rawIdVal !== undefined ? rawIdVal : '').trim();
+        if (trimmedId !== '') {
+          const numId = Number(trimmedId);
+          if (Number.isInteger(numId) && numId > 0) {
+            parsedId = numId;
+          } else {
+            parsedId = 'INVALID';
+          }
+        }
+
+        const nameKh = String(r['គោត្តនាម និងនាម (ខ្មែរ)'] || r['គោត្តនាម និងនាម'] || r['name_kh'] || r['ឈ្មោះ'] || '').trim();
+        const nameEn = String(r['ឈ្មោះជាឡាតាំង (EN)'] || r['ឈ្មោះជាឡាតាំង'] || r['name_en'] || '').trim();
+        const gender = String(r['ភេទ (ប្រុស/ស្រី)'] || r['ភេទ'] || r['gender'] || 'ប្រុស').trim();
+        const email = String(r['អ៊ីមែល (Email)'] || r['អ៊ីមែល'] || r['email'] || '').trim().toLowerCase();
+        const empCode = String(r['អត្តលេខមន្ត្រី (Code)'] || r['អត្តលេខមន្ត្រី'] || r['employee_code'] || '').trim();
+        const phone = String(r['លេខទូរស័ព្ទ (Phone)'] || r['លេខទូរស័ព្ទ'] || r['phone'] || '').trim();
+        const dept = String(r['នាយកដ្ឋាន (Department)'] || r['នាយកដ្ឋាន'] || r['department'] || '').trim();
+        const office = String(r['ការិយាល័យ (Office)'] || r['ការិយាល័យ'] || r['office'] || '').trim();
+        const position = String(r['មុខតំណែង (Position)'] || r['មុខតំណែង'] || r['position'] || '').trim();
+        const empType = String(r['ប្រភេទមន្ត្រី (Employee Type)'] || r['ប្រភេទមន្ត្រី'] || r['employee_type'] || 'មន្ត្រីរាជការ').trim();
+        const officerStatus = String(r['ស្ថានភាពមន្ត្រី (Status)'] || r['ស្ថានភាពមន្ត្រី'] || r['officer_status'] || 'កំពុងបម្រើការ').trim();
+        const password = String(r['ពាក្យសម្ងាត់ (Password)'] || r['ពាក្យសម្ងាត់'] || r['password'] || '123456').trim();
+
+        let dob = String(r['ថ្ងៃខែឆ្នាំកំណើត (DOB)'] || r['ថ្ងៃខែឆ្នាំកំណើត'] || r['dob'] || '').trim();
+        if (typeof r['ថ្ងៃខែឆ្នាំកំណើត (DOB)'] === 'number') {
+          const jsDate = new Date(Math.round((r['ថ្ងៃខែឆ្នាំកំណើត (DOB)'] - 25569) * 86400 * 1000));
+          dob = jsDate.toISOString().split('T')[0];
+        }
+
+        let firstServiceDate = String(r['ថ្ងៃចូលបម្រើការងាររដ្ឋ'] || r['first_service_date'] || '').trim();
+        if (typeof r['ថ្ងៃចូលបម្រើការងាររដ្ឋ'] === 'number') {
+          const jsDate = new Date(Math.round((r['ថ្ងៃចូលបម្រើការងាររដ្ឋ'] - 25569) * 86400 * 1000));
+          firstServiceDate = jsDate.toISOString().split('T')[0];
+        }
+
+        const mefCard = String(r['លេខកាត MEF'] || r['mef_card_number'] || '').trim();
+        const nid = String(r['លេខអត្តសញ្ញាណប័ណ្ណ'] || r['national_id_number'] || '').trim();
+        const birthPlace = String(r['ទីកន្លែងកំណើត'] || r['birth_place'] || '').trim();
+        const currentAddress = String(r['អាសយដ្ឋានបច្ចុប្បន្ន'] || r['current_address'] || '').trim();
+
+        let isValid = true;
+        let error = '';
+
+        if (parsedId === 'INVALID') {
+          isValid = false;
+          error = 'ID ត្រូវតែជាលេខវិជ្ជមាន (Integer > 0)';
+        } else if (parsedId === 1) {
+          isValid = false;
+          error = 'ID = 1 ត្រូវបានប្រើប្រាស់ដោយគណនី Admin';
+        } else if (parsedId && seenIds.has(parsedId)) {
+          isValid = false;
+          error = `ID #${parsedId} ជាន់គ្នាជាមួយជួរខាងលើក្នុង File`;
+        } else if (!nameKh) {
+          isValid = false;
+          error = 'ខ្វះគោត្តនាម និងនាម (ខ្មែរ)';
+        } else if (!email) {
+          isValid = false;
+          error = 'ខ្វះអាសយដ្ឋានអ៊ីមែល';
+        } else if (!emailRegex.test(email)) {
+          isValid = false;
+          error = 'ទម្រង់អ៊ីមែលមិនត្រឹមត្រូវ';
+        } else if (seenEmails.has(email)) {
+          isValid = false;
+          error = 'អ៊ីមែលជាន់គ្នាជាមួយជួរខាងលើ';
+        } else {
+          seenEmails.add(email);
+          if (parsedId) {
+            seenIds.add(parsedId);
+          }
+        }
+
+        return {
+          id: parsedId === 'INVALID' ? null : parsedId,
+          name_kh: nameKh,
+          name_en: nameEn,
+          gender: gender,
+          email: email,
+          password: password,
+          employee_code: empCode,
+          phone: phone,
+          dob: dob,
+          department: dept,
+          office: office,
+          position: position,
+          employee_type: empType,
+          officer_status: officerStatus,
+          mef_card_number: mefCard,
+          national_id_number: nid,
+          birth_place: birthPlace,
+          current_address: currentAddress,
+          first_service_date: firstServiceDate,
+          _isValid: isValid,
+          _error: error,
+        };
+      });
+    } catch (err) {
+      console.error('Error parsing excel:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'កំហុស!',
+        text: 'មិនអាចអាន File Excel បានឡើយ។ សូមពិនិត្យមើលឯកសារម្តងទៀត។',
+        confirmButtonText: 'យល់ព្រម',
+      });
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+const downloadUserExcelTemplate = async () => {
+  try {
+    let allDepts = departments.value;
+    let allPositions = positions.value;
+    let allOffices = [];
+    try {
+      const offRes = await apiGetOffices();
+      allOffices = offRes.data.data || offRes.data || [];
+    } catch (e) {
+      console.warn('Could not fetch all offices for template:', e);
+    }
+
+    const sampleData = [
+      {
+        'ID (លេខសម្គាល់)': 2,
+        'អត្តលេខមន្ត្រី (Code)': 'TR-001',
+        'គោត្តនាម និងនាម (ខ្មែរ)': 'ស៊ុន វណ្ណដា',
+        'ឈ្មោះជាឡាតាំង (EN)': 'SUN VANDA',
+        'ភេទ (ប្រុស/ស្រី)': 'ប្រុស',
+        'អ៊ីមែល (Email)': 'vanda.sun@trms.gov.kh',
+        'ពាក្យសម្ងាត់ (Password)': '123456',
+        'លេខទូរស័ព្ទ (Phone)': '012345678',
+        'ថ្ងៃខែឆ្នាំកំណើត (DOB)': '1992-05-18',
+        'នាយកដ្ឋាន (Department)': 'នាយកដ្ឋានកិច្ចការទូទៅ',
+        'ការិយាល័យ (Office)': 'ការិយាល័យរដ្ឋបាល និងបុគ្គលិក',
+        'មុខតំណែង (Position)': 'ប្រធានការិយាល័យ',
+        'ប្រភេទមន្ត្រី (Employee Type)': 'មន្ត្រីរាជការ',
+        'ស្ថានភាពមន្ត្រី (Status)': 'កំពុងបម្រើការ',
+        'លេខកាត MEF': 'MEF-10023',
+        'លេខអត្តសញ្ញាណប័ណ្ណ': '010203040',
+        'ទីកន្លែងកំណើត': 'ខេត្តកណ្តាល',
+        'អាសយដ្ឋានបច្ចុប្បន្ន': 'រាជធានីភ្នំពេញ',
+        'ថ្ងៃចូលបម្រើការងាររដ្ឋ': '2018-01-15',
+      },
+      {
+        'ID (លេខសម្គាល់)': 3,
+        'អត្តលេខមន្ត្រី (Code)': 'TR-002',
+        'គោត្តនាម និងនាម (ខ្មែរ)': 'សួស ចិន្តា',
+        'ឈ្មោះជាឡាតាំង (EN)': 'SOUS CHINDA',
+        'ភេទ (ប្រុស/ស្រី)': 'ស្រី',
+        'អ៊ីមែល (Email)': 'chinda.sous@trms.gov.kh',
+        'ពាក្យសម្ងាត់ (Password)': '123456',
+        'លេខទូរស័ព្ទ (Phone)': '098765432',
+        'ថ្ងៃខែឆ្នាំកំណើត (DOB)': '1995-10-22',
+        'នាយកដ្ឋាន (Department)': 'នាយកដ្ឋានចុះបញ្ជីបរធនបាលកិច្ច',
+        'ការិយាល័យ (Office)': 'ការិយាល័យគ្រប់គ្រងបរធនបាលកិច្ចហិរញ្ញវត្ថុ',
+        'មុខតំណែង (Position)': 'មន្រ្តី',
+        'ប្រភេទមន្ត្រី (Employee Type)': 'មន្ត្រីរាជការ',
+        'ស្ថានភាពមន្ត្រី (Status)': 'កំពុងបម្រើការ',
+        'លេខកាត MEF': 'MEF-10045',
+        'លេខអត្តសញ្ញាណប័ណ្ណ': '010203099',
+        'ទីកន្លែងកំណើត': 'ខេត្តកំពង់ចាម',
+        'អាសយដ្ឋានបច្ចុប្បន្ន': 'រាជធានីភ្នំពេញ',
+        'ថ្ងៃចូលបម្រើការងាររដ្ឋ': '2021-03-01',
+      },
+      {
+        'ID (លេខសម្គាល់)': 4,
+        'អត្តលេខមន្ត្រី (Code)': 'TR-003',
+        'គោត្តនាម និងនាម (ខ្មែរ)': 'កែវ សុភាព',
+        'ឈ្មោះជាឡាតាំង (EN)': 'KEO SOPHEAP',
+        'ភេទ (ប្រុស/ស្រី)': 'ប្រុស',
+        'អ៊ីមែល (Email)': 'sopheap.keo@trms.gov.kh',
+        'ពាក្យសម្ងាត់ (Password)': '123456',
+        'លេខទូរស័ព្ទ (Phone)': '077889900',
+        'ថ្ងៃខែឆ្នាំកំណើត (DOB)': '1998-12-05',
+        'នាយកដ្ឋាន (Department)': 'នាយកដ្ឋានកិច្ចការទូទៅ',
+        'ការិយាល័យ (Office)': 'ការិយាល័យគ្រប់គ្រងព័ត៌មានវិទ្យា',
+        'មុខតំណែង (Position)': 'មន្រ្តី',
+        'ប្រភេទមន្ត្រី (Employee Type)': 'កិច្ចសន្យា',
+        'ស្ថានភាពមន្ត្រី (Status)': 'កំពុងបម្រើការ',
+        'លេខកាត MEF': '',
+        'លេខអត្តសញ្ញាណប័ណ្ណ': '010203088',
+        'ទីកន្លែងកំណើត': 'ខេត្តតាកែវ',
+        'អាសយដ្ឋានបច្ចុប្បន្ន': 'រាជធានីភ្នំពេញ',
+        'ថ្ងៃចូលបម្រើការងាររដ្ឋ': '2023-06-01',
+      },
+    ];
+
+    const wsOfficers = XLSX.utils.json_to_sheet(sampleData);
+    wsOfficers['!cols'] = [
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 24 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 32 },
+      { wch: 42 },
+      { wch: 24 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 20 },
+    ];
+
+    const maxRows = Math.max(allDepts.length, allOffices.length, allPositions.length);
+    const refRows = [];
+    for (let i = 0; i < maxRows; i++) {
+      const d = allDepts[i];
+      const o = allOffices[i];
+      const p = allPositions[i];
+      refRows.push({
+        'នាយកដ្ឋាន (Code)': d ? d.code : '',
+        'ឈ្មោះនាយកដ្ឋាន': d ? d.name_kh : '',
+        'ការិយាល័យ (Code)': o ? o.code : '',
+        'ឈ្មោះការិយាល័យ': o ? o.name_kh : '',
+        'ឈ្មោះមុខតំណែង': p ? p.title_kh : '',
+        'កម្រិតតំណែង (Level)': p ? p.level : '',
+      });
+    }
+
+    const wsRef = XLSX.utils.json_to_sheet(refRows);
+    wsRef['!cols'] = [
+      { wch: 18 },
+      { wch: 38 },
+      { wch: 18 },
+      { wch: 45 },
+      { wch: 25 },
+      { wch: 18 },
+    ];
+
+    const instructions = [
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '១. ជួរឈរ «ID (លេខសម្គាល់)» មិនតម្រូវឱ្យបំពេញជាកំហិតទេ (Optional)។ ប្រសិនបើបំពេញ ត្រូវតែជាលេខសម្គាល់ធំជាង 1 (លេខ 1 គឺ Admin)។ បើទុកទទេ ប្រព័ន្ធនឹងកំណត់ ID ស្វ័យប្រវត្ត (Auto-increment)។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '២. ជួរឈរដែលមានសញ្ញាចាំបាច់៖ «គោត្តនាម និងនាម (ខ្មែរ)», «ភេទ», និង «អ៊ីមែល»។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៣. អ៊ីមែល ត្រូវតែត្រឹមត្រូវ និងមិនទាន់មានក្នុងប្រព័ន្ធ (ប្រើសម្រាប់ Login)។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៤. ពាក្យសម្ងាត់ បើទុកទទេ ប្រព័ន្ធនឹងកំណត់ស្វ័យប្រវត្តជា "123456"។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៥. នាយកដ្ឋាន និង ការិយាល័យ អាចបំពេញជាឈ្មោះពេញ ឬជា Code (សូមមើល Sheet "តារាងយោង")។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៦. មុខតំណែង ត្រូវបំពេញឈ្មោះមុខតំណែងឱ្យដូចក្នុង Sheet "តារាងយោង"។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៧. ភេទ ត្រូវបំពេញជា «ប្រុស» ឬ «ស្រី»។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៨. ប្រភេទមន្ត្រី អាចបំពេញជា «មន្ត្រីរាជការ», «កិច្ចសន្យា», ឬ «កម្មសិក្សា» (Default: មន្ត្រីរាជការ)។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '៩. ទម្រង់ថ្ងៃខែឆ្នាំកំណើត និងថ្ងៃចូលបម្រើការងារ ត្រូវប្រើទម្រង់ ឆ្នាំ-ខែ-ថ្ងៃ (YYYY-MM-DD ឧទាហរណ៍ 1990-05-18)។' },
+      { 'សេចក្តីណែនាំអំពីការបំពេញទិន្នន័យ (Instructions)': '១០. លោកអ្នកអាចលុបទិន្នន័យគំរូចំនួន ៣ ជួរដំបូងចោល រួចបញ្ចូលទិន្នន័យមន្ត្រីពិតប្រាកដ។' },
+    ];
+
+    const wsInst = XLSX.utils.json_to_sheet(instructions);
+    wsInst['!cols'] = [{ wch: 90 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsOfficers, 'ទិន្នន័យមន្ត្រី');
+    XLSX.utils.book_append_sheet(wb, wsRef, 'តារាងយោង');
+    XLSX.utils.book_append_sheet(wb, wsInst, 'សេចក្តីណែនាំ');
+
+    XLSX.writeFile(wb, 'ទម្រង់គំរូ_នាំចូលទិន្នន័យមន្ត្រី_TRMS.xlsx');
+  } catch (err) {
+    console.error('Error generating excel template:', err);
+    Swal.fire({
+      icon: 'error',
+      title: 'កំហុស!',
+      text: 'មិនអាចទាញយកទម្រង់គំរូ Excel បានទេ សូមព្យាយាមម្តងទៀត។',
+      confirmButtonText: 'យល់ព្រម',
+    });
+  }
+};
+
+const submitImport = async () => {
+  const validRows = parsedRows.value.filter((r) => r._isValid);
+  if (!validRows.length) return;
+
+  importing.value = true;
+  try {
+    const res = await apiImportUsers({ users: validRows });
+    if (res.data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'ជោគជ័យ!',
+        html:
+          `បាននាំចូលមន្ត្រីចំនួន <b>${res.data.imported_count}</b> នាក់ដោយជោគជ័យ!` +
+          (res.data.errors && res.data.errors.length
+            ? `<br><small class="text-danger">មិនបាននាំចូល ${res.data.failed_count} នាក់៖<br>${res.data.errors.join('<br>')}</small>`
+            : ''),
+        confirmButtonText: 'យល់ព្រម',
+      });
+      closeImportModal();
+      fetchUsers(1);
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'បរាជ័យ!',
+        text: res.data.message || 'មានបញ្ហាក្នុងការនាំចូលទិន្នន័យ',
+        confirmButtonText: 'យល់ព្រម',
+      });
+    }
+  } catch (err) {
+    console.error('Import error:', err);
+    const msg = err.response?.data?.message || 'មានបញ្ហាក្នុងការតភ្ជាប់ទៅកាន់ Server';
+    Swal.fire({
+      icon: 'error',
+      title: 'កំហុស!',
+      text: msg,
+      confirmButtonText: 'យល់ព្រម',
+    });
+  } finally {
+    importing.value = false;
+  }
+};
 
 const defaultAvatar = 'https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg';
 
