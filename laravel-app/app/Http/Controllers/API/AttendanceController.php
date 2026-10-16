@@ -8,17 +8,31 @@ use Illuminate\Support\Carbon;
 class AttendanceController extends Controller
 {
     // GET: ទាញយកបញ្ជីវត្តមាន និងមន្ត្រីទាំងអស់
-public function index(Request $request)
-{
-    $date = $request->input('date', Carbon::today()->toDateString());
-    
-    $users = \App\Models\User::with(['department', 'position'])
-        ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
-        ->orderBy('positions.level', 'asc')
-        ->select('users.*')
-        ->get();
+    public function index(Request $request)
+    {
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $departmentId = $request->input('department_id');
+        
+        $query = \App\Models\User::with(['department', 'position'])
+            ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
+            ->orderBy('positions.level', 'asc')
+            ->select('users.*')
+            // បង្ហាញតែ user ដែលកំពុងបម្រើការងារ (ACTIVE)
+            ->where(function ($q) {
+                $q->whereIn(\Illuminate\Support\Facades\DB::raw('UPPER(COALESCE(users.officer_status, ""))'), ['ACTIVE', 'កំពុងបម្រើការ', 'កំពុងបម្រើការងារ', ''])
+                  ->orWhereNull('users.officer_status');
+            })
+            ->where(function ($q) {
+                $q->whereNotIn(\Illuminate\Support\Facades\DB::raw('UPPER(COALESCE(users.status, ""))'), ['DISABLED', 'RETIRED', 'RESIGNED']);
+            });
 
-    $attendances = Attendance::where('date', $date)->get()->keyBy('user_id');
+        if (!empty($departmentId) && $departmentId !== 'all') {
+            $query->where('users.department_id', $departmentId);
+        }
+
+        $users = $query->get();
+
+        $attendances = Attendance::where('date', $date)->get()->keyBy('user_id');
 
     $result = $users->map(function ($user) use ($attendances, $date) {
         $attendance = $attendances->get($user->id);

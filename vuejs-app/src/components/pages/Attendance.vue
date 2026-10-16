@@ -15,10 +15,26 @@
         <div class="card shadow-sm border-0 rounded-lg mb-4">
           <div class="card-body p-3">
             <div class="row align-items-center">
-              <div class="col-md-3 mb-2 mb-md-0">
+              <!-- Date Picker -->
+              <div class="col-xl-2 col-md-3 col-sm-6 mb-2 mb-xl-0">
+                <label class="small text-muted font-weight-bold mb-1 d-block">កាលបរិច្ឆេទ</label>
                 <input type="date" class="form-control" v-model="selectedDate" @change="fetchAttendances" />
               </div>
-              <div class="col-md-4 mb-2 mb-md-0">
+
+              <!-- Department Filter -->
+              <div class="col-xl-3 col-md-4 col-sm-6 mb-2 mb-xl-0">
+                <label class="small text-muted font-weight-bold mb-1 d-block">នាយកដ្ឋាន</label>
+                <select class="form-control" v-model="selectedDepartment" @change="fetchAttendances">
+                  <option value="">-- នាយកដ្ឋានទាំងអស់ --</option>
+                  <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                    {{ dept.name_kh || dept.name }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Search by Name -->
+              <div class="col-xl-3 col-md-5 col-sm-12 mb-2 mb-xl-0">
+                <label class="small text-muted font-weight-bold mb-1 d-block">ស្វែងរកឈ្មោះ</label>
                 <div class="input-group">
                   <div class="input-group-prepend">
                     <span class="input-group-text bg-white border-right-0">
@@ -26,21 +42,31 @@
                     </span>
                   </div>
                   <input type="text" class="form-control border-left-0" v-model="searchQuery" placeholder="ស្វែងរកឈ្មោះមន្ត្រី..." />
+                  <div class="input-group-append" v-if="searchQuery">
+                    <button class="btn btn-outline-secondary border-left-0 bg-white" type="button" @click="searchQuery = ''">
+                      <i class="fas fa-times text-muted"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="col-md-5 text-md-right d-flex justify-content-md-end align-items-center flex-wrap">
+
+              <!-- Action Buttons -->
+              <div class="col-xl-4 col-md-12 text-xl-right d-flex justify-content-xl-end align-items-end flex-wrap pt-2 pt-xl-0">
+                <button @click="exportAttendanceToExcel" class="btn btn-success px-3 shadow-sm mr-2 mb-1" title="ទាញយកទិន្នន័យវត្តមានជា Excel">
+                  <i class="fas fa-file-excel mr-1"></i> ទាញយក Excel
+                </button>
+                <button @click="openImportModal" class="btn btn-outline-success px-3 shadow-sm mr-2 mb-1" title="នាំចូលវត្តមានពី File Excel">
+                  <i class="fas fa-file-import mr-1"></i> Import Excel
+                </button>
                 <button @click="openHikvisionModal" class="btn btn-dark px-3 shadow-sm mr-2 mb-1" title="គ្រប់គ្រងម៉ាស៊ីនស្កេនវត្តមាន HIKVISION">
-                  <i class="fas fa-fingerprint text-warning mr-1"></i> ម៉ាស៊ីន HIKVISION
+                  <i class="fas fa-fingerprint text-warning mr-1"></i> HIKVISION
                   <span v-if="devices.length > 0" class="badge badge-success ml-1">{{ devices.length }}</span>
                 </button>
                 <button @click="triggerQuickDeviceSync" :disabled="syncingDevice" class="btn btn-outline-info px-3 shadow-sm mr-2 mb-1" title="ទាញយកវត្តមានពីម៉ាស៊ីន Hikvision សម្រាប់ថ្ងៃនេះ">
-                  <i class="fas fa-satellite-dish mr-1" :class="{ 'fa-spin': syncingDevice }"></i> {{ syncingDevice ? 'កំពុង Sync...' : 'Sync ពីម៉ាស៊ីន' }}
+                  <i class="fas fa-satellite-dish mr-1" :class="{ 'fa-spin': syncingDevice }"></i> {{ syncingDevice ? 'Syncing...' : 'Sync' }}
                 </button>
-                <button @click="openImportModal" class="btn btn-success px-3 shadow-sm mr-2 mb-1">
-                  <i class="fas fa-file-excel mr-1"></i> Import Excel
-                </button>
-                <button @click="fetchAttendances" class="btn btn-primary px-3 shadow-sm mb-1">
-                  <i class="fas fa-sync-alt mr-1"></i> ផ្ទុកទិន្នន័យ
+                <button @click="fetchAttendances" class="btn btn-primary px-3 shadow-sm mb-1" title="ផ្ទុកទិន្នន័យឡើងវិញ">
+                  <i class="fas fa-sync-alt mr-1"></i>
                 </button>
               </div>
             </div>
@@ -52,9 +78,10 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="bg-light">
                 <tr>
-                  <th class="text-center">ល.រ</th>
-                  <th>ឈ្មោះ</th>
-                  <th>តួនាទី</th>
+                  <th class="text-center" style="width: 50px;">ល.រ</th>
+                  <th class="text-center" style="width: 70px;">ID</th>
+                  <th>ឈ្មោះមន្ត្រី</th>
+                  <th>នាយកដ្ឋាន / តួនាទី</th>
                   <th class="text-center">អវត្តមាន</th>
                   <th class="text-center">ច្បាប់</th>
                   <th class="text-center">បេសកកម្ម</th>
@@ -65,14 +92,26 @@
               </thead>
               <tbody>
                 <tr v-if="filteredAttendances.length === 0">
-                  <td colspan="9" class="text-center py-4 text-muted">
+                  <td colspan="10" class="text-center py-4 text-muted">
                     មិនមានទិន្នន័យមន្ត្រីដែលត្រូវនឹងការស្វែងរកឡើយ
                   </td>
                 </tr>
                 <tr v-else v-for="(item, index) in filteredAttendances" :key="item.user_id">
                   <td class="text-center font-weight-bold">{{ index + 1 }}</td>
-                  <td><div class="font-weight-bold text-dark">{{ item.user?.name_kh || item.user?.name }}</div></td>
-                  <td><span class="text-secondary">{{ item.user?.position?.title_kh || '---' }}</span></td>
+                  <td class="text-center">
+                    <span class="badge badge-secondary font-weight-bold" v-if="item.user?.id">#{{ item.user.id }}</span>
+                    <span class="text-muted small" v-else>---</span>
+                  </td>
+                  <td>
+                    <div class="font-weight-bold text-dark">{{ item.user?.name_kh || item.user?.name }}</div>
+                    <small v-if="item.user?.name_en" class="text-muted">{{ item.user.name_en }}</small>
+                  </td>
+                  <td>
+                    <div class="text-dark font-weight-500">{{ item.user?.position?.title_kh || '---' }}</div>
+                    <small v-if="item.user?.department" class="text-muted d-block">
+                      <i class="fas fa-building text-secondary mr-1"></i>{{ item.user.department?.name_kh || item.user.department?.name }}
+                    </small>
+                  </td>
                   
                   <td class="text-center">
                     <input type="checkbox" :checked="item.status === 'ABSENT'" @change="handleSpecialStatus(item, 'ABSENT')" class="custom-checkbox checkbox-danger">
@@ -728,6 +767,7 @@ import $ from 'jquery';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import { apiGetAttendances, apiSaveAttendance, apiImportAttendances } from '@/functions/api/attendance';
+import { apiGetDepartments } from '@/functions/api/department';
 import {
   apiGetBiometricDevices,
   apiCreateBiometricDevice,
@@ -740,27 +780,62 @@ import {
 } from '@/functions/api/biometricDevice';
 
 const attendances = ref([]);
+const departments = ref([]);
+const selectedDepartment = ref('');
 const searchQuery = ref('');
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
 const attendanceModal = ref(null);
 const form = reactive({ user_id: null, date: '', status: 'PRESENT', check_in_time: '', check_out_time: '', note: '' });
 
 const filteredAttendances = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return attendances.value;
-  }
-  const q = searchQuery.value.toLowerCase().trim();
-  return attendances.value.filter(item => {
-    const nameKh = (item.user?.name_kh || '').toLowerCase();
-    const nameEn = (item.user?.name_en || '').toLowerCase();
-    const name = (item.user?.name || '').toLowerCase();
-    return nameKh.includes(q) || nameEn.includes(q) || name.includes(q);
+  let list = attendances.value;
+
+  // ១. បង្ហាញតែ user ដែលកំពុងបម្រើការងារ (ACTIVE / កំពុងបម្រើការ)
+  list = list.filter((item) => {
+    const officerStatus = (item.user?.officer_status || '').toUpperCase();
+    const status = (item.user?.status || '').toUpperCase();
+    const isActiveOfficer = !officerStatus || officerStatus === 'ACTIVE' || officerStatus === 'កំពុងបម្រើការ' || officerStatus === 'កំពុងបម្រើការងារ';
+    const isNotDisabled = status !== 'DISABLED' && status !== 'RETIRED' && status !== 'RESIGNED';
+    return isActiveOfficer && isNotDisabled;
   });
+
+  // ២. Filter តាមនាយកដ្ឋាន
+  if (selectedDepartment.value) {
+    list = list.filter((item) => String(item.user?.department_id) === String(selectedDepartment.value));
+  }
+
+  // ៣. Filter តាម Search Query (ឈ្មោះ, កូដ, ID)
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    list = list.filter((item) => {
+      const nameKh = (item.user?.name_kh || '').toLowerCase();
+      const nameEn = (item.user?.name_en || '').toLowerCase();
+      const name = (item.user?.name || '').toLowerCase();
+      const id = String(item.user?.id || '');
+      const code = (item.user?.employee_code || '').toLowerCase();
+      return nameKh.includes(q) || nameEn.includes(q) || name.includes(q) || id.includes(q) || code.includes(q);
+    });
+  }
+
+  return list;
 });
 
+const fetchDepartments = async () => {
+  try {
+    const res = await apiGetDepartments();
+    departments.value = res.data.data || res.data || [];
+  } catch (err) {
+    console.error('Error fetching departments:', err);
+  }
+};
+
 const fetchAttendances = async () => {
-  const res = await apiGetAttendances({ date: selectedDate.value });
-  let data = res.data.data;
+  const params = { date: selectedDate.value };
+  if (selectedDepartment.value) {
+    params.department_id = selectedDepartment.value;
+  }
+  const res = await apiGetAttendances(params);
+  let data = res.data.data || [];
   
   data.sort((a, b) => {
     const levelA = a.user?.position?.level ?? 99;
@@ -949,6 +1024,59 @@ const downloadExcelTemplate = () => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
   XLSX.writeFile(workbook, `Attendance_Template_${selectedDate.value}.xlsx`);
+};
+
+// ទាញយកទិន្នន័យវត្តមានជា Excel តាមការស្នើសុំ
+const exportAttendanceToExcel = () => {
+  if (filteredAttendances.value.length === 0) {
+    Swal.fire('មិនមានទិន្នន័យ', 'មិនមានទិន្នន័យវត្តមានសម្រាប់ទាញយកទេ', 'warning');
+    return;
+  }
+
+  const exportData = filteredAttendances.value.map(item => {
+    const isSpecial = ['ABSENT', 'PERMISSION', 'MISSION'].includes(item.status);
+    const checkIn = isSpecial ? '' : (item.check_in_time || '08:00');
+    const checkOut = isSpecial ? '' : (item.check_out_time || '');
+    const totalHours = getWorkingHoursDisplay(item) || '';
+    
+    // Remark (យកពីបញ្ជាក់បន្ថែម - item.note)
+    let remark = item.note || '';
+    if (!remark && isSpecial) {
+      remark = formatStatusKhmer(item.status);
+    }
+
+    return {
+      'ID': item.user?.id ?? '',
+      'Name': item.user?.name_kh || item.user?.name || '',
+      'Date': item.date || selectedDate.value,
+      'ម៉ោងចូល': checkIn,
+      'ម៉ោងចេញ': checkOut,
+      'ម៉ោងសរុប': totalHours,
+      'Remark': remark
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  worksheet['!cols'] = [
+    { wch: 10 }, // ID
+    { wch: 25 }, // Name
+    { wch: 14 }, // Date
+    { wch: 14 }, // ម៉ោងចូល
+    { wch: 14 }, // ម៉ោងចេញ
+    { wch: 18 }, // ម៉ោងសរុប
+    { wch: 30 }  // Remark
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
+
+  let filename = `Attendance_${selectedDate.value}`;
+  if (selectedDepartment.value) {
+    const currentDept = departments.value.find(d => String(d.id) === String(selectedDepartment.value));
+    const deptLabel = currentDept?.name_kh || currentDept?.name || 'Department';
+    filename += `_${deptLabel}`;
+  }
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
 
 // 2. Parse uploaded Excel file
@@ -1423,6 +1551,7 @@ const copyWebhookUrl = () => {
 };
 
 onMounted(async () => {
+  await fetchDepartments();
   await fetchAttendances();
   await fetchDevices();
 });
