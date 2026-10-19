@@ -53,7 +53,7 @@
               <!-- Action Buttons -->
               <div class="col-xl-4 col-md-12 text-xl-right d-flex justify-content-xl-end align-items-end flex-wrap pt-2 pt-xl-0">
                 <button @click="exportAttendanceToExcel" class="btn btn-success px-3 shadow-sm mr-2 mb-1" title="ទាញយកទិន្នន័យវត្តមានជា Excel">
-                  <i class="fas fa-file-excel mr-1"></i> ទាញយក Excel
+                  <i class="fas fa-file-excel mr-1"></i> Export Excel
                 </button>
                 <button @click="openImportModal" class="btn btn-outline-success px-3 shadow-sm mr-2 mb-1" title="នាំចូលវត្តមានពី File Excel">
                   <i class="fas fa-file-import mr-1"></i> Import Excel
@@ -80,7 +80,7 @@
                 <tr>
                   <th class="text-center" style="width: 50px;">ល.រ</th>
                   <th class="text-center" style="width: 70px;">ID</th>
-                  <th>ឈ្មោះមន្ត្រី</th>
+                  <th>ឈ្មោះ</th>
                   <th>នាយកដ្ឋាន / តួនាទី</th>
                   <th class="text-center">អវត្តមាន</th>
                   <th class="text-center">ច្បាប់</th>
@@ -93,7 +93,7 @@
               <tbody>
                 <tr v-if="filteredAttendances.length === 0">
                   <td colspan="10" class="text-center py-4 text-muted">
-                    មិនមានទិន្នន័យមន្ត្រីដែលត្រូវនឹងការស្វែងរកឡើយ
+                    មិនមានទិន្នន័យដែលត្រូវនឹងការស្វែងរកឡើយ
                   </td>
                 </tr>
                 <tr v-else v-for="(item, index) in filteredAttendances" :key="item.user_id">
