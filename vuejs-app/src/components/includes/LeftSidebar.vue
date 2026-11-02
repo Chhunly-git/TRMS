@@ -263,6 +263,14 @@
                 </router-link>
               </li>
 
+              <!-- កំណត់ Workflow ឯកសារ (សម្រាប់តែ Admin និង អគ្គនាយក) -->
+              <li class="nav-item" v-if="isAdminOrDg">
+                <router-link :to="{ name: 'workflow-setup' }" active-class="active" class="nav-link sub-link">
+                  <i class="far fa-circle nav-icon text-success"></i>
+                  <p>កំណត់ Workflow ឯកសារ</p>
+                </router-link>
+              </li>
+
               <!-- Backups (Admin) -->
               <li class="nav-item" v-if="userStore.can('backups')">
                 <router-link :to="{ name: 'backups' }" active-class="active" class="nav-link sub-link">
@@ -314,6 +322,14 @@ const isAssistantActive = computed(() => {
   return route.name === 'inbound-documents' && route.query.tab === 'assistant_inbox';
 });
 
+// សិទ្ធិ Admin ឬ អគ្គនាយក (DG - Position Level 1)
+const isAdminOrDg = computed(() => {
+  const isAdmin = (userStore.level && userStore.level.toUpperCase() === 'ADMIN');
+  const posLevel = userStore.position?.level ? Number(userStore.position.level) : null;
+  const isDg = posLevel === 1;
+  return isAdmin || isDg;
+});
+
 // Computed active status for parent group headers
 const isOfficerGroupActive = computed(() => {
   return [
@@ -343,7 +359,7 @@ const isMeetingRoomGroupActive = computed(() => {
 });
 
 const isSettingGroupActive = computed(() => {
-  return ['setting', 'departments', 'divisions', 'positions', 'working-groups', 'backups'].includes(route.name);
+  return ['setting', 'departments', 'divisions', 'positions', 'working-groups', 'workflow-setup', 'backups'].includes(route.name);
 });
 
 // Auto-expand active group on route change

@@ -484,4 +484,12 @@ class User extends Authenticatable
             ->withPivot(['id', 'role', 'custom_role_kh', 'order_index', 'status', 'joined_date'])
             ->withTimestamps();
     }
+
+    /**
+     * ការកំណត់លំហូរឯកសារ (Workflow Config: View Group & Sending Group)
+     */
+    public function workflowConfig(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DocumentWorkflowConfig::class, 'user_id');
+    }
 }

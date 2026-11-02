@@ -3404,6 +3404,8 @@ const filteredOfficerOptions = computed(() => {
 });
 
 // --- Dynamic Forwarding Target Options & Subordinates Filters ---
+const myWfConfig = computed(() => recipientOptions.value?.my_workflow_config || null);
+
 const forwardTargetTypeOptions = computed(() => {
   const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
   if (isSuper) {
@@ -3413,6 +3415,51 @@ const forwardTargetTypeOptions = computed(() => {
       { value: 'OFFICER', label: 'មន្ត្រីជាក់លាក់', icon: 'fas fa-user-circle text-primary' },
       { value: 'WORKING_GROUP', label: 'ក្រុមការងារ', icon: 'fas fa-users-cog text-indigo' },
     ];
+  }
+
+  // 1. Check if user has explicit Workflow Sending Group configuration
+  if (myWfConfig.value) {
+    const st = myWfConfig.value.send_type;
+    if (st === 'ALL') {
+      return [
+        { value: 'DEPARTMENT', label: 'នាយកដ្ឋាន', icon: 'fas fa-building text-secondary' },
+        { value: 'OFFICE', label: 'ការិយាល័យ', icon: 'fas fa-door-closed text-info' },
+        { value: 'OFFICER', label: 'មន្ត្រីជាក់លាក់', icon: 'fas fa-user-circle text-primary' },
+        { value: 'WORKING_GROUP', label: 'ក្រុមការងារ', icon: 'fas fa-users-cog text-indigo' },
+      ];
+    }
+    if (st === 'DEPARTMENT') {
+      return [
+        { value: 'OFFICE', label: 'ការិយាល័យក្នុងនាយកដ្ឋាន', icon: 'fas fa-door-closed text-info' },
+        { value: 'OFFICER', label: 'មន្ត្រីក្នុងនាយកដ្ឋាន', icon: 'fas fa-user-circle text-primary' },
+      ];
+    }
+    if (st === 'OFFICE') {
+      return [
+        { value: 'OFFICER', label: 'មន្ត្រីក្នុងការិយាល័យ', icon: 'fas fa-user-circle text-primary' },
+      ];
+    }
+    if (st === 'SUBORDINATES') {
+      return [
+        { value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទ', icon: 'fas fa-user-circle text-primary' },
+      ];
+    }
+    if (st === 'CUSTOM') {
+      const customOpts = [];
+      if (myWfConfig.value.send_dept_ids?.length) {
+        customOpts.push({ value: 'DEPARTMENT', label: 'នាយកដ្ឋានគោលដៅ (Custom)', icon: 'fas fa-building text-secondary' });
+      }
+      if (myWfConfig.value.send_office_ids?.length) {
+        customOpts.push({ value: 'OFFICE', label: 'ការិយាល័យគោលដៅ (Custom)', icon: 'fas fa-door-closed text-info' });
+      }
+      if (myWfConfig.value.send_user_ids?.length) {
+        customOpts.push({ value: 'OFFICER', label: 'មន្ត្រីគោលដៅ (Custom)', icon: 'fas fa-user-circle text-primary' });
+      }
+      if (myWfConfig.value.send_working_group_ids?.length) {
+        customOpts.push({ value: 'WORKING_GROUP', label: 'ក្រុមការងារគោលដៅ (Custom)', icon: 'fas fa-users-cog text-indigo' });
+      }
+      if (customOpts.length > 0) return customOpts;
+    }
   }
 
   const userPosLevel = userStore.position ? Number(userStore.position.level) : 999;
@@ -3445,6 +3492,19 @@ const availableForwardOffices = computed(() => {
   const offices = recipientOptions.value.offices || [];
   const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
   if (isSuper) return offices;
+
+  if (myWfConfig.value) {
+    if (myWfConfig.value.send_type === 'ALL') return offices;
+    if (myWfConfig.value.send_type === 'CUSTOM') {
+      const allowed = (myWfConfig.value.send_office_ids || []).map(Number);
+      return offices.filter(o => allowed.includes(Number(o.id)));
+    }
+    if (myWfConfig.value.send_type === 'DEPARTMENT' && userStore.department_id) {
+      return offices.filter(o => Number(o.department_id) === Number(userStore.department_id));
+    }
+    return [];
+  }
+
   if (userStore.department_id) {
     return offices.filter(o => Number(o.department_id) === Number(userStore.department_id));
   }
@@ -3462,6 +3522,33 @@ const availableForwardOfficers = computed(() => {
   const isDeptLeader = userPosLevel <= 5;
   const isOfficeLeader = userPosLevel <= 8;
   const targetType = forwardForm.target_type;
+
+  // 1. Check explicit Workflow Sending Group configuration
+  if (myWfConfig.value) {
+    if (myWfConfig.value.send_type === 'ALL') {
+      return users.filter(u => Number(u.id) !== Number(userStore.id));
+    }
+    if (myWfConfig.value.send_type === 'CUSTOM') {
+      const allowed = (myWfConfig.value.send_user_ids || []).map(Number);
+      return users.filter(u => allowed.includes(Number(u.id)) && Number(u.id) !== Number(userStore.id));
+    }
+    if (myWfConfig.value.send_type === 'DEPARTMENT') {
+      return users.filter(u => Number(u.department_id) === Number(userStore.department_id) && Number(u.id) !== Number(userStore.id));
+    }
+    if (myWfConfig.value.send_type === 'OFFICE') {
+      return users.filter(u => Number(u.office_id) === Number(userStore.office_id) && Number(u.id) !== Number(userStore.id));
+    }
+    if (myWfConfig.value.send_type === 'SUBORDINATES') {
+      return users.filter(u => {
+        const uPosLevel = u.position ? Number(u.position.level) : 999;
+        const sameOffice = userStore.office_id && Number(u.office_id) === Number(userStore.office_id);
+        const sameDept = userStore.department_id && Number(u.department_id) === Number(userStore.department_id);
+        return (sameOffice || sameDept) && Number(u.id) !== Number(userStore.id) && uPosLevel > userPosLevel;
+      });
+    }
+  }
+
+  // 2. Default hierarchy fallbacks
 
   // If WG_MEMBER selected or user is forwarding within WG
   if (targetType === 'WG_MEMBER' || (isUserLeaderOfAssignedWorkingGroup(selectedDoc.value) && targetType === 'OFFICER' && !isDeptLeader && !isOfficeLeader)) {

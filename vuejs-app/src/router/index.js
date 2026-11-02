@@ -30,6 +30,7 @@ import LeaveRequest from "@/components/pages/LeaveRequest.vue";
 import InboundDocument from "@/components/pages/InboundDocument.vue";
 import InboundDocumentRoutingSlip from "@/components/pages/InboundDocumentRoutingSlip.vue";
 import WorkingGroup from "@/components/pages/WorkingGroup.vue";
+import WorkflowSetup from "@/components/pages/WorkflowSetup.vue";
 
 
 // Layout Components
@@ -327,6 +328,17 @@ const router = createRouter({
       meta: { guarded: true, permission: "working-groups" },
     },
     {
+      path: "/workflow-setup",
+      name: "workflow-setup",
+      components: {
+        default: WorkflowSetup,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, requiresAdminOrDg: true },
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/",
     },
@@ -352,6 +364,16 @@ router.beforeEach((to, from) => {
   // 2. ប្រសិនបើជា ADMIN មានសិទ្ធិចូលគ្រប់ route ទាំងអស់
   if (userLevel && userLevel.toUpperCase() === "ADMIN") {
     return true;
+  }
+
+  // 2.1 ពិនិត្យសិទ្ធិសម្រាប់ទំព័រ Workflow Setup (មានតែ Admin និង អគ្គនាយក)
+  if (to.meta.requiresAdminOrDg) {
+    const posLevel = userStore.position?.level ? Number(userStore.position.level) : null;
+    const isDg = posLevel === 1;
+    if (isDg) {
+      return true;
+    }
+    return { name: "profile" };
   }
 
   // 3. ឆែកមើលថាតើ route នេះត្រូវការសិទ្ធិ (permission) ដែរឬទេ?

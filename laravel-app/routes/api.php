@@ -19,6 +19,7 @@ use App\Http\Controllers\API\LeaveRequestController;
 use App\Http\Controllers\API\InboundDocumentController;
 use App\Http\Controllers\API\WorkingGroupController;
 use App\Http\Controllers\API\HikvisionAttendanceController;
+use App\Http\Controllers\API\WorkflowConfigController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -167,6 +168,9 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::post('/{id}/members', [WorkingGroupController::class, 'addMember']);
         Route::delete('/{id}/members/{memberId}', [WorkingGroupController::class, 'removeMember']);
     });
+
+    // ការកំណត់ Workflow ផ្ទាល់ខ្លួនរបស់មន្ត្រីកំពុង Login
+    Route::get('/workflow-configs/my-config', [WorkflowConfigController::class, 'myConfig']);
     
     Route::middleware('admin')->prefix('manage')->group(function () {
         
@@ -244,6 +248,16 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
             Route::post('/create', [DocumentTemplateController::class, 'store']);
             Route::post('/update/{id}', [DocumentTemplateController::class, 'update']);
             Route::delete('/delete/{id}', [DocumentTemplateController::class, 'destroy']);
+        });
+
+        // 7. Workflow Setup (View Type Group & Sending Type Group)
+        Route::prefix('workflow-configs')->group(function () {
+            Route::get('/', [WorkflowConfigController::class, 'index']);
+            Route::get('/options', [WorkflowConfigController::class, 'options']);
+            Route::get('/{userId}', [WorkflowConfigController::class, 'show']);
+            Route::post('/save', [WorkflowConfigController::class, 'storeOrUpdate']);
+            Route::post('/batch-save', [WorkflowConfigController::class, 'batchUpdate']);
+            Route::delete('/{userId}', [WorkflowConfigController::class, 'destroy']);
         });
     });
 });

@@ -116,11 +116,15 @@ class InboundDocumentController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
+        $viewer = $request->user();
+        $myConfig = $viewer ? \App\Models\DocumentWorkflowConfig::where('user_id', $viewer->id)->first() : null;
+
         return response()->json([
             'departments' => $departments,
             'offices' => $offices,
             'users' => $users,
             'working_groups' => $workingGroups,
+            'my_workflow_config' => $myConfig,
         ]);
     }
 
@@ -365,16 +369,145 @@ class InboundDocumentController extends Controller
     /**
      * Scope: ឯកសារដែលអាចមើលឃើញដោយអ្នកប្រើប្រាស់ (Accessible by Viewer)
      * Regular users can ONLY see documents they have received or are involved in.
+     * Controlled by DocumentWorkflowConfig (View Type Group) if configured.
      */
     protected function scopeAccessibleByViewer($query, $viewer)
     {
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
-        $isLeadership = ($viewerPosLevel <= 2);
+        $isDg = ($viewerPosLevel === 1);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
 
-        // Admin, Leadership (DG/DDG), and DG Assistant have full visibility across the system
-        if ($isAdmin || $isLeadership || $isAssistant) {
+        // លើកលែងតែអគ្គនាយកតែមួយគត់ (DG - Level 1) និង Admin/ជំនួយការ ដែលអាចមើលឃើញគ្រប់ឯកសារទាំងអស់ដោយស្វ័យប្រវត្តិ
+        if ($isDg || $isAdmin || $isAssistant) {
+            return $query;
+        }
+
+        // Check explicit DocumentWorkflowConfig (View Type Group)
+        $wfConfig = \App\Models\DocumentWorkflowConfig::where('user_id', $viewer->id)->first();
+
+        if ($wfConfig) {
+            // 1. ALL: Full view across all documents in system
+            if ($wfConfig->view_type === 'ALL' || $isAdmin) {
+                return $query;
+            }
+
+            // 2. SELF_ONLY: Only documents assigned, drafted, registered, or acknowledged by the user
+            if ($wfConfig->view_type === 'SELF_ONLY') {
+                return $query->where(function ($q) use ($viewer) {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhere('registered_by', $viewer->id)
+                      ->orWhere('acknowledged_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id))
+                      ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id))
+                      ->orWhereHas('movements', fn($mq) => $mq->where('user_id', $viewer->id));
+                });
+            }
+
+            // 3. DEPARTMENT: Can view all documents within their department
+            if ($wfConfig->view_type === 'DEPARTMENT') {
+                $deptIds = !empty($wfConfig->view_dept_ids) ? $wfConfig->view_dept_ids : array_filter([$viewer->department_id]);
+                return $query->where(function ($q) use ($viewer, $deptIds) {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhere('registered_by', $viewer->id)
+                      ->orWhere('acknowledged_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id))
+                      ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id))
+                      ->orWhereHas('movements', fn($mq) => $mq->where('user_id', $viewer->id));
+
+                    if (!empty($deptIds)) {
+                        $q->orWhereIn('target_department_id', $deptIds)
+                          ->orWhereHas('assignments', fn($aq) => $aq->whereIn('department_id', $deptIds))
+                          ->orWhereHas('targetOffice', fn($oq) => $oq->whereIn('department_id', $deptIds))
+                          ->orWhereHas('assignments.office', fn($oq) => $oq->whereIn('department_id', $deptIds))
+                          ->orWhereHas('targetUser', fn($uq) => $uq->whereIn('department_id', $deptIds))
+                          ->orWhereHas('assignments.user', fn($uq) => $uq->whereIn('department_id', $deptIds))
+                          ->orWhereHas('responses', fn($rq) => $rq->whereIn('department_id', $deptIds));
+                    }
+                });
+            }
+
+            // 4. OFFICE: Can view all documents within their office
+            if ($wfConfig->view_type === 'OFFICE') {
+                $officeIds = !empty($wfConfig->view_office_ids) ? $wfConfig->view_office_ids : array_filter([$viewer->office_id]);
+                return $query->where(function ($q) use ($viewer, $officeIds) {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhere('registered_by', $viewer->id)
+                      ->orWhere('acknowledged_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id))
+                      ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id))
+                      ->orWhereHas('movements', fn($mq) => $mq->where('user_id', $viewer->id));
+
+                    if (!empty($officeIds)) {
+                        $q->orWhereIn('target_office_id', $officeIds)
+                          ->orWhereHas('assignments', fn($aq) => $aq->whereIn('office_id', $officeIds))
+                          ->orWhereHas('targetUser', fn($uq) => $uq->whereIn('office_id', $officeIds))
+                          ->orWhereHas('assignments.user', fn($uq) => $uq->whereIn('office_id', $officeIds))
+                          ->orWhereHas('responses', fn($rq) => $rq->whereIn('office_id', $officeIds));
+                    }
+                });
+            }
+
+            // 5. SUBORDINATES: Can view own documents + subordinates in their unit
+            if ($wfConfig->view_type === 'SUBORDINATES') {
+                return $query->where(function ($q) use ($viewer, $viewerPosLevel) {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhere('registered_by', $viewer->id)
+                      ->orWhere('acknowledged_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id))
+                      ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id))
+                      ->orWhereHas('movements', fn($mq) => $mq->where('user_id', $viewer->id))
+                      ->orWhereHas('targetUser', function ($uq) use ($viewer, $viewerPosLevel) {
+                          $uq->where(function ($sq) use ($viewer) {
+                              if ($viewer->office_id) $sq->where('office_id', $viewer->office_id);
+                              elseif ($viewer->department_id) $sq->where('department_id', $viewer->department_id);
+                          })->whereHas('position', fn($pq) => $pq->where('level', '>', $viewerPosLevel));
+                      })
+                      ->orWhereHas('assignments.user', function ($uq) use ($viewer, $viewerPosLevel) {
+                          $uq->where(function ($sq) use ($viewer) {
+                              if ($viewer->office_id) $sq->where('office_id', $viewer->office_id);
+                              elseif ($viewer->department_id) $sq->where('department_id', $viewer->department_id);
+                          })->whereHas('position', fn($pq) => $pq->where('level', '>', $viewerPosLevel));
+                      });
+                });
+            }
+
+            // 6. CUSTOM: Can view specific departments, offices, users, or working groups selected by admin
+            if ($wfConfig->view_type === 'CUSTOM') {
+                $customDeptIds = $wfConfig->view_dept_ids ?: [];
+                $customOfficeIds = $wfConfig->view_office_ids ?: [];
+                $customUserIds = $wfConfig->view_user_ids ?: [];
+                $customWgIds = $wfConfig->view_working_group_ids ?: [];
+
+                return $query->where(function ($q) use ($viewer, $customDeptIds, $customOfficeIds, $customUserIds, $customWgIds) {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhere('registered_by', $viewer->id)
+                      ->orWhere('acknowledged_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id))
+                      ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id))
+                      ->orWhereHas('movements', fn($mq) => $mq->where('user_id', $viewer->id));
+
+                    if (!empty($customDeptIds)) {
+                        $q->orWhereIn('target_department_id', $customDeptIds)
+                          ->orWhereHas('assignments', fn($aq) => $aq->whereIn('department_id', $customDeptIds));
+                    }
+                    if (!empty($customOfficeIds)) {
+                        $q->orWhereIn('target_office_id', $customOfficeIds)
+                          ->orWhereHas('assignments', fn($aq) => $aq->whereIn('office_id', $customOfficeIds));
+                    }
+                    if (!empty($customUserIds)) {
+                        $q->orWhereIn('target_user_id', $customUserIds)
+                          ->orWhereHas('assignments', fn($aq) => $aq->whereIn('user_id', $customUserIds));
+                    }
+                    if (!empty($customWgIds)) {
+                        $q->orWhereHas('assignments', fn($aq) => $aq->whereIn('working_group_id', $customWgIds));
+                    }
+                });
+            }
+        }
+
+        // លើកលែងតែ Admin, អគ្គនាយក (DG - Level 1) និង ជំនួយការអគ្គនាយក
+        if ($isAdmin || $isDg || $isAssistant) {
             return $query;
         }
 
@@ -471,10 +604,11 @@ class InboundDocumentController extends Controller
     protected function canUserAccessDocument($doc, $viewer): bool
     {
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $isDg = ($viewer->position && (int) $viewer->position->level === 1);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
 
-        if ($isAdmin || $isLeadership || $isAssistant) {
+        // លើកលែងតែអគ្គនាយកតែមួយគត់ (DG - Level 1) និង Admin/ជំនួយការ
+        if ($isAdmin || $isDg || $isAssistant) {
             return true;
         }
 
@@ -1469,9 +1603,97 @@ class InboundDocumentController extends Controller
         $newDeptId = $request->input('target_department_id');
         $newWgId = $request->input('target_working_group_id') ?: $request->input('working_group_id');
 
-        // Enforce the hierarchical subordination constraint:
-        // "អ្នកដែលមានតួនាទីនៅលើ អាចចំណារទៅអ្នកថ្នាក់ក្រោមបន្តបាន ឱ្យតែស្ថិតនៅក្នុងនាយកដ្ឋាន ការិយាល័យ ឬក្រុមការងារជាមួយគ្នា"
-        if (!$isSuper) {
+        // Enforce Workflow Sending Constraints (Sending Type Group) or Default Hierarchy
+        $wfConfig = \App\Models\DocumentWorkflowConfig::where('user_id', $viewer->id)->first();
+
+        if ($wfConfig) {
+            if ($wfConfig->send_type === 'ALL' || $isSuper) {
+                // Allowed to forward to all departments, offices, officers, and working groups without restriction
+            } elseif ($wfConfig->send_type === 'CUSTOM') {
+                $allowedDeptIds = array_map('intval', $wfConfig->send_dept_ids ?: []);
+                $allowedOfficeIds = array_map('intval', $wfConfig->send_office_ids ?: []);
+                $allowedUserIds = array_map('intval', $wfConfig->send_user_ids ?: []);
+                $allowedWgIds = array_map('intval', $wfConfig->send_working_group_ids ?: []);
+
+                if ($targetType === 'DEPARTMENT' || $newDeptId) {
+                    if (!in_array((int)$newDeptId, $allowedDeptIds)) {
+                        return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់នាយកដ្ឋាននេះឡើយ (តាមការកំណត់ Sending Group)!'], 403);
+                    }
+                }
+                if ($targetType === 'OFFICE' || $newOfficeId) {
+                    if (!in_array((int)$newOfficeId, $allowedOfficeIds)) {
+                        return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់ការិយាល័យនេះឡើយ (តាមការកំណត់ Sending Group)!'], 403);
+                    }
+                }
+                if ($targetType === 'WORKING_GROUP' || $newWgId) {
+                    if (!in_array((int)$newWgId, $allowedWgIds)) {
+                        return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់ក្រុមការងារនេះឡើយ (តាមការកំណត់ Sending Group)!'], 403);
+                    }
+                }
+                if (!empty($userIds)) {
+                    foreach ($userIds as $uid) {
+                        if (!in_array((int)$uid, $allowedUserIds)) {
+                            $tu = User::find($uid);
+                            $tuName = $tu ? ($tu->name_kh ?: $tu->name) : "ID {$uid}";
+                            return response()->json(['message' => "លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់មន្ត្រី {$tuName} ឡើយ (តាមការកំណត់ Sending Group)!"], 403);
+                        }
+                    }
+                }
+            } elseif ($wfConfig->send_type === 'DEPARTMENT') {
+                $myDeptId = (int) $viewer->department_id;
+                if ($targetType === 'DEPARTMENT' || ($newDeptId && (int)$newDeptId !== $myDeptId)) {
+                    return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានតែក្នុងនាយកដ្ឋានរបស់លោកអ្នកប៉ុណ្ណោះ!'], 403);
+                }
+                if ($targetType === 'WORKING_GROUP' || $newWgId) {
+                    return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់ក្រុមការងារឡើយ!'], 403);
+                }
+                if ($targetType === 'OFFICE' || $newOfficeId) {
+                    $targetOffice = \App\Models\Office::find($newOfficeId);
+                    if (!$targetOffice || (int)$targetOffice->department_id !== $myDeptId) {
+                        return response()->json(['message' => 'ការិយាល័យនេះមិនស្ថិតនៅក្នុងនាយកដ្ឋានរបស់លោកអ្នកឡើយ!'], 422);
+                    }
+                }
+                if (!empty($userIds)) {
+                    $targetUsers = User::whereIn('id', $userIds)->get();
+                    foreach ($targetUsers as $tu) {
+                        if ((int)$tu->department_id !== $myDeptId || $tu->id === $viewer->id) {
+                            return response()->json(['message' => "មន្ត្រី {$tu->name_kh} មិនស្ថិតក្នុងនាយកដ្ឋានរបស់លោកអ្នកឡើយ!"], 422);
+                        }
+                    }
+                }
+            } elseif ($wfConfig->send_type === 'OFFICE') {
+                $myOfficeId = (int) $viewer->office_id;
+                if ($targetType === 'DEPARTMENT' || $newDeptId || $targetType === 'WORKING_GROUP' || $newWgId) {
+                    return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានតែក្នុងការិយាល័យរបស់លោកអ្នកប៉ុណ្ណោះ!'], 403);
+                }
+                if ($targetType === 'OFFICE' && (int)$newOfficeId !== $myOfficeId) {
+                    return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានតែក្នុងការិយាល័យរបស់លោកអ្នកប៉ុណ្ណោះ!'], 403);
+                }
+                if (!empty($userIds)) {
+                    $targetUsers = User::whereIn('id', $userIds)->get();
+                    foreach ($targetUsers as $tu) {
+                        if ((int)$tu->office_id !== $myOfficeId || $tu->id === $viewer->id) {
+                            return response()->json(['message' => "មន្ត្រី {$tu->name_kh} មិនស្ថិតក្នុងការិយាល័យរបស់លោកអ្នកឡើយ!"], 422);
+                        }
+                    }
+                }
+            } elseif ($wfConfig->send_type === 'SUBORDINATES') {
+                if ($targetType === 'DEPARTMENT' || $newDeptId || $targetType === 'WORKING_GROUP' || $newWgId) {
+                    return response()->json(['message' => 'លោកអ្នកមានសិទ្ធិចាត់បន្តបានត្រឹមតែមន្ត្រីក្រោមឱវាទប៉ុណ្ណោះ!'], 403);
+                }
+                if (!empty($userIds)) {
+                    $targetUsers = User::with('position')->whereIn('id', $userIds)->get();
+                    foreach ($targetUsers as $tu) {
+                        $tuLevel = $tu->position ? (int) $tu->position->level : 999;
+                        $sameDept = $viewer->department_id && (int)$tu->department_id === (int)$viewer->department_id;
+                        $sameOffice = $viewer->office_id && (int)$tu->office_id === (int)$viewer->office_id;
+                        if ((!$sameDept && !$sameOffice) || $tu->id === $viewer->id || $tuLevel <= $viewerPosLevel) {
+                            return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានត្រឹមតែមន្ត្រីក្រោមឱវាទប៉ុណ្ណោះ!'], 422);
+                        }
+                    }
+                }
+            }
+        } elseif (!$isSuper) {
             // Non-super cannot forward to other departments
             if ($targetType === 'DEPARTMENT' || $newDeptId) {
                 return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់នាយកដ្ឋានផ្សេងឡើយ!'], 403);

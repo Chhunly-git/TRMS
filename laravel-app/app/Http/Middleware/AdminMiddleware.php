@@ -83,6 +83,11 @@ class AdminMiddleware
             return $user->hasPermission('manage-meeting-rooms') || $user->canManageRooms();
         }
 
+        if (str_contains($path, 'manage/workflow-configs') || str_contains($path, 'workflow-configs')) {
+            // មានតែ Admin និងអគ្គនាយក (DG - Position Level 1) ប៉ុណ្ណោះ
+            return ($user->position && (int) $user->position->level === 1);
+        }
+
         if (str_contains($path, 'working-groups')) {
             return $user->hasPermission('working-groups') || ($request->isMethod('GET') && $user->hasPermission('inbound-documents'));
         }
