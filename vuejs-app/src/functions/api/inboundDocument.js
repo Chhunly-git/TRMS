@@ -163,3 +163,21 @@ export function apiDeleteSenderOrganization(id) {
   return axios.delete(`${APP_API_URL}/inbound-documents/sender-organizations/${id}`);
 }
 
+// 25. ទាញយកលំហូរតាមដានឯកសារទាំងមូល (Visual Document Flow Tracking)
+export function apiGetInboundTrackingFlow(id) {
+  return axios.get(`${APP_API_URL}/inbound-documents/${id}/tracking-flow`);
+}
+
+// 26. ទាញយកព័ត៌មានលម្អិតនៃលិខិតឆ្លើយតប
+export function apiGetResponseDetail(responseId) {
+  return axios.get(`${APP_API_URL}/inbound-documents/responses/${responseId}`);
+}
+
+// 27. កែប្រែសេចក្តីព្រាងលិខិតឆ្លើយតប
+export function apiUpdateResponseDraft(responseId, formData) {
+  return axios.post(`${APP_API_URL}/inbound-documents/responses/${responseId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+}
+
+

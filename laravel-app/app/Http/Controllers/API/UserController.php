@@ -18,6 +18,7 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Services\StorageService;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -117,11 +118,11 @@ class UserController extends Controller
                 $file = $request->file('profile_image');
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
-                // រក្សាទុកក្នុង storage/app/public/users/profile-images
-                $file->storeAs('users/profile-images', $filename, 'public');
+                // រក្សាទុកក្នុង users/profile-images
+                StorageService::storeAs($file, 'users/profile-images', $filename);
 
                 // រក្សាទុកចម្លងទៅ thumbnails ផងដែរ
-                $file->storeAs('users/profile-images/thumbnails', $filename, 'public');
+                StorageService::storeAs($file, 'users/profile-images/thumbnails', $filename);
 
                 $data['profile_image'] = 'users/profile-images/' . $filename;
             }
@@ -130,7 +131,7 @@ class UserController extends Controller
             if ($request->hasFile('national_id_file')) {
                 $file = $request->file('national_id_file');
                 $filename = time() . '_nid_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('users/national-ids', $filename, 'public');
+                StorageService::storeAs($file, 'users/national-ids', $filename);
                 $data['national_id_file'] = 'users/national-ids/' . $filename;
             }
 
@@ -138,7 +139,7 @@ class UserController extends Controller
             if ($request->hasFile('passport_file')) {
                 $file = $request->file('passport_file');
                 $filename = time() . '_passport_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('users/passports', $filename, 'public');
+                StorageService::storeAs($file, 'users/passports', $filename);
                 $data['passport_file'] = 'users/passports/' . $filename;
             }
 
@@ -268,7 +269,7 @@ class UserController extends Controller
                         if ($request->hasFile("education_file_{$idx}")) {
                             $file = $request->file("education_file_{$idx}");
                             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                            $file->storeAs('users/educations', $filename, 'public');
+                            StorageService::storeAs($file, 'users/educations', $filename);
                             $item['certificate_file'] = 'users/educations/' . $filename;
                         }
                         $clean[] = $item;
@@ -376,40 +377,40 @@ class UserController extends Controller
                 if ($user->profile_image) {
                     Storage::disk('public')->delete($user->profile_image);
                     $oldThumb = str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $user->profile_image);
-                    Storage::disk('public')->delete($oldThumb);
+                    StorageService::delete($oldThumb);
                 }
 
                 $file = $request->file('profile_image');
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
-                // រក្សាទុកក្នុង storage/app/public/users/profile-images
-                $file->storeAs('users/profile-images', $filename, 'public');
+                // រក្សាទុកក្នុង users/profile-images
+                StorageService::storeAs($file, 'users/profile-images', $filename);
 
                 // រក្សាទុកចម្លងទៅ thumbnails ផងដែរ
-                $file->storeAs('users/profile-images/thumbnails', $filename, 'public');
+                StorageService::storeAs($file, 'users/profile-images/thumbnails', $filename);
 
                 $data['profile_image'] = 'users/profile-images/' . $filename;
             }
 
             // ✅ Handle National ID File Update
             if ($request->hasFile('national_id_file')) {
-                if ($user->national_id_file) {
-                    Storage::disk('public')->delete($user->national_id_file);
+                if ($user->getRawOriginal('national_id_file')) {
+                    StorageService::delete($user->getRawOriginal('national_id_file'));
                 }
                 $file = $request->file('national_id_file');
                 $filename = time() . '_nid_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('users/national-ids', $filename, 'public');
+                StorageService::storeAs($file, 'users/national-ids', $filename);
                 $data['national_id_file'] = 'users/national-ids/' . $filename;
             }
 
             // ✅ Handle Passport File Update
             if ($request->hasFile('passport_file')) {
-                if ($user->passport_file) {
-                    Storage::disk('public')->delete($user->passport_file);
+                if ($user->getRawOriginal('passport_file')) {
+                    StorageService::delete($user->getRawOriginal('passport_file'));
                 }
                 $file = $request->file('passport_file');
                 $filename = time() . '_passport_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('users/passports', $filename, 'public');
+                StorageService::storeAs($file, 'users/passports', $filename);
                 $data['passport_file'] = 'users/passports/' . $filename;
             }
 
@@ -551,7 +552,7 @@ class UserController extends Controller
                         if ($request->hasFile("education_file_{$idx}")) {
                             $file = $request->file("education_file_{$idx}");
                             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                            $file->storeAs('users/educations', $filename, 'public');
+                            StorageService::storeAs($file, 'users/educations', $filename);
                             $item['certificate_file'] = 'users/educations/' . $filename;
                         }
                         $clean[] = $item;
@@ -623,10 +624,11 @@ class UserController extends Controller
             DB::beginTransaction();
 
             // លុបរូបភាពពី Storage ពេលលុប User
-            if ($user->profile_image) {
-                Storage::disk('public')->delete($user->profile_image);
-                $thumb = str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $user->profile_image);
-                Storage::disk('public')->delete($thumb);
+            $rawProfile = $user->getRawOriginal('profile_image');
+            if ($rawProfile) {
+                StorageService::delete($rawProfile);
+                $thumb = str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $rawProfile);
+                StorageService::delete($thumb);
             }
 
             $user->tokens()->delete();

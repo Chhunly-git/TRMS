@@ -29,6 +29,7 @@ import WeeklyReport from "@/components/pages/WeeklyReport.vue";
 import LeaveRequest from "@/components/pages/LeaveRequest.vue";
 import InboundDocument from "@/components/pages/InboundDocument.vue";
 import InboundDocumentRoutingSlip from "@/components/pages/InboundDocumentRoutingSlip.vue";
+import WorkingGroup from "@/components/pages/WorkingGroup.vue";
 
 
 // Layout Components
@@ -315,6 +316,17 @@ const router = createRouter({
       meta: { guarded: true, permission: "inbound-documents" },
     },
     {
+      path: "/working-groups",
+      name: "working-groups",
+      components: {
+        default: WorkingGroup,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true, permission: "working-groups" },
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/",
     },
@@ -326,6 +338,7 @@ router.beforeEach((to, from) => {
     userStore.level ||
     userStore.user?.level ||
     localStorage.getItem("user_level") ||
+    sessionStorage.getItem("user_level") ||
     "";
 
   // 1. ពិនិត្យការចូលប្រើប្រាស់ (Guarded routes)

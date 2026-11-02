@@ -17,6 +17,7 @@ use App\Http\Controllers\API\RoomBookingController;
 use App\Http\Controllers\API\WeeklyReportController;
 use App\Http\Controllers\API\LeaveRequestController;
 use App\Http\Controllers\API\InboundDocumentController;
+use App\Http\Controllers\API\WorkingGroupController;
 use App\Http\Controllers\API\HikvisionAttendanceController;
 
 use Illuminate\Support\Facades\Route;
@@ -131,6 +132,9 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::delete('/sender-organizations/{id}', [InboundDocumentController::class, 'deleteSenderOrganization']);
         Route::get('/responses/{responseId}/download', [InboundDocumentController::class, 'downloadResponseFile']);
         Route::get('/responses/{responseId}/view', [InboundDocumentController::class, 'viewResponseFile']);
+        Route::get('/responses/{responseId}', [InboundDocumentController::class, 'getResponseDetail']);
+        Route::match(['PUT', 'POST'], '/responses/{responseId}', [InboundDocumentController::class, 'updateResponseDraft']);
+        Route::get('/{id}/tracking-flow', [InboundDocumentController::class, 'getTrackingFlow']);
         Route::get('/', [InboundDocumentController::class, 'index']);
         Route::post('/', [InboundDocumentController::class, 'store']);
         Route::get('/{id}', [InboundDocumentController::class, 'show']);
@@ -150,6 +154,18 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/{id}/view-original', [InboundDocumentController::class, 'viewOriginalFile']);
         Route::get('/{id}/view-annotated', [InboundDocumentController::class, 'viewAnnotatedFile']);
         Route::delete('/{id}', [InboundDocumentController::class, 'destroy']);
+    });
+
+    // គ្រប់គ្រងក្រុមការងារ (Working Groups)
+    Route::prefix('working-groups')->group(function () {
+        Route::get('/all', [WorkingGroupController::class, 'all']);
+        Route::get('/', [WorkingGroupController::class, 'index']);
+        Route::get('/{id}', [WorkingGroupController::class, 'show']);
+        Route::post('/', [WorkingGroupController::class, 'store']);
+        Route::match(['PUT', 'POST'], '/{id}', [WorkingGroupController::class, 'update']);
+        Route::delete('/{id}', [WorkingGroupController::class, 'destroy']);
+        Route::post('/{id}/members', [WorkingGroupController::class, 'addMember']);
+        Route::delete('/{id}/members/{memberId}', [WorkingGroupController::class, 'removeMember']);
     });
     
     Route::middleware('admin')->prefix('manage')->group(function () {

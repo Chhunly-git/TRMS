@@ -38,11 +38,11 @@
 
         <!-- 2.1 Stats Overview Cards -->
         <div class="row mb-3">
-          <!-- Card 1: ឯកសារសរុប -->
+          <!-- Card 1: ឯកសារសរុប (All Documents) -->
           <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div
               class="card stat-card shadow-sm border-0 rounded-lg h-100 cursor-pointer transition-all"
-              :class="{ 'active-stat-card border-primary': activeTab === 'all' && !filters.status && !filters.deadline_filter }"
+              :class="{ 'active-stat-card border-secondary': activeTab === 'all' && !filters.status && !filters.deadline_filter }"
               @click="switchTab('all')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
@@ -52,65 +52,65 @@
                   </span>
                   <h3 class="font-weight-bold mb-0 text-dark">{{ stats.total || 0 }}</h3>
                 </div>
-                <div class="stat-icon-circle bg-info-light text-info">
+                <div class="stat-icon-circle bg-secondary-subtle text-secondary">
                   <i class="fas fa-folder-open fa-lg"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Card 2: ឯកសារត្រូវធ្វើ (To-Do) -->
+          <!-- Card 2: Pending (ករណីចូលមកដំបូង) -->
           <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div
               class="card stat-card shadow-sm border-0 rounded-lg h-100 cursor-pointer transition-all"
-              :class="{ 'active-stat-card border-warning': activeTab === 'my_todo' }"
-              @click="switchTab('my_todo')"
+              :class="{ 'active-stat-card border-warning': activeTab === 'pending' || filters.status === 'pending' }"
+              @click="switchTab('pending')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">ឯកសារត្រូវធ្វើ (To-Do)</span>
-                  <h3 class="font-weight-bold mb-0 text-warning">{{ stats.my_todo || 0 }}</h3>
+                  <span class="text-muted small d-block font-weight-bold">Pending (ករណីចូលមកដំបូង)</span>
+                  <h3 class="font-weight-bold mb-0 text-warning">{{ stats.pending || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-warning-light text-warning">
-                  <i class="fas fa-clipboard-check fa-lg"></i>
+                  <i class="fas fa-clock fa-lg"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Card 3: អង្គភាពរបស់ខ្ញុំ (My Unit) -->
+          <!-- Card 3: Doing (ករណីបានបញ្ជូនចេញ ឬកំពុងធ្វើ) -->
           <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div
               class="card stat-card shadow-sm border-0 rounded-lg h-100 cursor-pointer transition-all"
-              :class="{ 'active-stat-card border-primary': activeTab === 'my_unit' }"
-              @click="switchTab('my_unit')"
+              :class="{ 'active-stat-card border-primary': activeTab === 'doing' || filters.status === 'doing' }"
+              @click="switchTab('doing')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">អង្គភាពរបស់ខ្ញុំ</span>
-                  <h3 class="font-weight-bold mb-0 text-primary">{{ stats.my_unit || 0 }}</h3>
+                  <span class="text-muted small d-block font-weight-bold">Doing (បញ្ជូនចេញ / កំពុងធ្វើ)</span>
+                  <h3 class="font-weight-bold mb-0 text-primary">{{ stats.doing || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-primary-light text-primary">
-                  <i class="fas fa-sitemap fa-lg"></i>
+                  <i class="fas fa-tasks fa-lg"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Card 4: បានធ្វើរួច (Done) -->
+          <!-- Card 4: Complete (ករណីអគ្គនាយកឯកភាព) -->
           <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div
               class="card stat-card shadow-sm border-0 rounded-lg h-100 cursor-pointer transition-all"
-              :class="{ 'active-stat-card border-success': activeTab === 'my_done' }"
-              @click="switchTab('my_done')"
+              :class="{ 'active-stat-card border-success': activeTab === 'completed' || filters.status === 'completed' }"
+              @click="switchTab('completed')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">បានធ្វើរួច (Done)</span>
-                  <h3 class="font-weight-bold mb-0 text-success">{{ stats.my_done || 0 }}</h3>
+                  <span class="text-muted small d-block font-weight-bold">Complete (អគ្គនាយកឯកភាព)</span>
+                  <h3 class="font-weight-bold mb-0 text-success">{{ stats.completed || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-success-light text-success">
-                  <i class="fas fa-check-double fa-lg"></i>
+                  <i class="fas fa-check-circle fa-lg"></i>
                 </div>
               </div>
             </div>
@@ -185,23 +185,23 @@
             </div>
           </div>
 
-          <!-- Card 8: បានចែកចាយ -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2">
+          <!-- Card 8: អង្គភាពរបស់ខ្ញុំ (My Unit) -->
+          <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="userStore.department_id || userStore.office_id">
             <div
               class="stat-mini-card stat-mini-teal shadow-sm h-100 cursor-pointer"
-              :class="{ 'is-active': filters.status === 'dispatched_all' }"
-              @click="toggleStatusFilter('dispatched_all')"
-              title="ចុចដើម្បីបង្ហាញឯកសារដែលបានចែកចាយ"
+              :class="{ 'is-active': activeTab === 'my_unit' }"
+              @click="switchTab('my_unit')"
+              title="ចុចដើម្បីបង្ហាញឯកសារក្នុងអង្គភាពរបស់ខ្ញុំ"
             >
               <div class="stat-mini-content">
-                <span class="stat-mini-title">បានចែកចាយបន្ត</span>
+                <span class="stat-mini-title">អង្គភាពរបស់ខ្ញុំ</span>
                 <div class="d-flex align-items-baseline mt-1">
-                  <span class="stat-mini-number text-teal">{{ stats.dispatched || 0 }}</span>
-                  <span class="stat-mini-tag ml-2 text-teal">តាមអង្គភាព</span>
+                  <span class="stat-mini-number text-teal">{{ stats.my_unit || 0 }}</span>
+                  <span class="stat-mini-tag ml-2 text-teal">នាយកដ្ឋាន/ការិយាល័យ</span>
                 </div>
               </div>
               <div class="stat-mini-icon bg-teal-subtle text-teal">
-                <i class="fas fa-share-alt"></i>
+                <i class="fas fa-sitemap"></i>
               </div>
               <div class="stat-mini-bar bg-teal"></div>
             </div>
@@ -255,47 +255,8 @@
         <!-- 2.2 Navigation Tabs & Search/Filter Box -->
         <div class="card shadow-sm border-0 rounded-lg mb-3">
           <div class="card-header bg-white p-0 border-bottom">
-            <ul class="nav nav-tabs border-0 px-3 pt-2">
-              <!-- Tab 1: ត្រូវធ្វើ (To-Do) - For everyone -->
-              <li class="nav-item">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'my_todo' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('my_todo')"
-                >
-                  <i class="fas fa-clipboard-check text-warning mr-1"></i> ឯកសារត្រូវធ្វើ
-                  <span class="badge badge-warning ml-1" v-if="stats.my_todo > 0">{{ stats.my_todo }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 2: អង្គភាពរបស់ខ្ញុំ (My Unit) - For Department / Office leaders & members -->
-              <li class="nav-item" v-if="userStore.department_id || userStore.office_id">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'my_unit' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('my_unit')"
-                >
-                  <i class="fas fa-sitemap text-primary mr-1"></i> អង្គភាពរបស់ខ្ញុំ
-                  <span class="badge badge-primary ml-1" v-if="stats.my_unit > 0">{{ stats.my_unit }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 3: បានធ្វើរួច (Done) - For everyone -->
-              <li class="nav-item">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'my_done' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('my_done')"
-                >
-                  <i class="fas fa-check-double text-success mr-1"></i> បានធ្វើរួច
-                  <span class="badge badge-success ml-1" v-if="stats.my_done > 0">{{ stats.my_done }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 4: ឯកសារទាំងអស់ (All) / ឯកសារទទួលបានទាំងអស់ -->
+            <ul class="nav nav-tabs border-0 px-3 pt-2 align-items-center">
+              <!-- Tab 1: ឯកសារទាំងអស់ (All) / ឯកសារទទួលបានទាំងអស់ -->
               <li class="nav-item">
                 <a
                   class="nav-link font-weight-bold"
@@ -303,12 +264,69 @@
                   href="javascript:void(0)"
                   @click="switchTab('all')"
                 >
-                  <i class="fas fa-th-list mr-1"></i> {{ isRegularOfficer ? 'ឯកសារទទួលបានទាំងអស់' : 'ឯកសារទាំងអស់' }}
+                  <i class="fas fa-th-list text-secondary mr-1"></i> {{ isRegularOfficer ? 'ឯកសារទទួលបានទាំងអស់' : 'ឯកសារទាំងអស់' }}
                   <span class="badge badge-light ml-1">{{ stats.total || 0 }}</span>
                 </a>
               </li>
 
-              <!-- Tab 5: អ្នកទទួលឯកសារ (Reception) -->
+              <!-- Tab 2: Pending (ករណីចូលមកដំបូង) -->
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold"
+                  :class="{ active: activeTab === 'pending' }"
+                  href="javascript:void(0)"
+                  @click="switchTab('pending')"
+                >
+                  <i class="fas fa-clock text-warning mr-1"></i> Pending (ចូលដំបូង)
+                  <span class="badge badge-warning ml-1" v-if="stats.pending > 0">{{ stats.pending }}</span>
+                </a>
+              </li>
+
+              <!-- Tab 3: Doing (ករណីបានបញ្ជូនចេញ ឬកំពុងធ្វើ) -->
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold"
+                  :class="{ active: activeTab === 'doing' }"
+                  href="javascript:void(0)"
+                  @click="switchTab('doing')"
+                >
+                  <i class="fas fa-tasks text-primary mr-1"></i> Doing (បញ្ជូនចេញ / កំពុងធ្វើ)
+                  <span class="badge badge-primary ml-1" v-if="stats.doing > 0">{{ stats.doing }}</span>
+                </a>
+              </li>
+
+              <!-- Tab 4: Complete (ករណីអគ្គនាយកឯកភាព) -->
+              <li class="nav-item">
+                <a
+                  class="nav-link font-weight-bold"
+                  :class="{ active: activeTab === 'completed' }"
+                  href="javascript:void(0)"
+                  @click="switchTab('completed')"
+                >
+                  <i class="fas fa-check-circle text-success mr-1"></i> Complete (អគ្គនាយកឯកភាព)
+                  <span class="badge badge-success ml-1" v-if="stats.completed > 0">{{ stats.completed }}</span>
+                </a>
+              </li>
+
+              <!-- Divider if specialized desks exist -->
+              <li class="nav-item d-none d-lg-block mx-2 text-muted" v-if="userStore.department_id || canRegister || canAssist || isDg || isAdmin" style="opacity: 0.35;">
+                |
+              </li>
+
+              <!-- Tab 5: អង្គភាពរបស់ខ្ញុំ (My Unit) - For Department / Office leaders & members -->
+              <li class="nav-item" v-if="userStore.department_id || userStore.office_id">
+                <a
+                  class="nav-link font-weight-bold"
+                  :class="{ active: activeTab === 'my_unit' }"
+                  href="javascript:void(0)"
+                  @click="switchTab('my_unit')"
+                >
+                  <i class="fas fa-sitemap text-info mr-1"></i> អង្គភាពរបស់ខ្ញុំ
+                  <span class="badge badge-info ml-1" v-if="stats.my_unit > 0">{{ stats.my_unit }}</span>
+                </a>
+              </li>
+
+              <!-- Tab 6: តុចុះបញ្ជីទទួល (Reception Desk) -->
               <li class="nav-item" v-if="canRegister">
                 <a
                   class="nav-link font-weight-bold"
@@ -316,12 +334,12 @@
                   href="javascript:void(0)"
                   @click="switchTab('reception')"
                 >
-                  <i class="fas fa-inbox mr-1 text-info"></i> អ្នកទទួលឯកសារ
+                  <i class="fas fa-inbox mr-1 text-info"></i> តុចុះបញ្ជីទទួល
                   <span class="badge badge-info ml-1" v-if="stats.reception_pending > 0">{{ stats.reception_pending }}</span>
                 </a>
               </li>
 
-              <!-- Tab 6: ជំនួយការអគ្គនាយក (Assistant Desk) -->
+              <!-- Tab 7: តុជំនួយការ (Assistant Desk) -->
               <li class="nav-item" v-if="canAssist">
                 <a
                   class="nav-link font-weight-bold"
@@ -329,12 +347,12 @@
                   href="javascript:void(0)"
                   @click="switchTab('assistant_inbox')"
                 >
-                  <i class="fas fa-user-shield mr-1 text-danger"></i> ជំនួយការអគ្គនាយក
-                  <span class="badge badge-danger ml-1" v-if="stats.assistant_pending > 0">{{ stats.assistant_pending }}</span>
+                  <i class="fas fa-user-shield mr-1 text-indigo"></i> តុជំនួយការ
+                  <span class="badge badge-indigo text-white ml-1" v-if="stats.assistant_pending > 0">{{ stats.assistant_pending }}</span>
                 </a>
               </li>
 
-              <!-- Tab 7: ដាក់ជូនអគ្គនាយក (DG Desk) -->
+              <!-- Tab 8: តុអគ្គនាយក (DG Desk) -->
               <li class="nav-item" v-if="isDg || isAdmin">
                 <a
                   class="nav-link font-weight-bold"
@@ -342,8 +360,8 @@
                   href="javascript:void(0)"
                   @click="switchTab('dg_inbox')"
                 >
-                  <i class="fas fa-pen-nib mr-1 text-secondary"></i> ដាក់ជូនអគ្គនាយក
-                  <span class="badge badge-secondary ml-1" v-if="stats.dg_pending > 0">{{ stats.dg_pending }}</span>
+                  <i class="fas fa-pen-nib mr-1 text-rose"></i> តុអគ្គនាយក
+                  <span class="badge badge-rose text-white ml-1" v-if="stats.dg_pending > 0">{{ stats.dg_pending }}</span>
                 </a>
               </li>
             </ul>
@@ -353,7 +371,7 @@
           <div class="card-body p-3 bg-light-subtle">
             <div class="row align-items-center">
               <!-- Search Box -->
-              <div class="col-lg-3 col-md-6 mb-2">
+              <div class="col-lg-2 col-md-6 mb-2">
                 <div class="input-group input-group-sm">
                   <div class="input-group-prepend">
                     <span class="input-group-text bg-white border-right-0"><i class="fas fa-search text-muted"></i></span>
@@ -366,6 +384,16 @@
                     @keyup.enter="loadDocuments"
                   />
                 </div>
+              </div>
+
+              <!-- 3-State Status Filter (Pending, Doing, Complete) -->
+              <div class="col-lg-2 col-md-3 col-sm-6 mb-2">
+                <select class="form-control form-control-sm font-khmer font-weight-bold" v-model="filters.status" @change="loadDocuments">
+                  <option value="">-- ស្ថានភាព (ទាំងអស់) --</option>
+                  <option value="pending">🟡 Pending (ករណីចូលដំបូង)</option>
+                  <option value="doing">🔵 Doing (បញ្ជូនចេញ/កំពុងធ្វើ)</option>
+                  <option value="completed">🟢 Complete (អគ្គនាយកឯកភាព)</option>
+                </select>
               </div>
 
               <!-- DG Category Filter -->
@@ -448,7 +476,7 @@
                     <th style="min-width: 160px;">មកពីអង្គភាព / លេខដើម</th>
                     <th>កម្មវត្ថុ / ប្រភេទឯកសារ</th>
                     <th style="width: 130px;">ស្ថានភាព</th>
-                    <th style="min-width: 140px;">ភាគីទទួលបន្ទុក</th>
+                    <th style="min-width: 175px;">ទីតាំងឯកសារ / អ្នកកាន់បច្ចុប្បន្ន</th>
                     <th style="width: 150px;" class="text-center">សកម្មភាព</th>
                   </tr>
                 </thead>
@@ -571,38 +599,28 @@
                       </div>
                     </td>
 
-                    <!-- 6. ស្ថានភាព -->
+                    <!-- 6. ស្ថានភាព (Pending, Doing, Complete) -->
                     <td>
-                      <span class="badge px-2 py-1 font-12 d-inline-block text-wrap" :class="getStatusBadgeClass(doc.status)">
-                        {{ doc.status_kh }}
-                      </span>
+                      <div class="d-flex align-items-center mb-1">
+                        <span class="badge px-2 py-1 font-12 d-inline-flex align-items-center shadow-2xs" :class="getSimplifiedStatus(doc).badgeClass">
+                          <i :class="getSimplifiedStatus(doc).icon" class="mr-1"></i>
+                          <span>{{ getSimplifiedStatus(doc).label }}</span>
+                        </span>
+                      </div>
+                      <div class="small text-muted font-11" v-if="getSimplifiedStatus(doc).subText">
+                        {{ getSimplifiedStatus(doc).subText }}
+                      </div>
                     </td>
 
-                    <!-- 7. ភាគីទទួលបន្ទុក -->
+                    <!-- 7. ទីតាំងឯកសារ / អ្នកកាន់បច្ចុប្បន្ន (Current Custodian & Desk) -->
                     <td>
-                      <div v-if="doc.target_user">
-                        <span class="font-weight-bold font-12 text-dark d-block">
-                          <i class="fas fa-user-circle text-primary mr-1"></i>{{ doc.target_user.name_kh || doc.target_user.name }}
-                        </span>
-                        <span class="small text-muted" v-if="doc.target_department">
-                          {{ doc.target_department.name_kh }}
+                      <div class="d-flex align-items-center mb-1">
+                        <span class="badge px-2 py-1 font-12 d-inline-flex align-items-center text-wrap" :class="getCurrentCustodian(doc).badgeClass">
+                          <i :class="getCurrentCustodian(doc).icon" class="mr-1"></i>{{ getCurrentCustodian(doc).label }}
                         </span>
                       </div>
-                      <div v-else-if="doc.target_office">
-                        <span class="font-weight-bold font-12 text-dark d-block">
-                          <i class="fas fa-door-closed text-info mr-1"></i>{{ doc.target_office.name_kh }}
-                        </span>
-                        <span class="small text-muted" v-if="doc.target_department">
-                          {{ doc.target_department.name_kh }}
-                        </span>
-                      </div>
-                      <div v-else-if="doc.target_department">
-                        <span class="font-weight-bold font-12 text-dark">
-                          <i class="fas fa-building text-secondary mr-1"></i>{{ doc.target_department.name_kh }}
-                        </span>
-                      </div>
-                      <div v-else class="text-muted small">
-                        ---
+                      <div class="small text-muted" v-if="getCurrentCustodian(doc).subText">
+                        {{ getCurrentCustodian(doc).subText }}
                       </div>
                     </td>
 
@@ -618,15 +636,14 @@
                           <i class="fas fa-eye"></i>
                         </button>
 
-                        <!-- Print Routing Slip Button -->
-                        <router-link
-                          :to="`/inbound-documents/${doc.id}/routing-slip`"
-                          target="_blank"
-                          class="btn btn-outline-secondary"
-                          title="បោះពុម្ពសន្លឹកតាមដានឯកសារ (Routing Slip & QR Code)"
+                        <!-- Tracking Flow Button -->
+                        <button
+                          class="btn btn-outline-info"
+                          title="តាមដានលំហូរឯកសារ (Tracking Flow)"
+                          @click="openTrackingModal(doc)"
                         >
-                          <i class="fas fa-print text-primary"></i>
-                        </router-link>
+                          <i class="fas fa-project-diagram text-info"></i>
+                        </button>
 
                         <!-- Step 1 -> Step 2: Send to Assistant (by Receptionist) -->
                         <button
@@ -660,7 +677,7 @@
 
                         <!-- Step 4: Assistant Scan & Dispatch -->
                         <button
-                          v-if="canAssist && doc.status === 'DG_ANNOTATED'"
+                          v-if="(canAssist || isDg || isAdmin) && doc.status === 'DG_ANNOTATED'"
                           class="btn btn-outline-warning text-dark"
                           title="Scan ចំណារ និងចែកចាយបន្ត"
                           @click="openAssistantDispatchModal(doc)"
@@ -728,11 +745,21 @@
                           <i class="fas fa-download text-secondary"></i>
                         </button>
 
-                        <!-- Delete Button (Registrar / Admin) -->
+                        <!-- Edit Button (DG / Receptionist / Assistant / Admin) -->
                         <button
-                          v-if="isAdmin || (canRegister && doc.status === 'RECEPTION_DRAFT')"
+                          v-if="canEditDocument(doc)"
+                          class="btn btn-outline-warning text-dark"
+                          title="កែប្រែព័ត៌មានឯកសារ (ករណីបញ្ចូលខុស)"
+                          @click="openEditModal(doc)"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+
+                        <!-- Delete Button (DG / Receptionist / Assistant / Admin) -->
+                        <button
+                          v-if="canDeleteDocument(doc)"
                           class="btn btn-outline-danger"
-                          title="លុបឯកសារ"
+                          title="លុបឯកសារ (ករណីបញ្ចូលខុស)"
                           @click="deleteDocumentAction(doc)"
                         >
                           <i class="fas fa-trash-alt"></i>
@@ -1081,7 +1108,199 @@
       </div>
     </Teleport>
 
-    <!-- ==================== MODAL 2: ជំនួយការទទួល និងចុះលេខជំនួយការអគ្គនាយក ==================== -->
+    <!-- ==================== MODAL 1B: កែប្រែព័ត៌មានឯកសារចូល (Edit Inbound Document Modal) ==================== -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showEditModal && selectedEditDoc">
+        <div class="modal-dialog modal-xl modal-dialog-centered my-auto" style="width: 100%; max-width: 1050px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column" style="max-height: 90vh;">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                <i class="fas fa-edit text-warning mr-2"></i>កែប្រែព័ត៌មានឯកសារចូល
+                <span class="badge badge-warning text-dark ml-2 font-monospace">{{ selectedEditDoc.general_inbound_number }}</span>
+              </h5>
+              <button type="button" class="close text-white" @click="closeEditModal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+
+            <form id="editInboundDocForm" @submit.prevent="submitEditDocument" class="d-flex flex-column flex-grow-1 overflow-hidden m-0">
+              <div class="modal-body p-4 font-khmer flex-grow-1" style="overflow-y: auto; overflow-x: hidden; max-height: calc(88vh - 130px);">
+                <!-- Row 1: លេខចូលទូទៅ & កាលបរិច្ឆេទ/ម៉ោង -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខចូលទូទៅ <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      class="form-control font-weight-bold font-monospace"
+                      placeholder="ឧ. 001/26"
+                      v-model="editForm.general_inbound_number"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទចូល <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" v-model="editForm.received_date" required />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ម៉ោងចូល <span class="text-danger">*</span></label>
+                    <input type="time" class="form-control" v-model="editForm.received_time" required />
+                  </div>
+                </div>
+
+                <!-- Row 2: ព័ត៌មានអ្នកយកមក & មកពីអង្គភាពណា -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ឈ្មោះអ្នកយកមក <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="ឈ្មោះអ្នកប្រគល់ឯកសារ"
+                      v-model="editForm.deliverer_name"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខទំនាក់ទំនង</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="លេខទូរស័ព្ទអ្នកយកមក"
+                      v-model="editForm.deliverer_phone"
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3 position-relative">
+                    <label class="form-label font-weight-bold">មកពីក្រសួង/ស្ថាប័ន/ក្រុមហ៊ុន <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="វាយបញ្ចូលឈ្មោះអង្គភាព..."
+                      v-model="editForm.sender_organization"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <!-- Row 3: លេខលិខិតដើម, កាលបរិច្ឆេទលិខិតដើម, កាលកំណត់ -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">លេខលិខិតដើម (ខាងក្រៅ)</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="ឧ. ១២៣ សជណ"
+                      v-model="editForm.external_reference_number"
+                    />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទលិខិតដើម</label>
+                    <input type="date" class="form-control" v-model="editForm.external_document_date" />
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold text-danger">កាលកំណត់ឆ្លើយតប (Deadline)</label>
+                    <input type="date" class="form-control border-danger" v-model="editForm.deadline" />
+                  </div>
+                </div>
+
+                <!-- Row 4: កម្មវត្ថុ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្មវត្ថុ / ខ្លឹមសារសង្ខេប <span class="text-danger">*</span></label>
+                  <textarea
+                    class="form-control"
+                    rows="3"
+                    placeholder="សូមបញ្ជាក់កម្មវត្ថុនៃឯកសារចូល..."
+                    v-model="editForm.title"
+                    required
+                  ></textarea>
+                </div>
+
+                <!-- Row 5: ប្រភេទឯកសារ, កម្រិតបន្ទាន់, កម្រិតសម្ងាត់ -->
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">ប្រភេទឯកសារ</label>
+                    <select class="form-control" v-model="editForm.document_type">
+                      <option value="LETTER">លិខិត</option>
+                      <option value="PRAKAS">ប្រកាស</option>
+                      <option value="DECISION">សេចក្តីសម្រេច</option>
+                      <option value="REPORT">របាយការណ៍</option>
+                      <option value="INVITATION">លិខិតអញ្ជើញ</option>
+                      <option value="OTHER">ផ្សេងៗ</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
+                    <select class="form-control" v-model="editForm.urgency">
+                      <option value="NORMAL">ធម្មតា</option>
+                      <option value="MEDIUM">មធ្យម</option>
+                      <option value="URGENT">បន្ទាន់</option>
+                      <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold">កម្រិតសម្ងាត់</label>
+                    <select class="form-control" v-model="editForm.confidentiality">
+                      <option value="NORMAL">ធម្មតា</option>
+                      <option value="CONFIDENTIAL">សម្ងាត់</option>
+                      <option value="TOP_SECRET">សម្ងាត់បំផុត</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Row 6: កំណត់សម្គាល់ & ឯកសារ Scan -->
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label font-weight-bold">កំណត់សម្គាល់បន្ថែម</label>
+                    <textarea
+                      class="form-control"
+                      rows="3"
+                      placeholder="កំណត់សម្គាល់ផ្សេងៗ..."
+                      v-model="editForm.receptionist_notes"
+                    ></textarea>
+                  </div>
+
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label font-weight-bold">ឯកសារ Scan ដើម (PDF/Image)</label>
+                    <div class="custom-file mb-1">
+                      <input
+                        type="file"
+                        class="custom-file-input"
+                        id="editDocFileInput"
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        @change="onEditFileChange"
+                      />
+                      <label class="custom-file-label font-khmer text-truncate" for="editDocFileInput">
+                        {{ editForm.original_file ? editForm.original_file.name : (selectedEditDoc.original_file_name || 'ជ្រើសរើសឯកសារថ្មីដើម្បីជំនួស...') }}
+                      </label>
+                    </div>
+                    <small class="text-muted d-block" v-if="selectedEditDoc.original_file_name">
+                      ឯកសារបច្ចុប្បន្ន៖ <a href="javascript:void(0)" @click="previewOriginalDoc(selectedEditDoc)">{{ selectedEditDoc.original_file_name }}</a>
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pinned Footer -->
+              <div class="modal-footer bg-light py-2 px-4 border-top flex-shrink-0 font-khmer justify-content-between">
+                <button type="button" class="btn btn-secondary px-3" @click="closeEditModal">
+                  <i class="fas fa-times mr-1"></i> បោះបង់
+                </button>
+                <button type="submit" form="editInboundDocForm" class="btn btn-warning text-dark px-4 shadow-sm font-weight-bold" :disabled="editingDoc">
+                  <span v-if="editingDoc" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i class="fas fa-save mr-1" v-else></i> រក្សាទុកការកែប្រែ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showAssistantReceiveModal">
         <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 600px;">
@@ -1173,7 +1392,7 @@
     <!-- ==================== MODAL 3: ចំណារឯកឧត្តមអគ្គនាយក (DG ANNOTATION) ==================== -->
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showDgAnnotateModal">
-        <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 650px;">
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
           <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
             <div class="modal-header bg-danger text-white py-3 px-4 flex-shrink-0 align-items-center">
               <h5 class="modal-title font-khmer font-weight-bold mb-0">
@@ -1195,7 +1414,7 @@
                   <label class="form-label font-weight-bold">ខ្លឹមសារចំណាររបស់ឯកឧត្តមអគ្គនាយក <span class="text-danger">*</span></label>
                   <textarea
                     class="form-control"
-                    rows="4"
+                    rows="3"
                     placeholder="សូមកត់ត្រាខ្លឹមសារចំណារ..."
                     v-model="dgAnnotateForm.dg_annotation"
                     required
@@ -1247,11 +1466,151 @@
                   <small class="text-muted">កំណត់កាលបរិច្ឆេទដែលត្រូវចាត់ចែង ឬឆ្លើយតបឱ្យបានរួចរាល់ (បើមាន)</small>
                 </div>
 
+                <!-- ជ្រើសរើសភាគីពាក់ព័ន្ធដើម្បីចាត់ចែងភ្លាមៗ (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី, ក្រុមការងារ) -->
+                <div class="mb-3">
+                  <div class="card border rounded-lg p-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label font-weight-bold text-dark m-0">
+                        <i class="fas fa-sitemap text-danger mr-1"></i> ចំណារចាត់ចែងទៅកាន់ភាគីពាក់ព័ន្ធ (ជ្រើសរើសដើម្បីចាត់ចែងភ្លាមៗ)
+                      </label>
+                      <span class="badge badge-dark">
+                        សរុប {{ dgAnnotateForm.department_ids.length + dgAnnotateForm.office_ids.length + dgAnnotateForm.user_ids.length + (dgAnnotateForm.working_group_ids ? dgAnnotateForm.working_group_ids.length : 0) }} គោលដៅ
+                      </span>
+                    </div>
+                    <small class="text-muted d-block mb-3">
+                      * ឯកឧត្តមអគ្គនាយកអាចជ្រើសរើសគោលដៅចាត់ចែងភ្លាមៗ ឬទុកឱ្យជំនួយការ Scan និងចែកចាយតាមក្រោយ។
+                    </small>
+
+                    <!-- Section 1: Departments -->
+                    <div class="mb-3 bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-primary"><i class="fas fa-building mr-1"></i> ១. នាយកដ្ឋានគោលដៅ៖</strong>
+                        <span class="badge badge-primary">{{ dgAnnotateForm.department_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 120px; overflow-y: auto;">
+                        <label
+                          v-for="d in recipientOptions.departments"
+                          :key="'dg_dept_' + d.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dgAnnotateForm.department_ids.includes(d.id) ? 'btn-primary text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="d.id"
+                            v-model="dgAnnotateForm.department_ids"
+                          />
+                          <i class="fas" :class="dgAnnotateForm.department_ids.includes(d.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ d.name_kh }}
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Section 2: Offices -->
+                    <div class="mb-3 bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-info"><i class="fas fa-door-closed mr-1"></i> ២. ការិយាល័យគោលដៅ៖</strong>
+                        <span class="badge badge-info">{{ dgAnnotateForm.office_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
+                        <label
+                          v-for="o in recipientOptions.offices"
+                          :key="'dg_off_' + o.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dgAnnotateForm.office_ids.includes(o.id) ? 'btn-info text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="o.id"
+                            v-model="dgAnnotateForm.office_ids"
+                          />
+                          <i class="fas" :class="dgAnnotateForm.office_ids.includes(o.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ o.name_kh }}
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Section 3: Officers -->
+                    <div class="bg-white p-2 rounded border mb-3">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-success"><i class="fas fa-user-check mr-1"></i> ៣. មន្ត្រីទទួលបន្ទុកជាក់លាក់៖</strong>
+                        <span class="badge badge-success">{{ dgAnnotateForm.user_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <input
+                          type="text"
+                          class="form-control"
+                          placeholder="ស្វែងរកឈ្មោះមន្ត្រី..."
+                          v-model="officerDgSearch"
+                        />
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 140px; overflow-y: auto;">
+                        <label
+                          v-for="u in filteredDgOfficerOptions"
+                          :key="'dg_usr_' + u.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dgAnnotateForm.user_ids.includes(u.id) ? 'btn-success text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="u.id"
+                            v-model="dgAnnotateForm.user_ids"
+                          />
+                          <i class="fas" :class="dgAnnotateForm.user_ids.includes(u.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ u.name_kh || u.name }} <small v-if="u.position?.title_kh">({{ u.position.title_kh }})</small>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Section 4: Working Groups -->
+                    <div class="bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-indigo"><i class="fas fa-users-cog mr-1"></i> ៤. ក្រុមការងារ (Working Groups)៖</strong>
+                        <span class="badge badge-indigo text-white">{{ dgAnnotateForm.working_group_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
+                        <label
+                          v-for="wg in recipientOptions.working_groups"
+                          :key="'dg_wg_' + wg.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dgAnnotateForm.working_group_ids.includes(wg.id) ? 'btn-indigo text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="wg.id"
+                            v-model="dgAnnotateForm.working_group_ids"
+                          />
+                          <i class="fas" :class="dgAnnotateForm.working_group_ids.includes(wg.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ wg.name_kh }}
+                          <span class="badge badge-light border ml-1 text-xs" v-if="wg.leader_name_kh && wg.leader_name_kh !== 'មិនទាន់កំណត់'">
+                            ប្រធាន៖ {{ wg.leader_name_kh }}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dispatch Notes -->
+                <div class="mb-3" v-if="dgAnnotateForm.department_ids.length > 0 || dgAnnotateForm.office_ids.length > 0 || dgAnnotateForm.user_ids.length > 0 || dgAnnotateForm.working_group_ids.length > 0">
+                  <label class="form-label font-weight-bold">សេចក្តីណែនាំបន្ថែមសម្រាប់អ្នកទទួល</label>
+                  <textarea
+                    class="form-control"
+                    rows="2"
+                    placeholder="កំណត់សម្គាល់បន្ថែម ឬសេចក្តីណែនាំ..."
+                    v-model="dgAnnotateForm.dispatch_notes"
+                  ></textarea>
+                </div>
+
                 <div class="modal-footer px-0 pb-0 pt-3 border-top">
                   <button type="button" class="btn btn-secondary" @click="showDgAnnotateModal = false">បោះបង់</button>
-                  <button type="submit" class="btn btn-danger" :disabled="submitting">
+                  <button type="submit" class="btn btn-danger font-weight-bold" :disabled="submitting">
                     <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                    <i class="fas fa-save mr-1"></i> រក្សាទុកចំណារ
+                    <i class="fas" :class="(dgAnnotateForm.department_ids.length > 0 || dgAnnotateForm.office_ids.length > 0 || dgAnnotateForm.user_ids.length > 0 || dgAnnotateForm.working_group_ids.length > 0) ? 'fa-paper-plane mr-1' : 'fa-save mr-1'"></i>
+                    {{ (dgAnnotateForm.department_ids.length > 0 || dgAnnotateForm.office_ids.length > 0 || dgAnnotateForm.user_ids.length > 0 || dgAnnotateForm.working_group_ids.length > 0) ? 'រក្សាទុកចំណារ និងចាត់ចែងភ្លាមៗ' : 'រក្សាទុកចំណារ' }}
                   </button>
                 </div>
               </form>
@@ -1301,55 +1660,131 @@
                   </div>
                 </div>
 
-                <!-- គោលដៅចែកចាយ Target Type -->
+                <!-- ចាត់ចែងច្រើនគោលដៅ Multi-Target Dispatch (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី) -->
                 <div class="mb-3">
-                  <label class="form-label font-weight-bold">កម្រិតចែកចាយ <span class="text-danger">*</span></label>
-                  <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
-                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'DEPARTMENT' }">
-                      <input type="radio" value="DEPARTMENT" v-model="dispatchForm.target_type" /> ថ្នាក់នាយកដ្ឋាន
-                    </label>
-                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICE' }">
-                      <input type="radio" value="OFFICE" v-model="dispatchForm.target_type" /> ថ្នាក់ការិយាល័យ
-                    </label>
-                    <label class="btn btn-outline-primary font-khmer" :class="{ active: dispatchForm.target_type === 'OFFICER' }">
-                      <input type="radio" value="OFFICER" v-model="dispatchForm.target_type" /> មន្ត្រីទទួលបន្ទុកជាក់លាក់
-                    </label>
-                  </div>
-                </div>
+                  <div class="card border rounded-lg p-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label font-weight-bold text-dark m-0">
+                        <i class="fas fa-sitemap text-primary mr-1"></i> ចាត់ចែងទៅកាន់ភាគីពាក់ព័ន្ធ (អាចជ្រើសរើសបានច្រើន) <span class="text-danger">*</span>
+                      </label>
+                      <span class="badge badge-dark">
+                        សរុប {{ dispatchForm.department_ids.length + dispatchForm.office_ids.length + dispatchForm.user_ids.length + (dispatchForm.working_group_ids ? dispatchForm.working_group_ids.length : 0) }} គោលដៅ
+                      </span>
+                    </div>
 
-                <!-- Dropdowns based on Target Type -->
-                <div class="row">
-                  <!-- Select Department -->
-                  <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'DEPARTMENT' || dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
-                    <label class="form-label font-weight-bold">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
-                    <select class="form-control" v-model="dispatchForm.target_department_id" @change="onDispatchDeptChange">
-                      <option value="">-- ជ្រើសរើសនាយកដ្ឋាន --</option>
-                      <option v-for="d in recipientOptions.departments" :key="d.id" :value="d.id">
-                        {{ d.name_kh }}
-                      </option>
-                    </select>
-                  </div>
+                    <!-- Section 1: Departments -->
+                    <div class="mb-3 bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-primary"><i class="fas fa-building mr-1"></i> ១. នាយកដ្ឋានគោលដៅ៖</strong>
+                        <span class="badge badge-primary">{{ dispatchForm.department_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 120px; overflow-y: auto;">
+                        <label
+                          v-for="d in recipientOptions.departments"
+                          :key="d.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dispatchForm.department_ids.includes(d.id) ? 'btn-primary text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="d.id"
+                            v-model="dispatchForm.department_ids"
+                          />
+                          <i class="fas" :class="dispatchForm.department_ids.includes(d.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ d.name_kh }}
+                        </label>
+                      </div>
+                    </div>
 
-                  <!-- Select Office -->
-                  <div class="col-md-6 mb-3" v-if="dispatchForm.target_type === 'OFFICE' || dispatchForm.target_type === 'OFFICER'">
-                    <label class="form-label font-weight-bold">ការិយាល័យ</label>
-                    <select class="form-control" v-model="dispatchForm.target_office_id">
-                      <option value="">-- ជ្រើសរើសការិយាល័យ --</option>
-                      <option v-for="o in filteredDispatchOffices" :key="o.id" :value="o.id">
-                        {{ o.name_kh }}
-                      </option>
-                    </select>
-                  </div>
+                    <!-- Section 2: Offices -->
+                    <div class="mb-3 bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-info"><i class="fas fa-door-closed mr-1"></i> ២. ការិយាល័យគោលដៅ៖</strong>
+                        <span class="badge badge-info">{{ dispatchForm.office_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
+                        <label
+                          v-for="o in recipientOptions.offices"
+                          :key="o.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dispatchForm.office_ids.includes(o.id) ? 'btn-info text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="o.id"
+                            v-model="dispatchForm.office_ids"
+                          />
+                          <i class="fas" :class="dispatchForm.office_ids.includes(o.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ o.name_kh }}
+                        </label>
+                      </div>
+                    </div>
 
-                  <!-- Select Specific Officer -->
-                  <div class="col-md-12 mb-3" v-if="dispatchForm.target_type === 'OFFICER'">
-                    <label class="form-label font-weight-bold">មន្ត្រីទទួលបន្ទុកចាត់ចែង <span class="text-danger">*</span></label>
-                    <select class="form-control" v-model="dispatchForm.target_user_id" required>
-                      <option value="">-- ជ្រើសរើសមន្ត្រី --</option>
-                      <option v-for="u in filteredDispatchUsers" :key="u.id" :value="u.id">
-                        {{ u.name_kh || u.name }} - {{ u.position?.title_kh || '' }} ({{ u.department?.name_kh || '' }})
-                      </option>
-                    </select>
+                    <!-- Section 3: Specific Officers -->
+                    <div class="bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-success"><i class="fas fa-user-check mr-1"></i> ៣. មន្ត្រីទទួលបន្ទុកជាក់លាក់៖</strong>
+                        <span class="badge badge-success">{{ dispatchForm.user_ids.length }} បានជ្រើស</span>
+                      </div>
+                      <div class="input-group input-group-sm mb-2">
+                        <input
+                          type="text"
+                          class="form-control"
+                          placeholder="ស្វែងរកឈ្មោះមន្ត្រី..."
+                          v-model="officerDispatchSearch"
+                        />
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 140px; overflow-y: auto;">
+                        <label
+                          v-for="u in filteredOfficerOptions"
+                          :key="u.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dispatchForm.user_ids.includes(u.id) ? 'btn-success text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="u.id"
+                            v-model="dispatchForm.user_ids"
+                          />
+                          <i class="fas" :class="dispatchForm.user_ids.includes(u.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ u.name_kh || u.name }} <small v-if="u.position?.title_kh">({{ u.position.title_kh }})</small>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Section 4: Working Groups -->
+                    <div class="mt-3 bg-white p-2 rounded border">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-13 text-indigo"><i class="fas fa-users-cog mr-1"></i> ៤. ក្រុមការងារ (Working Groups)៖</strong>
+                        <span class="badge badge-indigo text-white">{{ dispatchForm.working_group_ids ? dispatchForm.working_group_ids.length : 0 }} បានជ្រើស</span>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
+                        <label
+                          v-for="wg in recipientOptions.working_groups"
+                          :key="wg.id"
+                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                          :class="dispatchForm.working_group_ids && dispatchForm.working_group_ids.includes(wg.id) ? 'btn-indigo text-white' : 'btn-light text-dark'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="d-none"
+                            :value="wg.id"
+                            v-model="dispatchForm.working_group_ids"
+                          />
+                          <i class="fas" :class="dispatchForm.working_group_ids && dispatchForm.working_group_ids.includes(wg.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                          {{ wg.name_kh }}
+                          <span class="badge badge-light border ml-1 text-xs" v-if="wg.leader_name_kh && wg.leader_name_kh !== 'មិនទាន់កំណត់'">
+                            ប្រធាន៖ {{ wg.leader_name_kh }}
+                          </span>
+                        </label>
+                        <div v-if="!recipientOptions.working_groups || recipientOptions.working_groups.length === 0" class="text-muted text-xs p-1">
+                          មិនទាន់មានក្រុមការងារត្រូវបានកំណត់ឡើយ
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1373,99 +1808,159 @@
       </div>
     </Teleport>
 
-    <!-- ==================== MODAL 5: ដាក់ស្នើព្រាងលិខិតឆ្លើយតប (PATH B DRAFT) ==================== -->
+    <!-- ==================== MODAL 5: ដាក់ស្នើ ឬរក្សាទុកព្រាងលិខិតឆ្លើយតប (SUBMIT / DRAFT RESPONSE) ==================== -->
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showSubmitResponseModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
-          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
-            <div class="modal-header bg-warning text-dark py-3 px-4 flex-shrink-0 align-items-center">
-              <h5 class="modal-title font-khmer font-weight-bold mb-0">
-                <i class="fas fa-reply-all mr-2"></i>រៀបចំ និងឆ្លងសេចក្តីព្រាងលិខិតឆ្លើយតប
-              </h5>
-              <button type="button" class="close text-dark" @click="showSubmitResponseModal = false">
+        <div class="modal-dialog modal-xl modal-dialog-centered my-auto" style="width: 100%; max-width: 1100px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column" style="max-height: 92vh;">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-signature text-warning mr-2 fa-lg"></i>
+                <div>
+                  <h5 class="modal-title font-khmer font-weight-bold mb-0">
+                    រៀបចំលិខិតឆ្លើយតប (របាយការណ៍ / កំណត់បង្ហាញ)
+                  </h5>
+                  <small class="text-white-50">សរសេរលើប្រព័ន្ធដូច File Word និងឆ្លងតាមឋានានុក្រមរហូតដល់ឯកឧត្តមអគ្គនាយក</small>
+                </div>
+              </div>
+              <button type="button" class="close text-white" @click="showSubmitResponseModal = false">
                 <span aria-hidden="true">&times;</span>
               </button>
             </div>
-            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
-              <div class="alert alert-secondary py-2 font-13 mb-3">
-                ឆ្លើយតបលើឯកសារលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
-                កម្មវត្ថុដើម៖ {{ selectedDoc?.title }}<br />
-                ចំណារអគ្គនាយក៖ <span class="text-danger font-weight-bold">{{ selectedDoc?.dg_annotation }}</span>
+            
+            <div class="modal-body p-4 font-khmer flex-grow-1" style="overflow-y: auto; background-color: #f8f9fa;">
+              <!-- Original Document Reference Banner -->
+              <div class="alert alert-secondary py-2 px-3 font-13 mb-3 border">
+                <div class="d-flex flex-wrap align-items-center justify-content-between">
+                  <div>
+                    ឆ្លើយតបលើឯកសារលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number || selectedDoc?.general_inbound_number }}</strong>
+                    <span class="mx-2">•</span>
+                    កម្មវត្ថុដើម៖ <em>{{ selectedDoc?.title }}</em>
+                  </div>
+                  <div v-if="selectedDoc?.dg_annotation">
+                    ចំណារអគ្គនាយក៖ <span class="text-danger font-weight-bold">{{ selectedDoc?.dg_annotation }}</span>
+                  </div>
+                </div>
               </div>
 
-              <form @submit.prevent="submitResponseDraftAction">
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">កម្មវត្ថុលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="កម្មវត្ថុលិខិតឆ្លើយតប..."
-                    v-model="responseForm.title"
-                    required
-                  />
-                </div>
+              <!-- Top Controls: Document Type & Subject -->
+              <div class="card border rounded-lg p-3 bg-white mb-3">
+                <div class="row">
+                  <!-- Response Type Selector -->
+                  <div class="col-md-4 mb-2">
+                    <label class="form-label font-weight-bold">ទម្រង់លិខិតឆ្លើយតប <span class="text-danger">*</span></label>
+                    <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                      <label class="btn btn-outline-primary btn-sm font-khmer" :class="{ active: responseForm.response_type === 'REPORT' }">
+                        <input type="radio" value="REPORT" v-model="responseForm.response_type" /> <i class="fas fa-file-alt mr-1"></i> របាយការណ៍
+                      </label>
+                      <label class="btn btn-outline-info btn-sm font-khmer" :class="{ active: responseForm.response_type === 'SUBMISSION_NOTE' }">
+                        <input type="radio" value="SUBMISSION_NOTE" v-model="responseForm.response_type" /> <i class="fas fa-file-signature mr-1"></i> កំណត់បង្ហាញ
+                      </label>
+                      <label class="btn btn-outline-secondary btn-sm font-khmer" :class="{ active: responseForm.response_type === 'LETTER' }">
+                        <input type="radio" value="LETTER" v-model="responseForm.response_type" /> លិខិតទូទៅ
+                      </label>
+                    </div>
+                  </div>
 
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">ខ្លឹមសារសង្ខេប / សេចក្តីរាយការណ៍</label>
-                  <textarea
-                    class="form-control"
-                    rows="4"
-                    placeholder="ខ្លឹមសារសង្ខេបនៃលិខិត ឬកំណត់បង្ហាញ..."
-                    v-model="responseForm.content"
-                  ></textarea>
-                </div>
-
-                <!-- Upload File Draft -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">
-                    <i class="fas fa-file-word text-primary mr-1"></i>ភ្ជាប់ឯកសារព្រាង (Word / PDF)
-                  </label>
-                  <div class="custom-file">
+                  <!-- Title / Subject -->
+                  <div class="col-md-8 mb-2">
+                    <label class="form-label font-weight-bold">កម្មវត្ថុលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
                     <input
-                      type="file"
-                      class="custom-file-input"
-                      id="responseFileInput"
-                      @change="handleResponseFileChange"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      type="text"
+                      class="form-control"
+                      placeholder="ឧ. របាយការណ៍ស្តីពី..."
+                      v-model="responseForm.title"
+                      required
                     />
-                    <label class="custom-file-label" for="responseFileInput">
-                      {{ selectedResponseFileName || 'ជ្រើសរើសឯកសារព្រាង...' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Word-like Editor Component -->
+              <div class="mb-3">
+                <WordEditor
+                  v-model="responseForm.content"
+                  :doc-type="responseForm.response_type"
+                  :organization-name="userStore.user?.department?.name_kh || 'អគ្គនាយកដ្ឋាន...'"
+                  :department-name="userStore.user?.office?.name_kh || 'នាយកដ្ឋាន...'"
+                  :officer-name="userStore.user?.name_kh || userStore.user?.name"
+                  :officer-position="userStore.user?.position?.title_kh || 'មន្ត្រី'"
+                />
+              </div>
+
+              <!-- Hierarchy Approver Selection & Attachment -->
+              <div class="card border rounded-lg p-3 bg-white mb-2">
+                <div class="row">
+                  <!-- Next Approver -->
+                  <div class="col-md-6 mb-3 mb-md-0">
+                    <label class="form-label font-weight-bold">
+                      <i class="fas fa-user-check text-success mr-1"></i>ជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីឆ្លងបន្ត (Hierarchy Approver)
                     </label>
+                    <select class="form-control font-weight-bold text-dark" v-model="responseForm.forwarded_to_id">
+                      <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ (ឬទុកនៅទទេបើគ្រាន់តែរក្សាទុកព្រាង) --</option>
+                      <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
+                        {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }} ({{ c.office?.name_kh || c.department?.name_kh || '' }})
+                      </option>
+                    </select>
+                    <small class="text-muted">ជ្រើសរើសដើម្បីដាក់ស្នើឆ្លងឡើងលើ ឬទុកទទេដើម្បីគ្រាន់តែ «រក្សាទុកព្រាង»</small>
+                  </div>
+
+                  <!-- Optional Scanned Attachment -->
+                  <div class="col-md-6">
+                    <label class="form-label font-weight-bold">
+                      <i class="fas fa-paperclip text-primary mr-1"></i>ភ្ជាប់ឯកសារ Scan បន្ថែម (បើមាន)
+                    </label>
+                    <div class="custom-file">
+                      <input
+                        type="file"
+                        class="custom-file-input"
+                        id="responseFileInput"
+                        @change="handleResponseFileChange"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      />
+                      <label class="custom-file-label" for="responseFileInput">
+                        {{ selectedResponseFileName || 'ជ្រើសរើសឯកសារភ្ជាប់បន្ថែម...' }}
+                      </label>
+                    </div>
                   </div>
                 </div>
 
-                <!-- Next Reviewer Selection (Hierarchy Candidate) -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">
-                    <i class="fas fa-user-check text-success mr-1"></i>ជ្រើសរើសថ្នាក់ដឹកនាំពិនិត្យបន្តតាមឋានានុក្រម <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-control font-weight-bold text-dark" v-model="responseForm.forwarded_to_id" required>
-                    <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                    <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
-                      {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
-                    </option>
-                  </select>
-                  <small class="text-muted">ប្រព័ន្ធបានចម្រាញ់បេក្ខភាពថ្នាក់ដឹកនាំដែលស្ថិតនៅក្នុងឋានានុក្រមផ្ទាល់របស់លោកអ្នក</small>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">កំណត់សម្គាល់ឆ្លង</label>
+                <div class="mt-2" v-if="responseForm.forwarded_to_id">
+                  <label class="form-label font-weight-bold small text-muted">កំណត់សម្គាល់ឆ្លង / មតិគោរពជូន</label>
                   <input
                     type="text"
-                    class="form-control"
-                    placeholder="សូមគោរពជូន..."
+                    class="form-control form-control-sm"
+                    placeholder="សូមគោរពជូនឯកឧត្តម/លោក/លោកស្រី..."
                     v-model="responseForm.comment"
                   />
                 </div>
+              </div>
+            </div>
 
-                <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                  <button type="button" class="btn btn-secondary" @click="showSubmitResponseModal = false">បោះបង់</button>
-                  <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
-                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                    <i class="fas fa-paper-plane mr-1"></i> ដាក់ស្នើឆ្លង
-                  </button>
-                </div>
-              </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light py-2 px-4 justify-content-between">
+              <button type="button" class="btn btn-secondary px-3" @click="showSubmitResponseModal = false">
+                បិទផ្ទាំង
+              </button>
+              <div>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary px-3 mr-2"
+                  @click="saveResponseDraftOnly"
+                  :disabled="submitting"
+                >
+                  <i class="fas fa-save mr-1"></i> រក្សាទុកព្រាង (Save Draft)
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-warning px-4 font-weight-bold text-dark"
+                  @click="submitResponseDraftAction"
+                  :disabled="submitting"
+                >
+                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
+                  <i class="fas fa-paper-plane mr-1"></i> ដាក់ស្នើឆ្លងតាមឋានានុក្រម
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1656,8 +2151,12 @@
                         <tr>
                           <td class="text-muted">ស្ថានភាពបច្ចុប្បន្ន៖</td>
                           <td>
-                            <span class="badge px-2 py-1 font-12" :class="getStatusBadgeClass(selectedDoc.status)">
-                              {{ selectedDoc.status_kh }}
+                            <span class="badge px-2 py-1 font-12 shadow-2xs" :class="getSimplifiedStatus(selectedDoc).badgeClass">
+                              <i :class="getSimplifiedStatus(selectedDoc).icon" class="mr-1"></i>
+                              {{ getSimplifiedStatus(selectedDoc).label }} ({{ getSimplifiedStatus(selectedDoc).khLabel }})
+                            </span>
+                            <span class="small text-muted ml-2 font-weight-bold" v-if="getSimplifiedStatus(selectedDoc).subText">
+                              • {{ getSimplifiedStatus(selectedDoc).subText }}
                             </span>
                           </td>
                         </tr>
@@ -1786,16 +2285,40 @@
           </div>
             <div class="modal-footer font-khmer justify-content-between bg-light py-2 px-4 border-top flex-shrink-0">
               <div>
-                <router-link
-                  v-if="selectedDoc"
-                  :to="`/inbound-documents/${selectedDoc.id}/routing-slip`"
-                  target="_blank"
-                  class="btn btn-outline-primary"
+                <!-- Action: Cascading Forward / Re-assign Downward -->
+                <button
+                  v-if="selectedDoc && canForward(selectedDoc)"
+                  class="btn btn-info font-weight-bold text-white shadow-sm"
+                  title="ចាត់ចែង និងបញ្ជូនបន្តការងារទៅកាន់មន្ត្រីក្រោមឱវាទ"
+                  @click="showDetailModal = false; openForwardModal(selectedDoc)"
                 >
-                  <i class="fas fa-print mr-1"></i> បោះពុម្ពសន្លឹកតាមដាន (Routing Slip & QR)
-                </router-link>
+                  <i class="fas fa-directions mr-1"></i> ចាត់ចែង និងបញ្ជូនបន្ត
+                </button>
               </div>
-              <div>
+              <div class="d-flex align-items-center">
+                <button
+                  v-if="selectedDoc && canEditDocument(selectedDoc)"
+                  class="btn btn-outline-warning text-dark font-weight-bold mr-2"
+                  title="កែប្រែព័ត៌មានឯកសារនេះ (ករណីបញ្ចូលខុស)"
+                  @click="openEditModal(selectedDoc)"
+                >
+                  <i class="fas fa-edit mr-1"></i> កែប្រែព័ត៌មាន
+                </button>
+                <button
+                  v-if="selectedDoc && canDeleteDocument(selectedDoc)"
+                  class="btn btn-outline-danger font-weight-bold mr-2"
+                  title="លុបឯកសារចូលនេះចេញ (ករណីបញ្ចូលខុស)"
+                  @click="deleteDocumentAction(selectedDoc)"
+                >
+                  <i class="fas fa-trash-alt mr-1"></i> លុបឯកសារ
+                </button>
+                <button
+                  v-if="selectedDoc && canDraftResponse(selectedDoc)"
+                  class="btn btn-warning text-dark font-weight-bold mr-2"
+                  @click="showDetailModal = false; openSubmitResponseModal(selectedDoc)"
+                >
+                  <i class="fas fa-reply mr-1"></i> បង្កើតរបាយការណ៍ / លិខិតឆ្លើយតប
+                </button>
                 <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
               </div>
             </div>
@@ -1855,49 +2378,27 @@
                     ជ្រើសរើសប្រភេទគោលដៅចាត់ចែងបន្ត <span class="text-danger">*</span>
                   </label>
                   <div class="d-flex flex-wrap gap-3">
-                    <div class="custom-control custom-radio mr-4">
+                    <div
+                      v-for="opt in forwardTargetTypeOptions"
+                      :key="opt.value"
+                      class="custom-control custom-radio mr-3 mb-2"
+                    >
                       <input
                         type="radio"
-                        id="fwdTargetDept"
+                        :id="'fwdTarget_' + opt.value"
                         name="fwd_target_type"
                         class="custom-control-input"
-                        value="DEPARTMENT"
+                        :value="opt.value"
                         v-model="forwardForm.target_type"
                       />
-                      <label class="custom-control-label cursor-pointer" for="fwdTargetDept">
-                        <i class="fas fa-building text-secondary mr-1"></i>នាយកដ្ឋាន
-                      </label>
-                    </div>
-                    <div class="custom-control custom-radio mr-4">
-                      <input
-                        type="radio"
-                        id="fwdTargetOffice"
-                        name="fwd_target_type"
-                        class="custom-control-input"
-                        value="OFFICE"
-                        v-model="forwardForm.target_type"
-                      />
-                      <label class="custom-control-label cursor-pointer" for="fwdTargetOffice">
-                        <i class="fas fa-door-closed text-info mr-1"></i>ការិយាល័យ
-                      </label>
-                    </div>
-                    <div class="custom-control custom-radio">
-                      <input
-                        type="radio"
-                        id="fwdTargetOfficer"
-                        name="fwd_target_type"
-                        class="custom-control-input"
-                        value="OFFICER"
-                        v-model="forwardForm.target_type"
-                      />
-                      <label class="custom-control-label cursor-pointer" for="fwdTargetOfficer">
-                        <i class="fas fa-user-circle text-primary mr-1"></i>មន្ត្រីជាក់លាក់
+                      <label class="custom-control-label cursor-pointer" :for="'fwdTarget_' + opt.value">
+                        <i :class="opt.icon" class="mr-1"></i>{{ opt.label }}
                       </label>
                     </div>
                   </div>
                 </div>
 
-                <!-- Department Dropdown -->
+                <!-- Department Dropdown (Admin / Leadership only) -->
                 <div class="form-group mb-3" v-if="forwardForm.target_type === 'DEPARTMENT'">
                   <label class="font-weight-bold text-dark">នាយកដ្ឋានគោលដៅ <span class="text-danger">*</span></label>
                   <select class="form-control" v-model="forwardForm.target_department_id" required>
@@ -1913,19 +2414,63 @@
                   <label class="font-weight-bold text-dark">ការិយាល័យគោលដៅ <span class="text-danger">*</span></label>
                   <select class="form-control" v-model="forwardForm.target_office_id" required>
                     <option value="" disabled>-- សូមជ្រើសរើសការិយាល័យ --</option>
-                    <option v-for="o in recipientOptions.offices" :key="o.id" :value="o.id">
-                      {{ o.name_kh }} ({{ o.department?.name_kh }})
+                    <option v-for="o in availableForwardOffices" :key="o.id" :value="o.id">
+                      {{ o.name_kh }} <span v-if="o.department?.name_kh">({{ o.department.name_kh }})</span>
                     </option>
                   </select>
+                  <div v-if="availableForwardOffices.length === 0" class="text-danger font-13 mt-1">
+                    ពុំមានការិយាល័យចំណុះដែលអាចចាត់បន្តបានឡើយ
+                  </div>
                 </div>
 
-                <!-- Officer Dropdown -->
-                <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICER'">
-                  <label class="font-weight-bold text-dark">មន្ត្រីទទួលបន្ទុក <span class="text-danger">*</span></label>
-                  <select class="form-control" v-model="forwardForm.target_user_id" required>
-                    <option value="" disabled>-- សូមជ្រើសរើសមន្ត្រី --</option>
-                    <option v-for="u in recipientOptions.users" :key="u.id" :value="u.id">
-                      {{ u.name_kh || u.name }} - {{ u.position?.name_kh || 'មន្ត្រី' }} ({{ u.department?.name_kh }})
+                <!-- Officer Selection (Single or Multiple) -->
+                <div class="form-group mb-3" v-if="forwardForm.target_type === 'OFFICER' || forwardForm.target_type === 'WG_MEMBER'">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="font-weight-bold text-dark m-0">
+                      {{ forwardForm.target_type === 'WG_MEMBER' ? 'សមាជិកក្រុមការងារទទួលបន្ទុក' : 'មន្ត្រីក្រោមឱវាទទទួលបន្ទុកចាត់ចែង' }} <span class="text-danger">*</span>
+                    </label>
+                    <span class="badge badge-primary">{{ forwardForm.user_ids.length }} នាក់បានជ្រើស</span>
+                  </div>
+                  <div class="input-group input-group-sm mb-2">
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="ស្វែងរកឈ្មោះមន្ត្រី..."
+                      v-model="officerForwardSearch"
+                    />
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 border rounded p-2 bg-white" style="max-height: 180px; overflow-y: auto;">
+                    <label
+                      v-for="u in filteredForwardOfficers"
+                      :key="u.id"
+                      class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
+                      :class="forwardForm.user_ids.includes(u.id) ? 'btn-success text-white' : 'btn-light text-dark'"
+                    >
+                      <input
+                        type="checkbox"
+                        class="d-none"
+                        :value="u.id"
+                        v-model="forwardForm.user_ids"
+                      />
+                      <i class="fas" :class="forwardForm.user_ids.includes(u.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
+                      {{ u.name_kh || u.name }}
+                      <small v-if="u.position?.title_kh" class="ml-1">({{ u.position.title_kh }})</small>
+                      <small v-if="u.office?.name_kh" class="text-muted ml-1">- {{ u.office.name_kh }}</small>
+                    </label>
+                    <div v-if="filteredForwardOfficers.length === 0" class="text-muted font-13 p-2">
+                      ពុំមានមន្ត្រីក្រោមឱវាទដែលអាចចាត់ចែងបន្តបានឡើយ
+                    </div>
+                  </div>
+                  <small class="text-muted">អាចជ្រើសរើសមន្ត្រីម្នាក់ ឬច្រើននាក់ដើម្បីចាត់ចែងបន្ត</small>
+                </div>
+
+                <!-- Working Group Selection (Admin / Leadership only) -->
+                <div class="form-group mb-3" v-if="forwardForm.target_type === 'WORKING_GROUP'">
+                  <label class="font-weight-bold text-dark">ក្រុមការងារគោលដៅ <span class="text-danger">*</span></label>
+                  <select class="form-control" v-model="forwardForm.target_working_group_id" required>
+                    <option value="" disabled>-- សូមជ្រើសរើសក្រុមការងារ --</option>
+                    <option v-for="wg in recipientOptions.working_groups" :key="wg.id" :value="wg.id">
+                      {{ wg.name_kh }} <span v-if="wg.leader_name_kh">(ប្រធាន៖ {{ wg.leader_name_kh }})</span>
                     </option>
                   </select>
                 </div>
@@ -2314,6 +2859,13 @@
     </div>
   </Teleport>
 
+  <!-- Modal 9: Visual Tracking Flow Modal -->
+  <DocumentTrackingFlowModal
+    v-model:show="showTrackingModal"
+    :document-id="trackingDocId"
+    @close="showTrackingModal = false"
+  />
+
   </div>
 </template>
 
@@ -2322,6 +2874,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useUserStore } from '@/stores/user';
+import WordEditor from '@/components/common/WordEditor.vue';
+import DocumentTrackingFlowModal from '@/components/common/DocumentTrackingFlowModal.vue';
 import {
   apiGetInboundDocuments,
   apiGetInboundDocumentStats,
@@ -2338,6 +2892,7 @@ import {
   apiGetNextResponseApprovers,
   apiSubmitResponseDraft,
   apiProcessResponseAction,
+  apiUpdateInboundDocument,
   apiDeleteInboundDocument,
   apiUpdateTelegramSettings,
   apiTestTelegramConnection,
@@ -2362,7 +2917,8 @@ const canRegister = computed(() => isAdmin.value || userStore.can('inbound-docum
 const canAssist = computed(() => isAdmin.value || userStore.can('inbound-documents-assistant'));
 const isDg = computed(() => {
   if (isAdmin.value) return true;
-  return userStore.position && Number(userStore.position.level) === 1;
+  const level = userStore.position?.level ?? userStore.user?.position?.level;
+  return Number(level) === 1;
 });
 const isRegularOfficer = computed(() => {
   return !isAdmin.value && !canRegister.value && !canAssist.value && !isDg.value;
@@ -2386,12 +2942,14 @@ const documents = ref({
 
 const stats = ref({
   total: 0,
+  pending: 0,
+  doing: 0,
+  completed: 0,
   reception_pending: 0,
   assistant_pending: 0,
   dg_pending: 0,
   dispatched: 0,
   in_response: 0,
-  completed: 0,
   assigned_to_me: 0,
   my_todo: 0,
   my_done: 0,
@@ -2425,6 +2983,26 @@ const responseCandidates = ref([]);
 
 // Modals display states
 const showCreateModal = ref(false);
+const showEditModal = ref(false);
+const editingDoc = ref(false);
+const selectedEditDoc = ref(null);
+const editForm = reactive({
+  general_inbound_number: '',
+  received_date: '',
+  received_time: '',
+  deliverer_name: '',
+  deliverer_phone: '',
+  sender_organization: '',
+  external_reference_number: '',
+  external_document_date: '',
+  deadline: '',
+  title: '',
+  document_type: 'LETTER',
+  urgency: 'NORMAL',
+  confidentiality: 'NORMAL',
+  receptionist_notes: '',
+  original_file: null,
+});
 const showAssistantReceiveModal = ref(false);
 const showDgAnnotateModal = ref(false);
 const showAssistantDispatchModal = ref(false);
@@ -2695,23 +3273,51 @@ const assistantReceiveForm = reactive({
   dg_assistant_notes: '',
 });
 
+const officerDgSearch = ref('');
+const filteredDgOfficerOptions = computed(() => {
+  const users = recipientOptions.value.users || [];
+  if (!officerDgSearch.value.trim()) return users;
+  const q = officerDgSearch.value.toLowerCase().trim();
+  return users.filter(u => {
+    const nameKh = (u.name_kh || '').toLowerCase();
+    const name = (u.name || '').toLowerCase();
+    const pos = (u.position?.title_kh || '').toLowerCase();
+    const dept = (u.department?.name_kh || '').toLowerCase();
+    return nameKh.includes(q) || name.includes(q) || pos.includes(q) || dept.includes(q);
+  });
+});
+
 const dgAnnotateForm = reactive({
   dg_annotation: '',
   is_response_required: false,
   deadline: '',
+  department_ids: [],
+  office_ids: [],
+  user_ids: [],
+  working_group_ids: [],
+  dispatch_notes: '',
 });
 
 const dispatchForm = reactive({
-  target_type: 'DEPARTMENT',
+  target_type: 'MULTIPLE',
   target_department_id: '',
   target_office_id: '',
   target_user_id: '',
+  department_ids: [],
+  office_ids: [],
+  user_ids: [],
+  working_group_ids: [],
   dispatch_notes: '',
 });
 
 const responseForm = reactive({
   title: '',
+  response_type: 'REPORT',
+  header_organization: '',
+  reference_note: '',
   content: '',
+  sign_title: '',
+  sign_name: '',
   forwarded_to_id: '',
   comment: '',
 });
@@ -2724,12 +3330,47 @@ const reviewActionForm = reactive({
 });
 
 const forwardForm = reactive({
-  target_type: 'DEPARTMENT',
+  target_type: 'OFFICER',
   target_department_id: '',
   target_office_id: '',
   target_user_id: '',
+  target_working_group_id: '',
+  user_ids: [],
   forwarding_notes: '',
 });
+
+const showTrackingModal = ref(false);
+const trackingDocId = ref(null);
+
+const openTrackingModal = (doc) => {
+  trackingDocId.value = doc.id;
+  showTrackingModal.value = true;
+};
+
+// --- Working Group Helpers ---
+const isUserInWorkingGroup = (wgId) => {
+  if (!recipientOptions.value?.working_groups) return false;
+  const wg = recipientOptions.value.working_groups.find(g => g.id === wgId);
+  if (!wg || !wg.members) return false;
+  return wg.members.some(m => m.user_id === userStore.id && m.status === 'ACTIVE');
+};
+
+const isUserLeaderOfWorkingGroup = (wgId) => {
+  if (!recipientOptions.value?.working_groups) return false;
+  const wg = recipientOptions.value.working_groups.find(g => g.id === wgId);
+  if (!wg || !wg.members) return false;
+  return wg.members.some(m => m.user_id === userStore.id && ['LEADER', 'DEPUTY_LEADER'].includes(m.role) && m.status === 'ACTIVE');
+};
+
+const isUserAssignedViaWorkingGroup = (doc) => {
+  if (!doc?.assignments) return false;
+  return doc.assignments.some(a => a.working_group_id && isUserInWorkingGroup(a.working_group_id));
+};
+
+const isUserLeaderOfAssignedWorkingGroup = (doc) => {
+  if (!doc?.assignments) return false;
+  return doc.assignments.some(a => a.working_group_id && isUserLeaderOfWorkingGroup(a.working_group_id));
+};
 
 // --- Computed Helpers ---
 const filteredDispatchOffices = computed(() => {
@@ -2746,6 +3387,137 @@ const filteredDispatchUsers = computed(() => {
     list = list.filter(u => u.office_id === Number(dispatchForm.target_office_id));
   }
   return list;
+});
+
+const officerDispatchSearch = ref('');
+const filteredOfficerOptions = computed(() => {
+  const users = recipientOptions.value.users || [];
+  if (!officerDispatchSearch.value.trim()) return users;
+  const q = officerDispatchSearch.value.toLowerCase().trim();
+  return users.filter(u => {
+    const nameKh = (u.name_kh || '').toLowerCase();
+    const name = (u.name || '').toLowerCase();
+    const pos = (u.position?.title_kh || '').toLowerCase();
+    const dept = (u.department?.name_kh || '').toLowerCase();
+    return nameKh.includes(q) || name.includes(q) || pos.includes(q) || dept.includes(q);
+  });
+});
+
+// --- Dynamic Forwarding Target Options & Subordinates Filters ---
+const forwardTargetTypeOptions = computed(() => {
+  const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
+  if (isSuper) {
+    return [
+      { value: 'DEPARTMENT', label: 'នាយកដ្ឋាន', icon: 'fas fa-building text-secondary' },
+      { value: 'OFFICE', label: 'ការិយាល័យ', icon: 'fas fa-door-closed text-info' },
+      { value: 'OFFICER', label: 'មន្ត្រីជាក់លាក់', icon: 'fas fa-user-circle text-primary' },
+      { value: 'WORKING_GROUP', label: 'ក្រុមការងារ', icon: 'fas fa-users-cog text-indigo' },
+    ];
+  }
+
+  const userPosLevel = userStore.position ? Number(userStore.position.level) : 999;
+  const isDeptDirector = userPosLevel <= 4;
+  const isDeptLeader = userPosLevel <= 5;
+  const isOfficeLeader = userPosLevel <= 8;
+  const isWgLeader = isUserLeaderOfAssignedWorkingGroup(selectedDoc.value);
+
+  const opts = [];
+  if (isDeptDirector) {
+    opts.push({ value: 'OFFICE', label: 'ការិយាល័យក្រោមឱវាទ', icon: 'fas fa-door-closed text-info' });
+    opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងនាយកដ្ឋាន', icon: 'fas fa-user-circle text-primary' });
+  } else if (isDeptLeader) {
+    opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងនាយកដ្ឋាន', icon: 'fas fa-user-circle text-primary' });
+  } else if (isOfficeLeader) {
+    opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងការិយាល័យ', icon: 'fas fa-user-circle text-primary' });
+  }
+
+  if (isWgLeader) {
+    opts.push({ value: 'WG_MEMBER', label: 'សមាជិកក្នុងក្រុមការងារ', icon: 'fas fa-users text-indigo' });
+  }
+
+  if (opts.length === 0) {
+    opts.push({ value: 'OFFICER', label: 'មន្ត្រីជាក់លាក់', icon: 'fas fa-user-circle text-primary' });
+  }
+  return opts;
+});
+
+const availableForwardOffices = computed(() => {
+  const offices = recipientOptions.value.offices || [];
+  const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
+  if (isSuper) return offices;
+  if (userStore.department_id) {
+    return offices.filter(o => Number(o.department_id) === Number(userStore.department_id));
+  }
+  return [];
+});
+
+const availableForwardOfficers = computed(() => {
+  const users = recipientOptions.value.users || [];
+  const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
+  if (isSuper) {
+    return users;
+  }
+
+  const userPosLevel = userStore.position ? Number(userStore.position.level) : 999;
+  const isDeptLeader = userPosLevel <= 5;
+  const isOfficeLeader = userPosLevel <= 8;
+  const targetType = forwardForm.target_type;
+
+  // If WG_MEMBER selected or user is forwarding within WG
+  if (targetType === 'WG_MEMBER' || (isUserLeaderOfAssignedWorkingGroup(selectedDoc.value) && targetType === 'OFFICER' && !isDeptLeader && !isOfficeLeader)) {
+    const assignedWgIds = (selectedDoc.value?.assignments || [])
+      .filter(a => a.working_group_id)
+      .map(a => a.working_group_id);
+    const memberUserIds = new Set();
+    (recipientOptions.value.working_groups || [])
+      .filter(wg => assignedWgIds.includes(wg.id))
+      .forEach(wg => {
+        (wg.members || []).forEach(m => {
+          if (m.status === 'ACTIVE' && Number(m.user_id) !== Number(userStore.id)) {
+            memberUserIds.add(Number(m.user_id));
+          }
+        });
+      });
+    return users.filter(u => memberUserIds.has(Number(u.id)));
+  }
+
+  // Office leadership: only subordinates in the same office with lower position level
+  if (isOfficeLeader && !isDeptLeader) {
+    return users.filter(u => {
+      const uPosLevel = u.position ? Number(u.position.level) : 999;
+      return Number(u.office_id) === Number(userStore.office_id) && Number(u.id) !== Number(userStore.id) && uPosLevel > userPosLevel;
+    });
+  }
+
+  // Department leadership: subordinates in the same department with lower position level
+  if (isDeptLeader) {
+    return users.filter(u => {
+      const uPosLevel = u.position ? Number(u.position.level) : 999;
+      return Number(u.department_id) === Number(userStore.department_id) && Number(u.id) !== Number(userStore.id) && uPosLevel > userPosLevel;
+    });
+  }
+
+  // Any other assigned officer forwarding down to lower subordinates in same office or department
+  return users.filter(u => {
+    const uPosLevel = u.position ? Number(u.position.level) : 999;
+    const sameOffice = userStore.office_id && Number(u.office_id) === Number(userStore.office_id);
+    const sameDept = userStore.department_id && Number(u.department_id) === Number(userStore.department_id);
+    return (sameOffice || sameDept) && Number(u.id) !== Number(userStore.id) && uPosLevel > userPosLevel;
+  });
+});
+
+const officerForwardSearch = ref('');
+const filteredForwardOfficers = computed(() => {
+  const officers = availableForwardOfficers.value;
+  if (!officerForwardSearch.value.trim()) return officers;
+  const q = officerForwardSearch.value.toLowerCase().trim();
+  return officers.filter(u => {
+    const nameKh = (u.name_kh || '').toLowerCase();
+    const name = (u.name || '').toLowerCase();
+    const pos = (u.position?.title_kh || '').toLowerCase();
+    const off = (u.office?.name_kh || '').toLowerCase();
+    return nameKh.includes(q) || name.includes(q) || pos.includes(q) || off.includes(q);
+  });
 });
 
 const paginationPages = computed(() => {
@@ -2778,24 +3550,21 @@ const canAcknowledge = (doc) => {
 };
 
 const canDraftResponse = (doc) => {
-  if (!doc.is_response_required) return false;
-  if (doc.status !== 'DISPATCHED' && doc.status !== 'IN_RESPONSE_PROGRESS') return false;
-  // If no responses drafted yet, or returned to viewer
+  if (!doc) return false;
+  if (!['DISPATCHED', 'IN_RESPONSE_PROGRESS'].includes(doc.status)) return false;
+
   const latest = doc.latest_response;
-  if (!latest) {
-    if (isAdmin.value) return true;
-    if (doc.target_user_id) {
-      return doc.target_user_id === userStore.id;
-    }
-    if (doc.target_office_id && doc.target_office_id === userStore.office_id) {
-      return userStore.position && Number(userStore.position.level) <= 6;
-    }
-    if (doc.target_department_id && doc.target_department_id === userStore.department_id) {
-      return userStore.position && Number(userStore.position.level) <= 4;
+  if (latest) {
+    if (['DRAFT', 'RETURNED'].includes(latest.status) && (latest.drafted_by === userStore.id || isAdmin.value)) {
+      return true;
     }
     return false;
   }
-  return latest.status === 'RETURNED' && (latest.drafted_by === userStore.id || isAdmin.value);
+
+  // គ្រប់គ្នាដែលស្ថិតនៅក្រោមអគ្គនាយក សុទ្ធតែមានសិទ្ធិបង្កើតរបាយការណ៍ (Everyone below DG has the right to create report)
+  if (isAdmin.value) return true;
+  if (isDg.value) return false; // DG is the final approver, not the drafter
+  return true;
 };
 
 const canReviewResponse = (doc) => {
@@ -2806,20 +3575,268 @@ const canReviewResponse = (doc) => {
 
 const canForward = (doc) => {
   if (!doc) return false;
-  // Do not allow forward if not yet dispatched or already completed/cancelled
-  if (['COMPLETED', 'CANCELLED', 'RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'].includes(doc.status)) return false;
+  if (['COMPLETED', 'CANCELLED', 'RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(doc.status)) return false;
   if (isAdmin.value) return true;
-  // DG or Deputy DG (level 1 or 2)
+  // DG, Deputy DG, Assistant
   if (userStore.position && Number(userStore.position.level) <= 2) return true;
-  // Assistant
   if (canAssist.value) return true;
-  // Assigned officer can forward/delegate further
-  if (doc.target_user_id && doc.target_user_id === userStore.id) return true;
-  // Assigned department head (level <= 4)
-  if (doc.target_department_id && doc.target_department_id === userStore.department_id && userStore.position && Number(userStore.position.level) <= 4) return true;
-  // Assigned office head (level <= 6)
-  if (doc.target_office_id && doc.target_office_id === userStore.office_id && userStore.position && Number(userStore.position.level) <= 6) return true;
+
+  const userLevel = userStore.position ? Number(userStore.position.level) : 999;
+  const userDeptId = userStore.department_id ? Number(userStore.department_id) : null;
+  const userOfficeId = userStore.office_id ? Number(userStore.office_id) : null;
+  const userId = Number(userStore.id);
+
+  const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
+  const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
+  const docUserId = Number(doc.target_user_id || doc.target_user?.id);
+
+  // 1. Department Director / Acting (Level <= 4): can forward if doc is in their department
+  if (userLevel <= 4 && userDeptId) {
+    if (docDeptId === userDeptId) return true;
+    if (doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId)) return true;
+  }
+
+  // 2. Office leadership (Level <= 8): can forward if doc is in their office
+  if (userLevel <= 8 && userOfficeId) {
+    if (docOfficeId === userOfficeId) return true;
+    if (doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId)) return true;
+  }
+
+  // 3. User specifically assigned / forwarded this document (Deputy Director Level 5, or assigned officer with subordinates)
+  if (docUserId === userId) return true;
+  if (doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId)) return true;
+
+  // 4. Working Group leader / deputy leader
+  if (isUserLeaderOfAssignedWorkingGroup(doc)) {
+    return true;
+  }
+
   return false;
+};
+
+// សិទ្ធិលុបឯកសារចូល (ករណីបញ្ចូលខុស)
+// - អគ្គនាយក ឬ Admin អាចលុបបានគ្រប់ពេល
+// - អ្នកទទួល ឬជំនួយការ ករណីមិនទាន់បញ្ជូនទៅអគ្គនាយក អាចលុបចេញបាន
+const canDeleteDocument = (doc) => {
+  if (!doc) return false;
+  // 1. អគ្គនាយក ឬ Admin
+  if (isAdmin.value || isDg.value) return true;
+
+  // 2. អ្នកទទួល ឬជំនួយការ ឬអ្នកដែលបានចុះឈ្មោះផ្ទាល់ (ប្រសិនបើមិនទាន់បញ្ជូនទៅអគ្គនាយក)
+  const notYetSubmittedToDg = ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT'].includes(doc.status);
+  const isReceptionOrAssistant = canRegister.value || canAssist.value || (doc.registered_by === userStore.id);
+
+  return notYetSubmittedToDg && isReceptionOrAssistant;
+};
+
+// សិទ្ធិកែប្រែព័ត៌មានឯកសារចូល (ករណីបញ្ចូលខុស)
+// - អគ្គនាយក ឬ Admin អាចកែប្រែបានគ្រប់ពេល
+// - អ្នកទទួល ឬជំនួយការ ករណីមិនទាន់បញ្ជូនទៅអគ្គនាយក អាចកែប្រែបាន
+const canEditDocument = (doc) => {
+  if (!doc) return false;
+  if (isAdmin.value || isDg.value) return true;
+
+  const notYetSubmittedToDg = ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT'].includes(doc.status);
+  const isReceptionOrAssistant = canRegister.value || canAssist.value || (doc.registered_by === userStore.id);
+
+  return notYetSubmittedToDg && isReceptionOrAssistant;
+};
+
+// កំណត់ទីតាំងឯកសារ និងអ្នកកាន់បច្ចុប្បន្ន (Current Custodian & Desk)
+const getCurrentCustodian = (doc) => {
+  if (!doc) return { label: '---', badgeClass: 'badge-light text-muted', icon: 'fas fa-question-circle', subText: '' };
+
+  switch (doc.status) {
+    case 'RECEPTION_DRAFT':
+      return {
+        label: 'តុអ្នកទទួលឯកសារ',
+        badgeClass: 'badge-info',
+        icon: 'fas fa-inbox',
+        subText: doc.registered_by_user ? `(ចុះដោយ៖ ${doc.registered_by_user.name_kh || doc.registered_by_user.name})` : 'រង់ចាំបញ្ជូនទៅជំនួយការ'
+      };
+
+    case 'SUBMITTED_TO_ASSISTANT':
+      return {
+        label: 'តុជំនួយការអគ្គនាយក',
+        badgeClass: 'badge-indigo text-white',
+        icon: 'fas fa-user-shield',
+        subText: 'រង់ចាំចុះលេខ អ.ន. & ដាក់ជូន ឯ.ឧ.'
+      };
+
+    case 'SUBMITTED_TO_DG':
+      return {
+        label: 'តុឯកឧត្តមអគ្គនាយក',
+        badgeClass: 'badge-rose text-white',
+        icon: 'fas fa-signature',
+        subText: 'រង់ចាំចំណារឯកឧត្តមអគ្គនាយក'
+      };
+
+    case 'DG_ANNOTATED':
+      return {
+        label: 'តុជំនួយការអគ្គនាយក',
+        badgeClass: 'badge-warning text-dark',
+        icon: 'fas fa-share-square',
+        subText: 'រង់ចាំ Scan ចំណារ & ចែកចាយ'
+      };
+
+    case 'DISPATCHED':
+      if (doc.assignments && doc.assignments.length > 0) {
+        const primary = doc.assignments[0];
+        if (primary.target_type === 'USER' && primary.user) {
+          return {
+            label: primary.user.name_kh || primary.user.name,
+            badgeClass: 'badge-primary',
+            icon: 'fas fa-user',
+            subText: primary.office?.name_kh || primary.department?.name_kh || 'មន្ត្រីទទួលបន្ទុក'
+          };
+        } else if (primary.target_type === 'WORKING_GROUP' && primary.working_group) {
+          return {
+            label: primary.working_group.name_kh,
+            badgeClass: 'badge-teal text-white',
+            icon: 'fas fa-users-cog',
+            subText: 'ក្រុមការងារចាត់តាំង'
+          };
+        } else if (primary.target_type === 'OFFICE' && primary.office) {
+          return {
+            label: primary.office.name_kh,
+            badgeClass: 'badge-primary',
+            icon: 'fas fa-door-closed',
+            subText: primary.department?.name_kh || 'ការិយាល័យទទួលបន្ទុក'
+          };
+        } else if (primary.target_type === 'DEPARTMENT' && primary.department) {
+          return {
+            label: primary.department.name_kh,
+            badgeClass: 'badge-primary',
+            icon: 'fas fa-building',
+            subText: 'នាយកដ្ឋានទទួលបន្ទុក'
+          };
+        }
+      }
+
+      if (doc.target_user) {
+        return {
+          label: doc.target_user.name_kh || doc.target_user.name,
+          badgeClass: 'badge-primary',
+          icon: 'fas fa-user',
+          subText: doc.target_office?.name_kh || doc.target_department?.name_kh || 'មន្ត្រីទទួលបន្ទុក'
+        };
+      }
+      if (doc.target_office) {
+        return {
+          label: doc.target_office.name_kh,
+          badgeClass: 'badge-primary',
+          icon: 'fas fa-door-closed',
+          subText: doc.target_department?.name_kh || 'ការិយាល័យ'
+        };
+      }
+      if (doc.target_department) {
+        return {
+          label: doc.target_department.name_kh,
+          badgeClass: 'badge-primary',
+          icon: 'fas fa-building',
+          subText: 'នាយកដ្ឋាន'
+        };
+      }
+      return {
+        label: 'បានចែកចាយ',
+        badgeClass: 'badge-secondary',
+        icon: 'fas fa-check',
+        subText: 'រង់ចាំការចាត់ចែងបន្ត'
+      };
+
+    case 'IN_RESPONSE_PROGRESS':
+      const latestResp = doc.latest_response;
+      const approverName = latestResp?.current_approver ? (latestResp.current_approver.name_kh || latestResp.current_approver.name) : 'ថ្នាក់ដឹកនាំ';
+      const drafterName = latestResp?.drafted_by_user ? (latestResp.drafted_by_user.name_kh || latestResp.drafted_by_user.name) : '';
+      return {
+        label: `កំពុងឆ្លង៖ ${approverName}`,
+        badgeClass: 'badge-warning text-dark',
+        icon: 'fas fa-hourglass-half',
+        subText: drafterName ? `រៀបចំដោយ៖ ${drafterName}` : 'រង់ចាំការពិនិត្យ'
+      };
+
+    case 'COMPLETED':
+      return {
+        label: 'បានបញ្ចប់ស្ថាពរ',
+        badgeClass: 'badge-success',
+        icon: 'fas fa-check-circle',
+        subText: 'បណ្ណសារ / រក្សាទុក'
+      };
+
+    case 'CANCELLED':
+      return {
+        label: 'បានលុបចោល',
+        badgeClass: 'badge-danger',
+        icon: 'fas fa-times-circle',
+        subText: 'ឯកសារលុបចោល'
+      };
+
+    default:
+      return {
+        label: doc.status_kh || doc.status,
+        badgeClass: 'badge-secondary',
+        icon: 'fas fa-file',
+        subText: ''
+      };
+  }
+};
+
+// កំណត់ស្ថានភាពសាមញ្ញ ៣ ដំណាក់កាល (Pending, Doing, Complete)
+const getSimplifiedStatus = (doc) => {
+  if (!doc) return { label: 'Pending', khLabel: 'ចូលដំបូង / រង់ចាំ', key: 'PENDING', badgeClass: 'badge-warning text-dark font-weight-bold', icon: 'fas fa-clock', subText: '' };
+
+  const status = doc.status;
+  if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(status)) {
+    let sub = 'ចូលមកដំបូង';
+    if (status === 'RECEPTION_DRAFT') sub = 'នៅតុចុះបញ្ជីទទួល';
+    else if (status === 'SUBMITTED_TO_ASSISTANT') sub = 'នៅតុជំនួយការ';
+    else if (status === 'SUBMITTED_TO_DG') sub = 'នៅតុអគ្គនាយក';
+
+    return {
+      label: 'Pending',
+      khLabel: 'ករណីចូលមកដំបូង',
+      key: 'PENDING',
+      badgeClass: 'badge-warning text-dark font-weight-bold',
+      icon: 'fas fa-clock',
+      subText: sub
+    };
+  }
+
+  if (['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'].includes(status)) {
+    let sub = 'កំពុងដំណើរការ';
+    if (status === 'DG_ANNOTATED') sub = 'អគ្គនាយកចាររួច (រង់ចាំចែកចាយ)';
+    else if (status === 'DISPATCHED') sub = 'បានបញ្ជូនចេញ / ចាត់ចែង';
+    else if (status === 'IN_RESPONSE_PROGRESS') sub = 'កំពុងរៀបចំឆ្លើយតប/ឆ្លង';
+
+    return {
+      label: 'Doing',
+      khLabel: 'បានបញ្ជូនចេញ ឬកំពុងធ្វើ',
+      key: 'DOING',
+      badgeClass: 'badge-primary font-weight-bold',
+      icon: 'fas fa-tasks',
+      subText: sub
+    };
+  }
+
+  if (status === 'COMPLETED') {
+    return {
+      label: 'Complete',
+      khLabel: 'ករណីអគ្គនាយកឯកភាព',
+      key: 'COMPLETE',
+      badgeClass: 'badge-success font-weight-bold',
+      icon: 'fas fa-check-circle',
+      subText: 'អគ្គនាយកបានឯកភាព'
+    };
+  }
+
+  return {
+    label: doc.status || 'Pending',
+    khLabel: doc.status_kh || 'ចូលដំបូង',
+    key: 'PENDING',
+    badgeClass: 'badge-secondary',
+    icon: 'fas fa-info-circle',
+    subText: ''
+  };
 };
 
 // --- API Calls & Data Loading ---
@@ -2867,10 +3884,10 @@ const loadRecipientsOptions = async () => {
 
 const syncTabFromRoute = () => {
   const t = route.query.tab;
-  if (t && ['all', 'my_todo', 'my_unit', 'my_done', 'reception', 'assistant_inbox', 'dg_inbox', 'assigned_to_me', 'response_workflow'].includes(t)) {
+  if (t && ['all', 'pending', 'doing', 'completed', 'my_unit', 'reception', 'assistant_inbox', 'dg_inbox', 'my_todo', 'my_done', 'assigned_to_me', 'response_workflow'].includes(t)) {
     activeTab.value = t;
   } else {
-    activeTab.value = isRegularOfficer.value ? 'my_todo' : 'all';
+    activeTab.value = 'all';
   }
 };
 
@@ -2879,7 +3896,7 @@ const switchTab = (tab) => {
   filters.status = '';
   filters.deadline_filter = '';
   filters.page = 1;
-  const defaultTab = isRegularOfficer.value ? 'my_todo' : 'all';
+  const defaultTab = 'all';
   const currentTab = route.query.tab || defaultTab;
   if (currentTab !== tab) {
     router.replace({
@@ -2975,6 +3992,87 @@ const openCreateModal = async () => {
 
 const closeCreateModal = () => {
   showCreateModal.value = false;
+};
+
+const openEditModal = (doc) => {
+  if (!doc) return;
+  selectedEditDoc.value = doc;
+  editForm.general_inbound_number = doc.general_inbound_number || '';
+  editForm.received_date = doc.received_date ? doc.received_date.substring(0, 10) : '';
+  editForm.received_time = doc.received_time ? doc.received_time.substring(0, 5) : '';
+  editForm.deliverer_name = doc.deliverer_name || '';
+  editForm.deliverer_phone = doc.deliverer_phone || '';
+  editForm.sender_organization = doc.sender_organization || '';
+  editForm.external_reference_number = doc.external_reference_number || '';
+  editForm.external_document_date = doc.external_document_date ? doc.external_document_date.substring(0, 10) : '';
+  editForm.deadline = doc.deadline ? doc.deadline.substring(0, 10) : '';
+  editForm.title = doc.title || '';
+  editForm.document_type = doc.document_type || 'LETTER';
+  editForm.urgency = doc.urgency || 'NORMAL';
+  editForm.confidentiality = doc.confidentiality || 'NORMAL';
+  editForm.receptionist_notes = doc.receptionist_notes || '';
+  editForm.original_file = null;
+  showEditModal.value = true;
+};
+
+const closeEditModal = () => {
+  showEditModal.value = false;
+  selectedEditDoc.value = null;
+};
+
+const onEditFileChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    editForm.original_file = file;
+  }
+};
+
+const submitEditDocument = async () => {
+  if (!selectedEditDoc.value) return;
+  editingDoc.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('general_inbound_number', editForm.general_inbound_number);
+    fd.append('received_date', editForm.received_date);
+    fd.append('received_time', editForm.received_time);
+    fd.append('deliverer_name', editForm.deliverer_name);
+    fd.append('deliverer_phone', editForm.deliverer_phone || '');
+    fd.append('sender_organization', editForm.sender_organization);
+    fd.append('external_reference_number', editForm.external_reference_number || '');
+    fd.append('external_document_date', editForm.external_document_date || '');
+    fd.append('deadline', editForm.deadline || '');
+    fd.append('title', editForm.title);
+    fd.append('document_type', editForm.document_type);
+    fd.append('urgency', editForm.urgency);
+    fd.append('confidentiality', editForm.confidentiality);
+    fd.append('receptionist_notes', editForm.receptionist_notes || '');
+    if (editForm.original_file) {
+      fd.append('original_file', editForm.original_file);
+    }
+
+    await apiUpdateInboundDocument(selectedEditDoc.value.id, fd);
+    Swal.fire({
+      icon: 'success',
+      title: 'បានកែប្រែជោគជ័យ!',
+      text: 'ព័ត៌មានលម្អិតឯកសារចូលត្រូវបានកែសម្រួលរួចរាល់។',
+      timer: 1500,
+      showConfirmButton: false,
+    });
+    showEditModal.value = false;
+    if (showDetailModal.value && selectedDoc.value) {
+      openDetailModal(selectedEditDoc.value);
+    }
+    loadDocuments();
+    loadStats();
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យក្នុងការកែប្រែ',
+      text: err.response?.data?.message || 'សូមពិនិត្យមើលទិន្នន័យដែលបានបញ្ចូលឡើងវិញ!',
+    });
+  } finally {
+    editingDoc.value = false;
+  }
 };
 
 const fetchNextGeneralNumber = async () => {
@@ -3141,17 +4239,23 @@ const openDgAnnotateModal = (doc) => {
   dgAnnotateForm.dg_annotation = doc.dg_annotation || '';
   dgAnnotateForm.is_response_required = !!doc.is_response_required;
   dgAnnotateForm.deadline = doc.deadline ? String(doc.deadline).substring(0, 10) : '';
+  dgAnnotateForm.department_ids = [];
+  dgAnnotateForm.office_ids = [];
+  dgAnnotateForm.user_ids = [];
+  dgAnnotateForm.working_group_ids = [];
+  dgAnnotateForm.dispatch_notes = '';
+  officerDgSearch.value = '';
   showDgAnnotateModal.value = true;
 };
 
 const submitDgAnnotate = async () => {
   submitting.value = true;
   try {
-    await apiDgAnnotate(selectedDoc.value.id, dgAnnotateForm);
+    const res = await apiDgAnnotate(selectedDoc.value.id, dgAnnotateForm);
     Swal.fire({
       icon: 'success',
       title: 'ជោគជ័យ!',
-      text: 'បានកត់ត្រាចំណារឯកឧត្តមអគ្គនាយករួចរាល់!',
+      text: res.data?.message || 'បានកត់ត្រាចំណារឯកឧត្តមអគ្គនាយករួចរាល់!',
       confirmButtonText: 'យល់ព្រម',
     });
     showDgAnnotateModal.value = false;
@@ -3168,19 +4272,33 @@ const openAssistantDispatchModal = (doc) => {
   selectedDoc.value = doc;
   selectedAnnotatedFile.value = null;
   selectedAnnotatedFileName.value = '';
-  dispatchForm.target_type = 'DEPARTMENT';
+  dispatchForm.target_type = 'MULTIPLE';
   dispatchForm.target_department_id = '';
   dispatchForm.target_office_id = '';
   dispatchForm.target_user_id = '';
-  dispatchForm.dispatch_notes = '';
+  dispatchForm.department_ids = doc.target_department_id ? [doc.target_department_id] : [];
+  dispatchForm.office_ids = doc.target_office_id ? [doc.target_office_id] : [];
+  dispatchForm.user_ids = doc.target_user_id ? [doc.target_user_id] : [];
+  dispatchForm.working_group_ids = (doc.assignments || [])
+    .filter(a => a.target_type === 'WORKING_GROUP' && a.working_group_id)
+    .map(a => a.working_group_id);
+  dispatchForm.dispatch_notes = doc.dispatch_notes || '';
   showAssistantDispatchModal.value = true;
 };
 
 const submitAssistantDispatch = async () => {
+  if (dispatchForm.department_ids.length === 0 && dispatchForm.office_ids.length === 0 && dispatchForm.user_ids.length === 0 && dispatchForm.working_group_ids.length === 0 && !dispatchForm.target_department_id && !dispatchForm.target_office_id && !dispatchForm.target_user_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសយ៉ាងហោចណាស់មួយនាយកដ្ឋាន ការិយាល័យ មន្ត្រី ឬក្រុមការងារគោលដៅ!' });
+    return;
+  }
   submitting.value = true;
   try {
     const formData = new FormData();
     formData.append('target_type', dispatchForm.target_type);
+    dispatchForm.department_ids.forEach(id => formData.append('department_ids[]', id));
+    dispatchForm.office_ids.forEach(id => formData.append('office_ids[]', id));
+    dispatchForm.user_ids.forEach(id => formData.append('user_ids[]', id));
+    dispatchForm.working_group_ids.forEach(id => formData.append('working_group_ids[]', id));
     if (dispatchForm.target_department_id) formData.append('target_department_id', dispatchForm.target_department_id);
     if (dispatchForm.target_office_id) formData.append('target_office_id', dispatchForm.target_office_id);
     if (dispatchForm.target_user_id) formData.append('target_user_id', dispatchForm.target_user_id);
@@ -3206,11 +4324,29 @@ const submitAssistantDispatch = async () => {
 
 const openForwardModal = (doc) => {
   selectedDoc.value = doc;
-  forwardForm.target_type = doc.target_type || 'DEPARTMENT';
+  const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
+  const isDeptDirector = userStore.position && Number(userStore.position.level) <= 4;
+  const isDeptLeader = userStore.position && Number(userStore.position.level) <= 5;
+  const isOfficeLeader = userStore.position && Number(userStore.position.level) <= 8;
+  const isWgLeader = isUserLeaderOfAssignedWorkingGroup(doc);
+
+  if (isDeptDirector) {
+    forwardForm.target_type = 'OFFICE';
+  } else if (isOfficeLeader || isDeptLeader) {
+    forwardForm.target_type = 'OFFICER';
+  } else if (isWgLeader) {
+    forwardForm.target_type = 'WG_MEMBER';
+  } else {
+    forwardForm.target_type = 'OFFICER';
+  }
+
   forwardForm.target_department_id = doc.target_department_id || '';
   forwardForm.target_office_id = doc.target_office_id || '';
   forwardForm.target_user_id = doc.target_user_id || '';
+  forwardForm.target_working_group_id = '';
+  forwardForm.user_ids = [];
   forwardForm.forwarding_notes = '';
+  officerForwardSearch.value = '';
   showForwardModal.value = true;
 };
 
@@ -3224,8 +4360,12 @@ const handleForwardSubmit = async () => {
     Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសការិយាល័យគោលដៅ!' });
     return;
   }
-  if (forwardForm.target_type === 'OFFICER' && !forwardForm.target_user_id) {
+  if ((forwardForm.target_type === 'OFFICER' || forwardForm.target_type === 'WG_MEMBER') && !forwardForm.target_user_id && forwardForm.user_ids.length === 0) {
     Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសមន្ត្រីទទួលបន្ទុក!' });
+    return;
+  }
+  if (forwardForm.target_type === 'WORKING_GROUP' && !forwardForm.target_working_group_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសក្រុមការងារគោលដៅ!' });
     return;
   }
 
@@ -3235,7 +4375,9 @@ const handleForwardSubmit = async () => {
       target_type: forwardForm.target_type,
       target_department_id: forwardForm.target_type === 'DEPARTMENT' ? forwardForm.target_department_id : null,
       target_office_id: forwardForm.target_type === 'OFFICE' ? forwardForm.target_office_id : null,
-      target_user_id: forwardForm.target_type === 'OFFICER' ? forwardForm.target_user_id : null,
+      target_user_id: (forwardForm.target_type === 'OFFICER' || forwardForm.target_type === 'WG_MEMBER') ? (forwardForm.user_ids[0] || forwardForm.target_user_id) : null,
+      user_ids: forwardForm.user_ids,
+      target_working_group_id: forwardForm.target_type === 'WORKING_GROUP' ? forwardForm.target_working_group_id : null,
       forwarding_notes: forwardForm.forwarding_notes || '',
     };
     await apiForwardInboundDocument(selectedDoc.value.id, payload);
@@ -3249,10 +4391,13 @@ const handleForwardSubmit = async () => {
     loadDocuments();
     loadStats();
   } catch (err) {
+    const errorMsg = err.response?.data?.message 
+      || Object.values(err.response?.data?.errors || {})[0]?.[0]
+      || 'មិនអាចបញ្ជូនបន្តបានឡើយ!';
     Swal.fire({
       icon: 'error',
       title: 'បរាជ័យ!',
-      text: err.response?.data?.message || 'មិនអាចបញ្ជូនបន្តបានឡើយ!',
+      text: errorMsg,
     });
   } finally {
     forwarding.value = false;
@@ -3282,10 +4427,28 @@ const acknowledgeAction = async (doc) => {
 
 const openSubmitResponseModal = async (doc) => {
   selectedDoc.value = doc;
-  responseForm.title = `លិខិតឆ្លើយតបលើ៖ ${doc.title}`;
-  responseForm.content = '';
-  responseForm.forwarded_to_id = '';
-  responseForm.comment = '';
+  const existing = doc.latest_response;
+  if (existing && ['DRAFT', 'RETURNED'].includes(existing.status)) {
+    responseForm.title = existing.title || `លិខិតឆ្លើយតបលើ៖ ${doc.title}`;
+    responseForm.response_type = existing.response_type || 'REPORT';
+    responseForm.header_organization = existing.header_organization || '';
+    responseForm.reference_note = existing.reference_note || '';
+    responseForm.content = existing.content || '';
+    responseForm.sign_title = existing.sign_title || '';
+    responseForm.sign_name = existing.sign_name || (userStore.name_kh || userStore.name);
+    responseForm.forwarded_to_id = existing.current_approver_id || '';
+    responseForm.comment = '';
+  } else {
+    responseForm.title = `របាយការណ៍ស្តីពី៖ ${doc.title}`;
+    responseForm.response_type = 'REPORT';
+    responseForm.header_organization = userStore.department?.name_kh || '';
+    responseForm.reference_note = `យោង៖ ចំណារលើឯកសារលេខ ${doc.dg_inbound_number || doc.general_inbound_number} ចុះថ្ងៃទី ${doc.received_date}`;
+    responseForm.content = '';
+    responseForm.sign_title = userStore.position?.title_kh || 'មន្ត្រី';
+    responseForm.sign_name = userStore.name_kh || userStore.name || '';
+    responseForm.forwarded_to_id = '';
+    responseForm.comment = '';
+  }
   selectedResponseFile.value = null;
   selectedResponseFileName.value = '';
 
@@ -3298,14 +4461,58 @@ const openSubmitResponseModal = async (doc) => {
   }
 };
 
+const saveResponseDraftOnly = async () => {
+  submitting.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('title', responseForm.title || `សេចក្តីព្រាងឆ្លើយតបលើ ${selectedDoc.value?.title}`);
+    formData.append('response_type', responseForm.response_type || 'REPORT');
+    formData.append('header_organization', responseForm.header_organization || '');
+    formData.append('reference_note', responseForm.reference_note || '');
+    formData.append('content', responseForm.content || '');
+    formData.append('sign_title', responseForm.sign_title || '');
+    formData.append('sign_name', responseForm.sign_name || '');
+    formData.append('is_draft', '1');
+    if (selectedResponseFile.value) {
+      formData.append('response_file', selectedResponseFile.value);
+    }
+
+    await apiSubmitResponseDraft(selectedDoc.value.id, formData);
+    Swal.fire({
+      icon: 'success',
+      title: 'បានរក្សាទុក!',
+      text: 'បានរក្សាទុកសេចក្តីព្រាងដោយជោគជ័យ!',
+      timer: 1600,
+      showConfirmButton: false,
+    });
+    loadDocuments();
+    loadStats();
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || Object.values(err.response?.data?.errors || {})[0]?.[0] || 'មិនអាចរក្សាទុកព្រាងបានឡើយ!';
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
+  } finally {
+    submitting.value = false;
+  }
+};
+
 const submitResponseDraftAction = async () => {
+  if (!responseForm.forwarded_to_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីឆ្លងបន្ត!' });
+    return;
+  }
   submitting.value = true;
   try {
     const formData = new FormData();
     formData.append('title', responseForm.title);
+    formData.append('response_type', responseForm.response_type || 'REPORT');
+    formData.append('header_organization', responseForm.header_organization || '');
+    formData.append('reference_note', responseForm.reference_note || '');
     formData.append('content', responseForm.content || '');
+    formData.append('sign_title', responseForm.sign_title || '');
+    formData.append('sign_name', responseForm.sign_name || '');
     formData.append('forwarded_to_id', responseForm.forwarded_to_id);
     formData.append('comment', responseForm.comment || '');
+    formData.append('is_draft', '0');
     if (selectedResponseFile.value) {
       formData.append('response_file', selectedResponseFile.value);
     }
@@ -3321,7 +4528,8 @@ const submitResponseDraftAction = async () => {
     loadDocuments();
     loadStats();
   } catch (err) {
-    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចដាក់ស្នើឆ្លើយតបបានឡើយ!' });
+    const errorMsg = err.response?.data?.message || Object.values(err.response?.data?.errors || {})[0]?.[0] || 'មិនអាចដាក់ស្នើឆ្លើយតបបានឡើយ!';
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
   } finally {
     submitting.value = false;
   }
@@ -3364,7 +4572,8 @@ const submitReviewAction = async () => {
     loadDocuments();
     loadStats();
   } catch (err) {
-    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចដំណើរការសកម្មភាពបានឡើយ!' });
+    const errorMsg = err.response?.data?.message || Object.values(err.response?.data?.errors || {})[0]?.[0] || 'មិនអាចដំណើរការសកម្មភាពបានឡើយ!';
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
   } finally {
     submitting.value = false;
   }
@@ -3382,9 +4591,11 @@ const openDetailModal = async (doc) => {
 };
 
 const deleteDocumentAction = async (doc) => {
+  if (!doc) return;
+  const docRef = doc.general_inbound_number ? `លេខ ${doc.general_inbound_number}` : (doc.title ? `«${doc.title}»` : '');
   const confirm = await Swal.fire({
     title: 'លុបឯកសារចូល?',
-    text: `តើលោកអ្នកពិតជាចង់លុបឯកសារលេខ ${doc.general_inbound_number} មែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានឡើយ!`,
+    text: `តើលោកអ្នកពិតជាចង់លុបឯកសារ${docRef ? ' ' + docRef : ''} នេះមែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានឡើយ!`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'លុបចេញ',
@@ -3395,7 +4606,10 @@ const deleteDocumentAction = async (doc) => {
 
   try {
     await apiDeleteInboundDocument(doc.id);
-    Swal.fire({ icon: 'success', title: 'បានលុប!', timer: 1500, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: 'បានលុបឯកសារដោយជោគជ័យ!', timer: 1500, showConfirmButton: false });
+    if (showDetailModal.value) {
+      showDetailModal.value = false;
+    }
     loadDocuments();
     loadStats();
   } catch (err) {
@@ -3862,5 +5076,28 @@ onMounted(() => {
 }
 .ring-1 {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* Custom Status & Desk Badges */
+.badge-indigo {
+  background-color: #6366f1 !important;
+  color: #fff !important;
+}
+.text-indigo {
+  color: #6366f1 !important;
+}
+.badge-rose {
+  background-color: #f43f5e !important;
+  color: #fff !important;
+}
+.text-rose {
+  color: #f43f5e !important;
+}
+.badge-teal {
+  background-color: #0d9488 !important;
+  color: #fff !important;
+}
+.text-teal {
+  color: #0d9488 !important;
 }
 </style>

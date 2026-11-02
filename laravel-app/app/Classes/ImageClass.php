@@ -2,6 +2,7 @@
 
 namespace App\Classes;
 
+use App\Services\StorageService;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -17,9 +18,10 @@ class ImageClass
     private int $thumbnailSize;
     private ImageManager $imageManager;
 
-    public function __construct(string $disk = 'public', string $directory = 'default', int $thumbnailSize = 512)
+    public function __construct(?string $disk = null, string $directory = 'default', int $thumbnailSize = 512)
     {
-        $resolvedDisk = Storage::disk($disk);
+        $diskName = $disk ?: StorageService::diskName();
+        $resolvedDisk = Storage::disk($diskName);
 
         if (!$resolvedDisk instanceof FilesystemAdapter) {
             throw new \RuntimeException('Configured disk must resolve to FilesystemAdapter.');
@@ -90,6 +92,26 @@ class ImageClass
     {
         if (!$path) {
             return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        try {
+            if ($this->disk->exists($path)) {
+                return $this->disk->url($path);
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
+
+        try {
+            if (Storage::disk('public')->exists($path)) {
+                return Storage::disk('public')->url($path);
+            }
+        } catch (\Throwable $e) {
+            // Ignore
         }
 
         return $this->disk->url($path);

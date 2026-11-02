@@ -21,7 +21,7 @@ pinia.use(piniaPluginPersistedstate);
 app.use(pinia);
 app.use(router);
 
-// Axios Interceptor
+// Axios Interceptors
 axios.interceptors.request.use((config) => {
   const userStore = useUserStore();
   const token = userStore.getSanctumToken();
@@ -30,6 +30,21 @@ axios.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response Interceptor: ចាប់ 401 Unauthorized ពេល Token ផុតកំណត់
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const userStore = useUserStore();
+      userStore.reset();
+      if (router.currentRoute.value.name !== 'auth.signin') {
+        router.replace({ name: 'auth.signin' });
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ✅ Router Guard ដែលបានកែសម្រួល
 router.beforeEach((to, from) => {

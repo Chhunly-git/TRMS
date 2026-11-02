@@ -16,6 +16,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\StorageService;
 
 class LeaveRequestController extends Controller
 {
@@ -735,7 +736,7 @@ class LeaveRequestController extends Controller
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $attachmentName = $file->getClientOriginalName();
-            $attachmentPath = $file->store('leave_requests', 'public');
+            $attachmentPath = StorageService::store($file, 'leave_requests');
         }
 
         $submitNow = $request->boolean('submit_now');
@@ -940,15 +941,15 @@ class LeaveRequestController extends Controller
         }
 
         if ($request->hasFile('attachment')) {
-            if ($leaveRequest->attachment_path && Storage::disk('public')->exists($leaveRequest->attachment_path)) {
-                Storage::disk('public')->delete($leaveRequest->attachment_path);
+            if ($leaveRequest->attachment_path && StorageService::exists($leaveRequest->attachment_path)) {
+                StorageService::delete($leaveRequest->attachment_path);
             }
             $file = $request->file('attachment');
             $leaveRequest->attachment_name = $file->getClientOriginalName();
-            $leaveRequest->attachment_path = $file->store('leave_requests', 'public');
+            $leaveRequest->attachment_path = StorageService::store($file, 'leave_requests');
         } elseif ($request->boolean('remove_attachment')) {
-            if ($leaveRequest->attachment_path && Storage::disk('public')->exists($leaveRequest->attachment_path)) {
-                Storage::disk('public')->delete($leaveRequest->attachment_path);
+            if ($leaveRequest->attachment_path && StorageService::exists($leaveRequest->attachment_path)) {
+                StorageService::delete($leaveRequest->attachment_path);
             }
             $leaveRequest->attachment_name = null;
             $leaveRequest->attachment_path = null;
@@ -1340,8 +1341,8 @@ class LeaveRequestController extends Controller
             ], 403);
         }
 
-        if ($leaveRequest->attachment_path && Storage::disk('public')->exists($leaveRequest->attachment_path)) {
-            Storage::disk('public')->delete($leaveRequest->attachment_path);
+        if ($leaveRequest->attachment_path && StorageService::exists($leaveRequest->attachment_path)) {
+            StorageService::delete($leaveRequest->attachment_path);
         }
 
         $leaveRequest->delete();
@@ -1360,11 +1361,11 @@ class LeaveRequestController extends Controller
         $viewer = $request->user();
         $leaveRequest = LeaveRequest::findOrFail($id);
 
-        if (!$leaveRequest->attachment_path || !Storage::disk('public')->exists($leaveRequest->attachment_path)) {
+        if (!$leaveRequest->attachment_path || !StorageService::exists($leaveRequest->attachment_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារភ្ជាប់ឡើយ'], 404);
         }
 
-        return Storage::disk('public')->download(
+        return StorageService::download(
             $leaveRequest->attachment_path,
             $leaveRequest->attachment_name ?? basename($leaveRequest->attachment_path)
         );

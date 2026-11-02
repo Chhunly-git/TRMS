@@ -56,6 +56,7 @@ class InboundDocumentMovement extends Model
                     'RESPONSE_FORWARDED' => 'បានបញ្ជូនលិខិតឆ្លើយតបឆ្លងតាមឋានានុក្រម',
                     'RESPONSE_RETURNED' => 'បានបញ្ជូនត្រឡប់មកកែសម្រួលវិញ',
                     'RESPONSE_APPROVED' => 'ឯកឧត្តមអគ្គនាយកបានឯកភាព/ចុះហត្ថលេខាលើលិខិតឆ្លើយតប',
+                    'DOCUMENT_UPDATED' => 'បានកែប្រែព័ត៌មានលម្អិតឯកសារ',
                     'CANCELLED' => 'បានបោះបង់ឯកសារ',
                     default => $this->action,
                 };

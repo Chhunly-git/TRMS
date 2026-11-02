@@ -13,6 +13,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\StorageService;
 
 class WeeklyReportController extends Controller
 {
@@ -356,7 +357,7 @@ class WeeklyReportController extends Controller
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $attachmentName = $file->getClientOriginalName();
-            $attachmentPath = $file->store('weekly_reports', 'public');
+            $attachmentPath = StorageService::store($file, 'weekly_reports');
         }
 
         $submitNow = filter_var($request->get('submit_now', false), FILTER_VALIDATE_BOOLEAN);
@@ -482,15 +483,15 @@ class WeeklyReportController extends Controller
 
         // ពិនិត្យមើលការផ្លាស់ប្តូរឯកសារភ្ជាប់
         if ($request->hasFile('attachment')) {
-            if ($report->attachment_path && Storage::disk('public')->exists($report->attachment_path)) {
-                Storage::disk('public')->delete($report->attachment_path);
+            if ($report->attachment_path && StorageService::exists($report->attachment_path)) {
+                StorageService::delete($report->attachment_path);
             }
             $file = $request->file('attachment');
             $report->attachment_name = $file->getClientOriginalName();
-            $report->attachment_path = $file->store('weekly_reports', 'public');
+            $report->attachment_path = StorageService::store($file, 'weekly_reports');
         } elseif ($request->boolean('remove_attachment')) {
-            if ($report->attachment_path && Storage::disk('public')->exists($report->attachment_path)) {
-                Storage::disk('public')->delete($report->attachment_path);
+            if ($report->attachment_path && StorageService::exists($report->attachment_path)) {
+                StorageService::delete($report->attachment_path);
             }
             $report->attachment_path = null;
             $report->attachment_name = null;
@@ -685,8 +686,8 @@ class WeeklyReportController extends Controller
             ], 403);
         }
 
-        if ($report->attachment_path && Storage::disk('public')->exists($report->attachment_path)) {
-            Storage::disk('public')->delete($report->attachment_path);
+        if ($report->attachment_path && StorageService::exists($report->attachment_path)) {
+            StorageService::delete($report->attachment_path);
         }
 
         $report->delete();
@@ -709,11 +710,11 @@ class WeeklyReportController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$report->attachment_path || !Storage::disk('public')->exists($report->attachment_path)) {
+        if (!$report->attachment_path || !StorageService::exists($report->attachment_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារភ្ជាប់ឡើយ'], 404);
         }
 
-        return Storage::disk('public')->download(
+        return StorageService::download(
             $report->attachment_path,
             $report->attachment_name ?? basename($report->attachment_path)
         );

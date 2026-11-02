@@ -83,6 +83,10 @@ class AdminMiddleware
             return $user->hasPermission('manage-meeting-rooms') || $user->canManageRooms();
         }
 
+        if (str_contains($path, 'working-groups')) {
+            return $user->hasPermission('working-groups') || ($request->isMethod('GET') && $user->hasPermission('inbound-documents'));
+        }
+
         return false;
     }
 }

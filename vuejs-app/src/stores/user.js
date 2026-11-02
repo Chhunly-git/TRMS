@@ -1,5 +1,26 @@
 import { defineStore } from 'pinia';
 
+// Dynamic Storage Adapter: ប្តូររវាង localStorage (Remember Me) និង sessionStorage (Auto-logout ពេលបិទ Browser)
+const dynamicStorage = {
+  getItem: (key) => {
+    return localStorage.getItem(key) || sessionStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    const isRemember = localStorage.getItem('REMEMBER_ME') === 'true';
+    if (isRemember) {
+      localStorage.setItem(key, value);
+      sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(key, value);
+      localStorage.removeItem(key);
+    }
+  },
+  removeItem: (key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  },
+};
+
 export const useUserStore = defineStore('user',
   {
     state: () => ({
@@ -11,7 +32,7 @@ export const useUserStore = defineStore('user',
       profile_image: null,
       profile_thumbnail: null,
       password_null: true,
-      level: localStorage.getItem("user_level") || null,
+      level: localStorage.getItem("user_level") || sessionStorage.getItem("user_level") || null,
       status: null,
       employee_type: null,
       employee_code: null,
@@ -105,13 +126,13 @@ export const useUserStore = defineStore('user',
       isAuthenticated: (state) => !!state.id,
       // ពិនិត្យសិទ្ធិ Admin យ៉ាងមានសុវត្ថិភាព (មិនខ្វល់រឿងអក្សរតូច/ធំ)
       isAdmin: (state) => {
-        const lvl = state.level || localStorage.getItem("user_level");
+        const lvl = state.level || localStorage.getItem("user_level") || sessionStorage.getItem("user_level");
         if (!lvl) return false;
         return String(lvl).trim().toUpperCase() === 'ADMIN';
       },
       // ពិនិត្យសិទ្ធិលើមុខងារ ឬម៉ឺនុយនីមួយៗ
       can: (state) => (permissionKey) => {
-        const lvl = state.level || localStorage.getItem("user_level");
+        const lvl = state.level || localStorage.getItem("user_level") || sessionStorage.getItem("user_level");
         if (lvl && String(lvl).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
@@ -120,7 +141,7 @@ export const useUserStore = defineStore('user',
         if (baseOfficerPerms.includes(permissionKey)) {
           return true;
         }
-        const defaultPerms = ['dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents'];
+        const defaultPerms = ['dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents', 'working-groups'];
         if (!state.permissions || !Array.isArray(state.permissions) || state.permissions.length === 0) {
           return defaultPerms.includes(permissionKey);
         }
@@ -128,7 +149,7 @@ export const useUserStore = defineStore('user',
       },
       // ពិនិត្យថាតើមន្ត្រីមានសិទ្ធិលើម៉ឺនុយគ្រប់គ្រងណាមួយដែរឬទេ
       hasAnyAdminPermission: (state) => {
-        const lvl = state.level || localStorage.getItem("user_level");
+        const lvl = state.level || localStorage.getItem("user_level") || sessionStorage.getItem("user_level");
         if (lvl && String(lvl).trim().toUpperCase() === 'ADMIN') {
           return true;
         }
@@ -143,7 +164,8 @@ export const useUserStore = defineStore('user',
           'positions',
           'backups',
           'inbound-documents-receptionist',
-          'inbound-documents-assistant'
+          'inbound-documents-assistant',
+          'working-groups'
         ];
         if (!Array.isArray(state.permissions)) return false;
         return adminPerms.some(p => state.permissions.includes(p));
@@ -165,7 +187,14 @@ export const useUserStore = defineStore('user',
         this.level = user.level;
         this.status = user.status;
         if (user.level) {
-          localStorage.setItem("user_level", user.level);
+          const isRemember = localStorage.getItem('REMEMBER_ME') === 'true';
+          if (isRemember) {
+            localStorage.setItem("user_level", user.level);
+            sessionStorage.removeItem("user_level");
+          } else {
+            sessionStorage.setItem("user_level", user.level);
+            localStorage.removeItem("user_level");
+          }
         }
 
         this.employee_type = user.employee_type;
@@ -355,17 +384,42 @@ export const useUserStore = defineStore('user',
         this.permissions = [];
 
         localStorage.removeItem("user_level");
+        sessionStorage.removeItem("user_level");
+        localStorage.removeItem("user");
+        sessionStorage.removeItem("user");
+        localStorage.removeItem("REMEMBER_ME");
+      },
+
+      setRememberMe(remember) {
+        if (remember) {
+          localStorage.setItem('REMEMBER_ME', 'true');
+        } else {
+          localStorage.removeItem('REMEMBER_ME');
+          localStorage.removeItem('SANCTUM-TOKEN');
+          localStorage.removeItem('user_level');
+          localStorage.removeItem('user');
+        }
       },
 
       // User Sanctum Token management
-      setSanctumToken(token) {
-        localStorage.setItem('SANCTUM-TOKEN', token);
+      setSanctumToken(token, remember = null) {
+        const isRemember = remember !== null ? remember : (localStorage.getItem('REMEMBER_ME') === 'true');
+        if (isRemember) {
+          localStorage.setItem('REMEMBER_ME', 'true');
+          localStorage.setItem('SANCTUM-TOKEN', token);
+          sessionStorage.removeItem('SANCTUM-TOKEN');
+        } else {
+          localStorage.removeItem('REMEMBER_ME');
+          sessionStorage.setItem('SANCTUM-TOKEN', token);
+          localStorage.removeItem('SANCTUM-TOKEN');
+        }
       },
       getSanctumToken() {
-        return localStorage.getItem('SANCTUM-TOKEN');
+        return localStorage.getItem('SANCTUM-TOKEN') || sessionStorage.getItem('SANCTUM-TOKEN');
       },
       removeSanctumToken() {
         localStorage.removeItem('SANCTUM-TOKEN');
+        sessionStorage.removeItem('SANCTUM-TOKEN');
       },
 
       // Reset user state and remove Sanctum token (e.g., on sign out)
@@ -374,6 +428,9 @@ export const useUserStore = defineStore('user',
         this.removeSanctumToken();
       },
     },
-    persist: true,
+    persist: {
+      key: 'user',
+      storage: dynamicStorage,
+    },
   }
 );

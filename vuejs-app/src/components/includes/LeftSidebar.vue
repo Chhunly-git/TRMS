@@ -255,6 +255,14 @@
                 </router-link>
               </li>
 
+              <!-- ក្រុមការងារ (Working Groups) -->
+              <li class="nav-item" v-if="userStore.can('working-groups')">
+                <router-link :to="{ name: 'working-groups' }" active-class="active" class="nav-link sub-link">
+                  <i class="far fa-circle nav-icon text-indigo"></i>
+                  <p>ក្រុមការងារ</p>
+                </router-link>
+              </li>
+
               <!-- Backups (Admin) -->
               <li class="nav-item" v-if="userStore.can('backups')">
                 <router-link :to="{ name: 'backups' }" active-class="active" class="nav-link sub-link">
@@ -335,7 +343,7 @@ const isMeetingRoomGroupActive = computed(() => {
 });
 
 const isSettingGroupActive = computed(() => {
-  return ['setting', 'departments', 'divisions', 'positions', 'backups'].includes(route.name);
+  return ['setting', 'departments', 'divisions', 'positions', 'working-groups', 'backups'].includes(route.name);
 });
 
 // Auto-expand active group on route change

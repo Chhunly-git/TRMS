@@ -15,9 +15,14 @@ class InboundDocumentResponse extends Model
 
     protected $fillable = [
         'inbound_document_id',
+        'response_type',
         'response_number',
         'title',
+        'header_organization',
+        'reference_note',
         'content',
+        'sign_title',
+        'sign_name',
         'drafted_by',
         'department_id',
         'office_id',
@@ -39,6 +44,7 @@ class InboundDocumentResponse extends Model
     protected $appends = [
         'status_kh',
         'stage_kh',
+        'response_type_kh',
     ];
 
     public function inboundDocument(): BelongsTo
@@ -102,6 +108,20 @@ class InboundDocumentResponse extends Model
                     'DG' => 'ឯកឧត្តមអគ្គនាយក',
                     'COMPLETED' => 'បញ្ចប់',
                     default => $this->current_stage,
+                };
+            }
+        );
+    }
+
+    protected function responseTypeKh(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                return match ($this->response_type) {
+                    'REPORT' => 'របាយការណ៍',
+                    'SUBMISSION_NOTE' => 'កំណត់បង្ហាញ',
+                    'LETTER' => 'លិខិត',
+                    default => 'របាយការណ៍',
                 };
             }
         );

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\InboundDocument;
+use App\Models\InboundDocumentAssignment;
 use App\Models\InboundDocumentMovement;
 use App\Models\InboundDocumentResponse;
 use App\Models\InboundDocumentResponseApproval;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Services\TelegramService;
+use App\Services\StorageService;
 
 class InboundDocumentController extends Controller
 {
@@ -87,21 +89,38 @@ class InboundDocumentController extends Controller
     }
 
     /**
-     * ជម្រើសសម្រាប់ Dispatch (នាយកដ្ឋាន ការិយាល័យ និងមន្ត្រី)
+     * ជម្រើសសម្រាប់ Dispatch (នាយកដ្ឋាន ការិយាល័យ មន្ត្រី និងក្រុមការងារ)
      */
     public function recipientsOptions(Request $request)
     {
         $departments = \App\Models\Department::orderBy('id')->get(['id', 'name_kh', 'name_en']);
         $offices = \App\Models\Office::orderBy('id')->get(['id', 'department_id', 'name_kh', 'name_en']);
-        $users = User::where('status', 1)
+        $users = User::whereNotIn('users.status', ['DISABLED', 'SUSPENDED'])
+            ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
             ->with(['position:id,title_kh,title_en,level', 'department:id,name_kh', 'office:id,name_kh'])
-            ->orderBy('name_kh')
-            ->get(['id', 'name_kh', 'name_en', 'department_id', 'office_id', 'position_id', 'email', 'profile_image']);
+            ->orderByRaw('COALESCE(positions.level, 999) ASC')
+            ->orderBy('users.name_kh', 'ASC')
+            ->select('users.id', 'users.name', 'users.name_kh', 'users.name_en', 'users.department_id', 'users.office_id', 'users.position_id', 'users.email', 'users.profile_image')
+            ->get();
+
+        $workingGroups = \App\Models\WorkingGroup::where('status', 'ACTIVE')
+            ->with([
+                'members' => function ($mq) {
+                    $mq->where('status', 'ACTIVE')
+                       ->orderBy('order_index', 'asc')
+                       ->with('user:id,name,name_kh,email,profile_image,position_id');
+                },
+                'members.user.position:id,title_kh,level',
+            ])
+            ->orderBy('order_index', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         return response()->json([
             'departments' => $departments,
             'offices' => $offices,
             'users' => $users,
+            'working_groups' => $workingGroups,
         ]);
     }
 
@@ -137,10 +156,17 @@ class InboundDocumentController extends Controller
             'targetUser:id,name,name_kh,email',
             'acknowledgedByUser:id,name,name_kh',
             'latestResponse.currentApprover:id,name,name_kh',
+            'assignments:id,inbound_document_id,target_type,department_id,office_id,user_id,working_group_id,status,instruction',
         ]);
 
         // Scopes
-        if ($scope === 'reception') {
+        if ($scope === 'pending') {
+            $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
+        } elseif ($scope === 'doing') {
+            $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+        } elseif ($scope === 'completed' || $scope === 'complete') {
+            $query->where('status', 'COMPLETED');
+        } elseif ($scope === 'reception') {
             $query->where('status', 'RECEPTION_DRAFT');
         } elseif ($scope === 'assistant_inbox') {
             $query->whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']);
@@ -167,11 +193,17 @@ class InboundDocumentController extends Controller
 
         // Filtering by status
         if ($request->filled('status')) {
-            $statusVal = $request->input('status');
-            if ($statusVal === 'dispatched_all' || $statusVal === 'DISPATCHED_ALL') {
+            $statusVal = strtolower($request->input('status'));
+            if ($statusVal === 'pending') {
+                $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
+            } elseif ($statusVal === 'doing') {
+                $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+            } elseif ($statusVal === 'complete' || $statusVal === 'completed') {
+                $query->where('status', 'COMPLETED');
+            } elseif ($statusVal === 'dispatched_all') {
                 $query->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS']);
             } else {
-                $query->where('status', $statusVal);
+                $query->where('status', $request->input('status'));
             }
         }
 
@@ -235,6 +267,9 @@ class InboundDocumentController extends Controller
     public function stats(Request $request)
     {
         $viewer = $request->user();
+        if (!$viewer) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
@@ -273,6 +308,15 @@ class InboundDocumentController extends Controller
             ? InboundDocument::where('status', 'COMPLETED')->count()
             : (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
+        // 3-State Unified Counters (Pending, Doing, Complete)
+        $pendingCount = $isPrivileged
+            ? InboundDocument::whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])->count()
+            : (clone $baseAccessibleQuery)->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])->count();
+
+        $doingCount = $isPrivileged
+            ? InboundDocument::whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count()
+            : (clone $baseAccessibleQuery)->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
+
         $myTodoQuery = $this->scopeMyTodo(InboundDocument::query(), $viewer);
         $myTodo = $isPrivileged ? $myTodoQuery->count() : $this->scopeAccessibleByViewer($myTodoQuery, $viewer)->count();
 
@@ -300,6 +344,9 @@ class InboundDocumentController extends Controller
 
         return response()->json([
             'total' => $total,
+            'pending' => $pendingCount,
+            'doing' => $doingCount,
+            'completed' => $completed,
             'reception_pending' => $receptionPending,
             'assistant_pending' => $assistantPending,
             'dg_pending' => $dgPending,
@@ -322,7 +369,8 @@ class InboundDocumentController extends Controller
     protected function scopeAccessibleByViewer($query, $viewer)
     {
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isLeadership = ($viewerPosLevel <= 2);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
 
         // Admin, Leadership (DG/DDG), and DG Assistant have full visibility across the system
@@ -331,18 +379,25 @@ class InboundDocumentController extends Controller
         }
 
         $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
-        $isDeptLeadership = ($viewer->position && (int) $viewer->position->level <= 4); // Dept Director / Deputy Director
-        $isOfficeLeadership = ($viewer->position && (int) $viewer->position->level <= 6); // Office Chief / Deputy Chief
+        $isDeptDirector = ($viewerPosLevel <= 4) && !empty($viewer->department_id); // Only Dept Director & Acting Dept Director (levels 3 & 4)
+        $isOfficeLeadership = ($viewerPosLevel <= 8) && !empty($viewer->office_id); // Office Chief / Acting / Deputy Chief (levels 6, 7, 8)
 
-        return $query->where(function ($q) use ($viewer, $isReceptionist, $isDeptLeadership, $isOfficeLeadership) {
+        // Working groups where viewer is an active member
+        $userWgIds = \App\Models\WorkingGroupMember::where('user_id', $viewer->id)
+            ->where('status', 'ACTIVE')
+            ->pluck('working_group_id')
+            ->toArray();
+
+        return $query->where(function ($q) use ($viewer, $isReceptionist, $isDeptDirector, $isOfficeLeadership, $userWgIds) {
             // 1. Receptionist can see documents they registered or reception drafts
             if ($isReceptionist) {
                 $q->orWhere('registered_by', $viewer->id)
                   ->orWhere('status', 'RECEPTION_DRAFT');
             }
 
-            // 2. Documents specifically assigned to this user
-            $q->orWhere('target_user_id', $viewer->id);
+            // 2. Documents specifically assigned / forwarded to this user
+            $q->orWhere('target_user_id', $viewer->id)
+              ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id));
 
             // 3. User was the one who registered it
             $q->orWhere('registered_by', $viewer->id);
@@ -364,31 +419,49 @@ class InboundDocumentController extends Controller
                 $mq->where('user_id', $viewer->id);
             });
 
-            // 7. For Department Director / Deputy Director:
-            // Can see all documents received by/dispatched to their department
-            if ($isDeptLeadership && $viewer->department_id) {
+            // 7. Assigned to a Working Group where user is an active member
+            if (!empty($userWgIds)) {
+                $q->orWhereHas('assignments', function ($aq) use ($userWgIds) {
+                    $aq->whereIn('working_group_id', $userWgIds);
+                });
+            }
+
+            // 8. Department Director (Level 3-4): Can see all documents received by their department AND documents of subordinate offices & officers
+            if ($isDeptDirector) {
                 $q->orWhere(function ($dq) use ($viewer) {
                     $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
                        ->where(function ($subDq) use ($viewer) {
+                           // Directly to department
                            $subDq->where('target_department_id', $viewer->department_id)
-                                 ->orWhereHas('targetOffice', function ($oq) use ($viewer) {
-                                     $oq->where('department_id', $viewer->department_id);
-                                 })
-                                 ->orWhereHas('targetUser', function ($uq) use ($viewer) {
-                                     $uq->where('department_id', $viewer->department_id);
-                                 });
+                                 ->orWhereHas('assignments', fn($aq) => $aq->where('department_id', $viewer->department_id))
+                           // Or to subordinate offices in this department
+                                 ->orWhereHas('targetOffice', fn($oq) => $oq->where('department_id', $viewer->department_id))
+                                 ->orWhereHas('assignments.office', fn($oq) => $oq->where('department_id', $viewer->department_id))
+                           // Or to subordinate officers in this department
+                                 ->orWhereHas('targetUser', fn($uq) => $uq->where('department_id', $viewer->department_id))
+                                 ->orWhereHas('assignments.user', fn($uq) => $uq->where('department_id', $viewer->department_id))
+                           // Or responses drafted by officers in this department
+                                 ->orWhereHas('responses', fn($rq) => $rq->where('department_id', $viewer->department_id));
                        });
                 });
-            } elseif ($isOfficeLeadership && $viewer->office_id) {
-                // 8. For Office Chief / Deputy Office Chief:
-                // Can see all documents dispatched to their office
+            }
+
+            // 9. Office Leadership (Level 6-8): Can see all documents received by their office AND documents of subordinate officers
+            if ($isOfficeLeadership) {
                 $q->orWhere(function ($oq) use ($viewer) {
                     $oq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
-                       ->where('target_office_id', $viewer->office_id);
+                       ->where(function ($subOq) use ($viewer) {
+                           // Directly to office
+                           $subOq->where('target_office_id', $viewer->office_id)
+                                 ->orWhereHas('assignments', fn($aq) => $aq->where('office_id', $viewer->office_id))
+                           // Or to subordinate officers in this office
+                                 ->orWhereHas('targetUser', fn($uq) => $uq->where('office_id', $viewer->office_id))
+                                 ->orWhereHas('assignments.user', fn($uq) => $uq->where('office_id', $viewer->office_id))
+                           // Or responses drafted by officers in this office
+                                 ->orWhereHas('responses', fn($rq) => $rq->where('office_id', $viewer->office_id));
+                       });
                 });
             }
-            // Regular Officers (level > 6):
-            // Can ONLY see documents where target_user_id == viewer->id, or registered, acknowledged, or involved in responses/movements.
         });
     }
 
@@ -416,12 +489,13 @@ class InboundDocumentController extends Controller
     protected function scopeMyTodo($query, $viewer)
     {
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isDg = ($viewer->position && (int)$viewer->position->level === 1);
+        $viewerPosLevel = $viewer->position ? (int)$viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
         $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
 
         return $query->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
-            ->where(function ($q) use ($viewer, $isAdmin, $isDg, $isAssistant, $isReceptionist) {
+            ->where(function ($q) use ($viewer, $isAdmin, $isDg, $isAssistant, $isReceptionist, $viewerPosLevel) {
                 // 1. Reception Desk (for Receptionist or Admin)
                 if ($isAdmin || $isReceptionist) {
                     $q->orWhere('status', 'RECEPTION_DRAFT');
@@ -439,25 +513,52 @@ class InboundDocumentController extends Controller
 
                 // 4. Assigned specifically to this officer
                 $q->orWhere('target_user_id', $viewer->id);
+                $q->orWhereHas('assignments', function ($aq) use ($viewer) {
+                    $aq->where('user_id', $viewer->id)
+                       ->whereNotIn('status', ['COMPLETED']);
+                });
 
                 // 5. Assigned to this office (not yet delegated to a specific officer)
-                // Only for Office Chief / Deputy Chief (level <= 6) or Admin
-                $isOfficeChief = ($viewer->position && (int)$viewer->position->level <= 6);
+                // Only for Office Chief / Acting / Deputy Chief (level <= 8) or Admin
+                $isOfficeChief = ($viewerPosLevel <= 8);
                 if ($viewer->office_id && ($isOfficeChief || $isAdmin)) {
                     $q->orWhere(function ($oq) use ($viewer) {
                         $oq->where('target_office_id', $viewer->office_id)
                            ->whereNull('target_user_id');
                     });
+                    $q->orWhereHas('assignments', function ($aq) use ($viewer) {
+                        $aq->where('office_id', $viewer->office_id)
+                           ->whereNull('user_id')
+                           ->whereNotIn('status', ['COMPLETED']);
+                    });
                 }
 
                 // 6. Assigned to this department (not yet delegated to an office or officer)
-                // Only for Department leadership (level <= 4) or Admin
-                $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
+                // Only for Department Director (level <= 4) or Admin
+                $isDeptDirector = ($viewerPosLevel <= 4);
                 if ($viewer->department_id && ($isDeptDirector || $isAdmin)) {
                     $q->orWhere(function ($dq) use ($viewer) {
                         $dq->where('target_department_id', $viewer->department_id)
                            ->whereNull('target_office_id')
                            ->whereNull('target_user_id');
+                    });
+                    $q->orWhereHas('assignments', function ($aq) use ($viewer) {
+                        $aq->where('department_id', $viewer->department_id)
+                           ->whereNull('office_id')
+                           ->whereNull('user_id')
+                           ->whereNotIn('status', ['COMPLETED']);
+                    });
+                }
+
+                // 6b. Assigned to a working group where user is an active member
+                $userWgIds = \App\Models\WorkingGroupMember::where('user_id', $viewer->id)
+                    ->where('status', 'ACTIVE')
+                    ->pluck('working_group_id')
+                    ->toArray();
+                if (!empty($userWgIds)) {
+                    $q->orWhereHas('assignments', function ($aq) use ($userWgIds) {
+                        $aq->whereIn('working_group_id', $userWgIds)
+                           ->whereNotIn('status', ['COMPLETED']);
                     });
                 }
 
@@ -509,42 +610,54 @@ class InboundDocumentController extends Controller
     protected function scopeMyUnit($query, $viewer)
     {
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isLeadership = ($viewer->position && (int)$viewer->position->level <= 2);
+        $viewerPosLevel = $viewer->position ? (int)$viewer->position->level : 99;
+        $isLeadership = ($viewerPosLevel <= 2);
 
         // DG, Deputy DG, or Admin sees all organizational documents
         if ($isAdmin || $isLeadership) {
             return $query;
         }
 
-        $isDeptDirector = ($viewer->position && (int)$viewer->position->level <= 4);
-        $isOfficeLeadership = ($viewer->position && (int)$viewer->position->level <= 6);
+        $isDeptDirector = ($viewerPosLevel <= 4) && !empty($viewer->department_id);
+        $isOfficeLeadership = ($viewerPosLevel <= 8) && !empty($viewer->office_id);
 
         return $query->where(function ($q) use ($viewer, $isDeptDirector, $isOfficeLeadership) {
             // Only dispatched/in progress/completed documents
             $q->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED']);
 
-            if ($isDeptDirector && $viewer->department_id) {
+            if ($isDeptDirector) {
                 $q->where(function ($dq) use ($viewer) {
                     $dq->where('target_department_id', $viewer->department_id)
+                       ->orWhereHas('assignments', fn($aq) => $aq->where('department_id', $viewer->department_id))
                        ->orWhereHas('targetOffice', fn($oq) => $oq->where('department_id', $viewer->department_id))
-                       ->orWhereHas('targetUser', fn($uq) => $uq->where('department_id', $viewer->department_id));
+                       ->orWhereHas('assignments.office', fn($oq) => $oq->where('department_id', $viewer->department_id))
+                       ->orWhereHas('targetUser', fn($uq) => $uq->where('department_id', $viewer->department_id))
+                       ->orWhereHas('assignments.user', fn($uq) => $uq->where('department_id', $viewer->department_id))
+                       ->orWhereHas('responses', fn($rq) => $rq->where('department_id', $viewer->department_id));
                 });
-            } elseif ($isOfficeLeadership && $viewer->office_id) {
+            } elseif ($isOfficeLeadership) {
                 $q->where(function ($oq) use ($viewer) {
                     $oq->where('target_office_id', $viewer->office_id)
-                       ->orWhereHas('targetUser', fn($uq) => $uq->where('office_id', $viewer->office_id));
+                       ->orWhereHas('assignments', fn($aq) => $aq->where('office_id', $viewer->office_id))
+                       ->orWhereHas('targetUser', fn($uq) => $uq->where('office_id', $viewer->office_id))
+                       ->orWhereHas('assignments.user', fn($uq) => $uq->where('office_id', $viewer->office_id))
+                       ->orWhereHas('responses', fn($rq) => $rq->where('office_id', $viewer->office_id));
                 });
-            } elseif ($viewer->office_id) {
-                // Regular officer with office:
-                // Only documents assigned to them within their office
-                $q->where('target_office_id', $viewer->office_id)
-                  ->where('target_user_id', $viewer->id);
-            } elseif ($viewer->department_id) {
-                // Regular officer with department:
-                $q->where('target_department_id', $viewer->department_id)
-                  ->where('target_user_id', $viewer->id);
             } else {
-                $q->where('target_user_id', $viewer->id);
+                // Regular officer: only documents assigned directly to them or their working group
+                $userWgIds = \App\Models\WorkingGroupMember::where('user_id', $viewer->id)
+                    ->where('status', 'ACTIVE')
+                    ->pluck('working_group_id')
+                    ->toArray();
+
+                $q->where(function ($oq) use ($viewer, $userWgIds) {
+                    $oq->where('target_user_id', $viewer->id)
+                       ->orWhereHas('assignments', fn($aq) => $aq->where('user_id', $viewer->id));
+
+                    if (!empty($userWgIds)) {
+                        $oq->orWhereHas('assignments', fn($aq) => $aq->whereIn('working_group_id', $userWgIds));
+                    }
+                });
             }
         });
     }
@@ -563,6 +676,15 @@ class InboundDocumentController extends Controller
             'targetOffice:id,name_kh',
             'targetUser:id,name,name_kh,email',
             'acknowledgedByUser:id,name,name_kh',
+            'assignments.department:id,name_kh,name_en',
+            'assignments.office:id,name_kh,name_en',
+            'assignments.user:id,name,name_kh,email,position_id',
+            'assignments.user.position:id,title_kh',
+            'assignments.workingGroup:id,name_kh,name_en,code',
+            'assignments.assignedByUser:id,name,name_kh',
+            'assignments.childAssignments.user:id,name,name_kh',
+            'assignments.childAssignments.office:id,name_kh',
+            'assignments.childAssignments.department:id,name_kh',
             'movements.user:id,name,name_kh',
             'responses.draftedByUser:id,name,name_kh',
             'responses.currentApprover:id,name,name_kh',
@@ -588,8 +710,8 @@ class InboundDocumentController extends Controller
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist') && !$viewer->hasPermission('inbound-documents')) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិជាអ្នកទទួលឯកសារឡើយ!'], 403);
+        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist')) {
+            return response()->json(['message' => 'មានតែអ្នកទទួលឯកសារទេទើបមានសិទ្ធិចុះបញ្ជីឯកសារចូលថ្មី!'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -611,7 +733,10 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $sendImmediately = filter_var($request->input('send_immediately', true), FILTER_VALIDATE_BOOLEAN);
@@ -636,7 +761,7 @@ class InboundDocumentController extends Controller
             if ($request->hasFile('original_file')) {
                 $file = $request->file('original_file');
                 $fileName = $file->getClientOriginalName();
-                $filePath = $file->store('inbound_documents/originals', 'public');
+                $filePath = StorageService::store($file, 'inbound_documents/originals');
             }
 
             $initialStatus = $sendImmediately ? 'SUBMITTED_TO_ASSISTANT' : 'RECEPTION_DRAFT';
@@ -753,7 +878,10 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $doc = DB::transaction(function () use ($request, $viewer, $doc) {
@@ -812,6 +940,7 @@ class InboundDocumentController extends Controller
 
     /**
      * 8. ឯកឧត្តមអគ្គនាយកធ្វើចំណារ (DG Annotation)
+     * គាំទ្រការជ្រើសរើសគោលដៅចាត់ចែងភ្លាមៗ (មន្ត្រី, នាយកដ្ឋាន, ការិយាល័យ, ក្រុមការងារ) ឬរក្សាទុកចំណាររង់ចាំជំនួយការចែកចាយ
      */
     public function dgAnnotate($id, Request $request)
     {
@@ -830,68 +959,261 @@ class InboundDocumentController extends Controller
             'dg_annotation' => 'required|string',
             'is_response_required' => 'required|boolean',
             'deadline' => 'nullable|date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $updateData = [
-            'dg_annotation' => $request->input('dg_annotation'),
-            'is_response_required' => (bool) $request->input('is_response_required'),
-            'dg_annotated_at' => Carbon::now(),
-            'status' => 'DG_ANNOTATED',
-        ];
-
-        if ($request->has('deadline')) {
-            $updateData['deadline'] = $request->input('deadline');
-        }
-
-        $doc->update($updateData);
-
-        InboundDocumentMovement::create([
-            'inbound_document_id' => $doc->id,
-            'user_id' => $viewer->id,
-            'action' => 'DG_ANNOTATED',
-            'from_status' => 'SUBMITTED_TO_DG',
-            'to_status' => 'DG_ANNOTATED',
-            'comment' => 'ឯកឧត្តមអគ្គនាយកបានធ្វើចំណារលើឯកសារ' . ($doc->is_response_required ? ' (តម្រូវឱ្យឆ្លើយតប)' : ' (សម្រាប់ជ្រាប)'),
-            'meta' => [
-                'annotation' => $request->input('dg_annotation'),
-                'is_response_required' => $doc->is_response_required,
-            ],
-        ]);
-
-        return response()->json([
-            'message' => 'បានកត់ត្រាចំណារឯកឧត្តមអគ្គនាយករួចរាល់!',
-            'document' => $doc->fresh(),
-        ]);
-    }
-
-    /**
-     * 9. ជំនួយការ Scan ឯកសារមានចំណារ និងចែកចាយទៅភាគីពាក់ព័ន្ធ (Assistant Scan & Dispatch)
-     */
-    public function assistantDispatch($id, Request $request)
-    {
-        $viewer = $request->user();
-        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-assistant')) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិជាជំនួយការអគ្គនាយកឡើយ!'], 403);
-        }
-
-        $doc = InboundDocument::findOrFail($id);
-
-        $validator = Validator::make($request->all(), [
-            'target_type' => 'required|in:DEPARTMENT,OFFICE,OFFICER',
-            'target_department_id' => 'nullable|exists:departments,id',
-            'target_office_id' => 'nullable|exists:offices,id',
-            'target_user_id' => 'nullable|exists:users,id',
+            'department_ids' => 'nullable|array',
+            'department_ids.*' => 'exists:departments,id',
+            'office_ids' => 'nullable|array',
+            'office_ids.*' => 'exists:offices,id',
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'exists:users,id',
+            'working_group_ids' => 'nullable|array',
+            'working_group_ids.*' => 'exists:working_groups,id',
             'dispatch_notes' => 'nullable|string',
             'annotated_file' => 'nullable|file|max:25600',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $deptIds = $request->input('department_ids', []);
+        $officeIds = $request->input('office_ids', []);
+        $userIds = $request->input('user_ids', []);
+        $wgIds = $request->input('working_group_ids', []);
+        $hasTargets = !empty($deptIds) || !empty($officeIds) || !empty($userIds) || !empty($wgIds);
+
+        $doc = DB::transaction(function () use ($request, $viewer, $doc, $deptIds, $officeIds, $userIds, $wgIds, $hasTargets) {
+            $annotatedPath = $doc->annotated_file_path;
+            $annotatedName = $doc->annotated_file_name;
+
+            if ($request->hasFile('annotated_file')) {
+                if ($annotatedPath && StorageService::exists($annotatedPath)) {
+                    StorageService::delete($annotatedPath);
+                }
+                $file = $request->file('annotated_file');
+                $annotatedName = $file->getClientOriginalName();
+                $annotatedPath = StorageService::store($file, 'inbound_documents/annotated');
+            }
+
+            $isResponseRequired = (bool) $request->input('is_response_required');
+            $newStatus = $hasTargets
+                ? ($isResponseRequired ? 'IN_RESPONSE_PROGRESS' : 'DISPATCHED')
+                : 'DG_ANNOTATED';
+
+            $updateData = [
+                'dg_annotation' => $request->input('dg_annotation'),
+                'is_response_required' => $isResponseRequired,
+                'dg_annotated_at' => Carbon::now(),
+                'status' => $newStatus,
+                'annotated_file_path' => $annotatedPath,
+                'annotated_file_name' => $annotatedName,
+            ];
+
+            if ($request->filled('deadline')) {
+                $updateData['deadline'] = $request->input('deadline');
+            }
+
+            $dispatchNotes = $request->input('dispatch_notes') ?: $request->input('dg_annotation');
+            $assignedLabels = [];
+
+            if ($hasTargets) {
+                // Clear previous top-level assignments
+                InboundDocumentAssignment::where('inbound_document_id', $doc->id)->whereNull('parent_assignment_id')->delete();
+
+                // 1. Department assignments
+                foreach ($deptIds as $deptId) {
+                    InboundDocumentAssignment::create([
+                        'inbound_document_id' => $doc->id,
+                        'assigned_by' => $viewer->id,
+                        'target_type' => 'DEPARTMENT',
+                        'department_id' => $deptId,
+                        'instruction' => $dispatchNotes,
+                        'status' => 'PENDING',
+                    ]);
+                    $dept = \App\Models\Department::find($deptId);
+                    if ($dept) $assignedLabels[] = "នាយកដ្ឋាន៖ {$dept->name_kh}";
+                }
+
+                // 2. Office assignments
+                foreach ($officeIds as $officeId) {
+                    $off = \App\Models\Office::find($officeId);
+                    InboundDocumentAssignment::create([
+                        'inbound_document_id' => $doc->id,
+                        'assigned_by' => $viewer->id,
+                        'target_type' => 'OFFICE',
+                        'department_id' => $off?->department_id,
+                        'office_id' => $officeId,
+                        'instruction' => $dispatchNotes,
+                        'status' => 'PENDING',
+                    ]);
+                    if ($off) $assignedLabels[] = "ការិយាល័យ៖ {$off->name_kh}";
+                }
+
+                // 3. User assignments
+                foreach ($userIds as $userId) {
+                    $usr = User::find($userId);
+                    InboundDocumentAssignment::create([
+                        'inbound_document_id' => $doc->id,
+                        'assigned_by' => $viewer->id,
+                        'target_type' => 'USER',
+                        'department_id' => $usr?->department_id,
+                        'office_id' => $usr?->office_id,
+                        'user_id' => $userId,
+                        'instruction' => $dispatchNotes,
+                        'status' => 'PENDING',
+                    ]);
+                    if ($usr) $assignedLabels[] = "មន្ត្រី៖ " . ($usr->name_kh ?? $usr->name);
+                }
+
+                // 4. Working Group assignments
+                foreach ($wgIds as $wgId) {
+                    $wg = \App\Models\WorkingGroup::find($wgId);
+                    InboundDocumentAssignment::create([
+                        'inbound_document_id' => $doc->id,
+                        'assigned_by' => $viewer->id,
+                        'target_type' => 'WORKING_GROUP',
+                        'working_group_id' => $wgId,
+                        'instruction' => $dispatchNotes,
+                        'status' => 'PENDING',
+                    ]);
+                    if ($wg) $assignedLabels[] = "ក្រុមការងារ៖ {$wg->name_kh}";
+                }
+
+                // Primary targets for backward compatibility
+                $primaryTargetType = 'MULTIPLE';
+                $primaryDeptId = !empty($deptIds) ? $deptIds[0] : null;
+                $primaryOfficeId = !empty($officeIds) ? $officeIds[0] : null;
+                $primaryUserId = !empty($userIds) ? $userIds[0] : null;
+
+                if (count($deptIds) === 1 && empty($officeIds) && empty($userIds) && empty($wgIds)) {
+                    $primaryTargetType = 'DEPARTMENT';
+                } elseif (count($officeIds) === 1 && empty($deptIds) && empty($userIds) && empty($wgIds)) {
+                    $primaryTargetType = 'OFFICE';
+                    if (!$primaryDeptId && $primaryOfficeId) {
+                        $off = \App\Models\Office::find($primaryOfficeId);
+                        if ($off) $primaryDeptId = $off->department_id;
+                    }
+                } elseif (count($userIds) === 1 && empty($deptIds) && empty($officeIds) && empty($wgIds)) {
+                    $primaryTargetType = 'OFFICER';
+                    if ($primaryUserId) {
+                        $usr = User::find($primaryUserId);
+                        if ($usr) {
+                            $primaryDeptId = $usr->department_id;
+                            $primaryOfficeId = $usr->office_id;
+                        }
+                    }
+                } elseif (count($wgIds) === 1 && empty($deptIds) && empty($officeIds) && empty($userIds)) {
+                    $primaryTargetType = 'WORKING_GROUP';
+                }
+
+                $updateData['target_type'] = $primaryTargetType;
+                $updateData['target_department_id'] = $primaryDeptId;
+                $updateData['target_office_id'] = $primaryOfficeId;
+                $updateData['target_user_id'] = $primaryUserId;
+                $updateData['dispatch_notes'] = $dispatchNotes;
+                $updateData['dispatched_at'] = Carbon::now();
+                $updateData['dispatched_by'] = $viewer->id;
+            }
+
+            $doc->update($updateData);
+
+            if ($hasTargets) {
+                $targetSummary = !empty($assignedLabels) ? implode(', ', $assignedLabels) : 'ភាគីពាក់ព័ន្ធ';
+                InboundDocumentMovement::create([
+                    'inbound_document_id' => $doc->id,
+                    'user_id' => $viewer->id,
+                    'action' => 'DISPATCHED',
+                    'from_status' => 'SUBMITTED_TO_DG',
+                    'to_status' => $newStatus,
+                    'comment' => "ឯកឧត្តមអគ្គនាយកបានធ្វើចំណារ និងចាត់ចែងចែកចាយភ្លាមៗទៅកាន់៖ {$targetSummary}",
+                    'meta' => [
+                        'annotation' => $request->input('dg_annotation'),
+                        'is_response_required' => $doc->is_response_required,
+                        'targets' => $assignedLabels,
+                        'department_ids' => $deptIds,
+                        'office_ids' => $officeIds,
+                        'user_ids' => $userIds,
+                        'working_group_ids' => $wgIds,
+                    ],
+                ]);
+            } else {
+                InboundDocumentMovement::create([
+                    'inbound_document_id' => $doc->id,
+                    'user_id' => $viewer->id,
+                    'action' => 'DG_ANNOTATED',
+                    'from_status' => 'SUBMITTED_TO_DG',
+                    'to_status' => 'DG_ANNOTATED',
+                    'comment' => 'ឯកឧត្តមអគ្គនាយកបានធ្វើចំណារលើឯកសារ' . ($doc->is_response_required ? ' (តម្រូវឱ្យឆ្លើយតប)' : ' (សម្រាប់ជ្រាប)'),
+                    'meta' => [
+                        'annotation' => $request->input('dg_annotation'),
+                        'is_response_required' => $doc->is_response_required,
+                    ],
+                ]);
+            }
+
+            return $doc->fresh([
+                'targetDepartment',
+                'targetOffice',
+                'targetUser',
+                'dispatchedByUser',
+                'assignments.department',
+                'assignments.office',
+                'assignments.user',
+                'assignments.workingGroup',
+            ]);
+        });
+
+        if ($hasTargets) {
+            $this->telegram->notifyDispatched($doc);
+        }
+
+        return response()->json([
+            'message' => $hasTargets
+                ? 'បានកត់ត្រាចំណារ និងចាត់ចែងចែកចាយទៅកាន់ភាគីពាក់ព័ន្ធរួចរាល់!'
+                : 'បានកត់ត្រាចំណារឯកឧត្តមអគ្គនាយករួចរាល់!',
+            'document' => $doc,
+        ]);
+    }
+
+    /**
+     * 9. ជំនួយការ Scan ឯកសារមានចំណារ និងចែកចាយទៅភាគីពាក់ព័ន្ធ (Assistant Scan & Multi-target Dispatch)
+     * គាំទ្រការចាត់ចែងទៅមនុស្សច្រើននាក់ ការិយាល័យច្រើន និងនាយកដ្ឋានច្រើនក្នុងពេលតែមួយ
+     */
+    public function assistantDispatch($id, Request $request)
+    {
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        if (!$isAdmin && !$isLeadership && !$viewer->hasPermission('inbound-documents-assistant')) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់ចែងចែកចាយឯកសារនេះឡើយ!'], 403);
+        }
+
+        $doc = InboundDocument::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'target_type' => 'nullable|in:DEPARTMENT,OFFICE,OFFICER,WORKING_GROUP,MULTIPLE',
+            'target_department_id' => 'nullable|exists:departments,id',
+            'target_office_id' => 'nullable|exists:offices,id',
+            'target_user_id' => 'nullable|exists:users,id',
+            'department_ids' => 'nullable|array',
+            'department_ids.*' => 'exists:departments,id',
+            'office_ids' => 'nullable|array',
+            'office_ids.*' => 'exists:offices,id',
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'exists:users,id',
+            'working_group_ids' => 'nullable|array',
+            'working_group_ids.*' => 'exists:working_groups,id',
+            'dispatch_notes' => 'nullable|string',
+            'annotated_file' => 'nullable|file|max:25600',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $doc = DB::transaction(function () use ($request, $viewer, $doc) {
@@ -899,39 +1221,130 @@ class InboundDocumentController extends Controller
             $annotatedName = $doc->annotated_file_name;
 
             if ($request->hasFile('annotated_file')) {
-                if ($annotatedPath && Storage::disk('public')->exists($annotatedPath)) {
-                    Storage::disk('public')->delete($annotatedPath);
+                if ($annotatedPath && StorageService::exists($annotatedPath)) {
+                    StorageService::delete($annotatedPath);
                 }
                 $file = $request->file('annotated_file');
                 $annotatedName = $file->getClientOriginalName();
-                $annotatedPath = $file->store('inbound_documents/annotated', 'public');
+                $annotatedPath = StorageService::store($file, 'inbound_documents/annotated');
             }
 
             // If response is required: IN_RESPONSE_PROGRESS; else: DISPATCHED
             $newStatus = $doc->is_response_required ? 'IN_RESPONSE_PROGRESS' : 'DISPATCHED';
 
-            $targetType = $request->input('target_type');
-            $deptId = $request->input('target_department_id');
-            $officeId = $request->input('target_office_id');
-            $userId = $request->input('target_user_id');
+            $deptIds = $request->input('department_ids', []);
+            $officeIds = $request->input('office_ids', []);
+            $userIds = $request->input('user_ids', []);
+            $wgIds = $request->input('working_group_ids', []);
 
-            if ($targetType === 'OFFICE' && $officeId && !$deptId) {
+            // If legacy single selection was passed, merge it into lists
+            if (empty($deptIds) && $request->filled('target_department_id')) {
+                $deptIds[] = (int) $request->input('target_department_id');
+            }
+            if (empty($officeIds) && $request->filled('target_office_id')) {
+                $officeIds[] = (int) $request->input('target_office_id');
+            }
+            if (empty($userIds) && $request->filled('target_user_id')) {
+                $userIds[] = (int) $request->input('target_user_id');
+            }
+
+            $dispatchNotes = $request->input('dispatch_notes');
+
+            // Clear previous top-level assignments for fresh dispatch
+            InboundDocumentAssignment::where('inbound_document_id', $doc->id)->whereNull('parent_assignment_id')->delete();
+
+            $assignedLabels = [];
+
+            // 1. Department assignments
+            foreach ($deptIds as $deptId) {
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'target_type' => 'DEPARTMENT',
+                    'department_id' => $deptId,
+                    'instruction' => $dispatchNotes,
+                    'status' => 'PENDING',
+                ]);
+                $dept = \App\Models\Department::find($deptId);
+                if ($dept) $assignedLabels[] = "នាយកដ្ឋាន៖ {$dept->name_kh}";
+            }
+
+            // 2. Office assignments
+            foreach ($officeIds as $officeId) {
                 $off = \App\Models\Office::find($officeId);
-                if ($off) $deptId = $off->department_id;
-            } elseif ($targetType === 'OFFICER' && $userId) {
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'target_type' => 'OFFICE',
+                    'department_id' => $off?->department_id,
+                    'office_id' => $officeId,
+                    'instruction' => $dispatchNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($off) $assignedLabels[] = "ការិយាល័យ៖ {$off->name_kh}";
+            }
+
+            // 3. User assignments
+            foreach ($userIds as $userId) {
                 $usr = User::find($userId);
-                if ($usr) {
-                    if (!$deptId) $deptId = $usr->department_id;
-                    if (!$officeId) $officeId = $usr->office_id;
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'target_type' => 'USER',
+                    'department_id' => $usr?->department_id,
+                    'office_id' => $usr?->office_id,
+                    'user_id' => $userId,
+                    'instruction' => $dispatchNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($usr) $assignedLabels[] = "មន្ត្រី៖ " . ($usr->name_kh ?? $usr->name);
+            }
+
+            // 4. Working Group assignments
+            foreach ($wgIds as $wgId) {
+                $wg = \App\Models\WorkingGroup::find($wgId);
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'target_type' => 'WORKING_GROUP',
+                    'working_group_id' => $wgId,
+                    'instruction' => $dispatchNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($wg) $assignedLabels[] = "ក្រុមការងារ៖ {$wg->name_kh}";
+            }
+
+            // Maintain primary target fields on document for backward compatibility
+            $primaryTargetType = 'MULTIPLE';
+            $primaryDeptId = !empty($deptIds) ? $deptIds[0] : null;
+            $primaryOfficeId = !empty($officeIds) ? $officeIds[0] : null;
+            $primaryUserId = !empty($userIds) ? $userIds[0] : null;
+
+            if (count($deptIds) === 1 && empty($officeIds) && empty($userIds)) {
+                $primaryTargetType = 'DEPARTMENT';
+            } elseif (count($officeIds) === 1 && empty($deptIds) && empty($userIds)) {
+                $primaryTargetType = 'OFFICE';
+                if (!$primaryDeptId && $primaryOfficeId) {
+                    $off = \App\Models\Office::find($primaryOfficeId);
+                    if ($off) $primaryDeptId = $off->department_id;
+                }
+            } elseif (count($userIds) === 1 && empty($deptIds) && empty($officeIds)) {
+                $primaryTargetType = 'OFFICER';
+                if ($primaryUserId) {
+                    $usr = User::find($primaryUserId);
+                    if ($usr) {
+                        $primaryDeptId = $usr->department_id;
+                        $primaryOfficeId = $usr->office_id;
+                    }
                 }
             }
 
             $doc->update([
-                'target_type' => $targetType,
-                'target_department_id' => $deptId,
-                'target_office_id' => $officeId,
-                'target_user_id' => $userId,
-                'dispatch_notes' => $request->input('dispatch_notes'),
+                'target_type' => $primaryTargetType,
+                'target_department_id' => $primaryDeptId,
+                'target_office_id' => $primaryOfficeId,
+                'target_user_id' => $primaryUserId,
+                'dispatch_notes' => $dispatchNotes,
                 'annotated_file_path' => $annotatedPath,
                 'annotated_file_name' => $annotatedName,
                 'dispatched_at' => Carbon::now(),
@@ -939,22 +1352,33 @@ class InboundDocumentController extends Controller
                 'status' => $newStatus,
             ]);
 
+            $targetSummary = !empty($assignedLabels) ? implode(', ', $assignedLabels) : 'ភាគីពាក់ព័ន្ធ';
+
             InboundDocumentMovement::create([
                 'inbound_document_id' => $doc->id,
                 'user_id' => $viewer->id,
                 'action' => 'DISPATCHED',
                 'from_status' => 'DG_ANNOTATED',
                 'to_status' => $newStatus,
-                'comment' => "បាន Scan ចំណារ និងចែកចាយទៅកាន់ភាគីពាក់ព័ន្ធ",
+                'comment' => "បាន Scan ចំណារ និងចាត់ចែងចែកចាយទៅកាន់៖ {$targetSummary}",
                 'meta' => [
-                    'target_type' => $targetType,
-                    'target_department_id' => $deptId,
-                    'target_office_id' => $officeId,
-                    'target_user_id' => $userId,
+                    'targets' => $assignedLabels,
+                    'department_ids' => $deptIds,
+                    'office_ids' => $officeIds,
+                    'user_ids' => $userIds,
+                    'notes' => $dispatchNotes,
                 ],
             ]);
 
-            return $doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'dispatchedByUser']);
+            return $doc->fresh([
+                'targetDepartment',
+                'targetOffice',
+                'targetUser',
+                'dispatchedByUser',
+                'assignments.department',
+                'assignments.office',
+                'assignments.user',
+            ]);
         });
 
         // Telegram Notification for dispatched targets
@@ -968,88 +1392,262 @@ class InboundDocumentController extends Controller
 
     /**
      * 9B. ចាត់ចែង និងបញ្ជូនបន្តតាមឋានានុក្រម (Cascading Forward / Re-assign Downward)
-     * ឧ. អគ្គនាយករង -> ប្រធាននាយកដ្ឋាន -> ប្រធានការិយាល័យ -> អនុប្រធាន -> មន្ត្រី
+     * ច្បាប់៖ អ្នកដែលមានតួនាទីនៅលើ អាចចំណារទៅអ្នកថ្នាក់ក្រោមបន្តបាន ឱ្យតែស្ថិតនៅក្នុងនាយកដ្ឋាន ការិយាល័យ ឬក្រុមការងារជាមួយគ្នា
      */
     public function forward($id, Request $request)
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $doc = InboundDocument::with(['targetDepartment', 'targetOffice', 'targetUser'])->findOrFail($id);
+        $doc = InboundDocument::with(['targetDepartment', 'targetOffice', 'targetUser', 'assignments.workingGroup'])->findOrFail($id);
 
         if (in_array($doc->status, ['COMPLETED', 'CANCELLED'])) {
             return response()->json(['message' => 'ឯកសារនេះត្រូវបានបញ្ចប់រួចរាល់ហើយ មិនអាចចាត់ចែងបន្តបានទៀតទេ!'], 400);
         }
 
-        // Check authorization: Admin, DG/DDG (level <= 2), current assignee, or department/office head of current target
-        $isAuthorized = $isAdmin
-            || ($viewer->position && (int) $viewer->position->level <= 2)
-            || ($doc->target_user_id === $viewer->id)
-            || ($doc->target_department_id && $doc->target_department_id === $viewer->department_id)
-            || ($doc->target_office_id && $doc->target_office_id === $viewer->office_id)
-            || $viewer->hasPermission('inbound-documents-assistant');
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isSuper = $isAdmin || ($viewerPosLevel <= 2) || $viewer->hasPermission('inbound-documents-assistant');
+
+        // Check if user is leader or deputy leader of an assigned working group
+        $assignedWgIds = $doc->assignments->pluck('working_group_id')->filter()->unique()->toArray();
+        $isWgLeader = false;
+        if (!empty($assignedWgIds)) {
+            $isWgLeader = \App\Models\WorkingGroupMember::whereIn('working_group_id', $assignedWgIds)
+                ->where('user_id', $viewer->id)
+                ->whereIn('role', ['LEADER', 'DEPUTY_LEADER'])
+                ->where('status', 'ACTIVE')
+                ->exists();
+        }
+
+        $isDeptDirector = ($viewerPosLevel <= 4) && !empty($viewer->department_id);
+        $isDeptLeader = ($viewerPosLevel <= 5) && !empty($viewer->department_id);
+        $isOfficeLeader = ($viewerPosLevel <= 8) && !empty($viewer->office_id); // Head of Division (6), Acting (7), Deputy Head (8)
+        $isDirectlyAssigned = ($doc->target_user_id === $viewer->id)
+            || $doc->assignments->contains(fn($a) => $a->user_id === $viewer->id);
+
+        $isAuthorized = $isSuper
+            || $isWgLeader
+            || ($isDeptDirector && (
+                $doc->target_department_id === $viewer->department_id
+                || $doc->assignments->contains(fn($a) => $a->department_id === $viewer->department_id)
+            ))
+            || ($isOfficeLeader && (
+                $doc->target_office_id === $viewer->office_id
+                || $doc->assignments->contains(fn($a) => $a->office_id === $viewer->office_id)
+            ))
+            || $isDirectlyAssigned;
 
         if (!$isAuthorized) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់ចែងបន្តលើឯកសារនេះឡើយ!'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'target_type' => 'required|in:DEPARTMENT,OFFICE,OFFICER',
+            'target_type' => 'nullable|in:DEPARTMENT,OFFICE,OFFICER,WORKING_GROUP,WG_MEMBER',
             'target_department_id' => 'nullable|exists:departments,id',
             'target_office_id' => 'nullable|exists:offices,id',
             'target_user_id' => 'nullable|exists:users,id',
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'exists:users,id',
+            'target_working_group_id' => 'nullable|exists:working_groups,id',
+            'working_group_id' => 'nullable|exists:working_groups,id',
             'forwarding_notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        $result = DB::transaction(function () use ($request, $viewer, $doc) {
-            $prevTargetDesc = '';
-            if ($doc->target_type === 'OFFICER' && $doc->targetUser) {
-                $prevTargetDesc = 'មន្ត្រី៖ ' . ($doc->targetUser->name_kh ?? $doc->targetUser->name);
-            } elseif ($doc->target_type === 'OFFICE' && $doc->targetOffice) {
-                $prevTargetDesc = 'ការិយាល័យ៖ ' . $doc->targetOffice->name_kh;
-            } elseif ($doc->target_type === 'DEPARTMENT' && $doc->targetDepartment) {
-                $prevTargetDesc = 'នាយកដ្ឋាន៖ ' . $doc->targetDepartment->name_kh;
+        $userIds = $request->input('user_ids', []);
+        if (empty($userIds) && $request->filled('target_user_id')) {
+            $userIds[] = (int) $request->input('target_user_id');
+        }
+
+        $targetType = $request->input('target_type', 'OFFICER');
+        $newOfficeId = $request->input('target_office_id');
+        $newDeptId = $request->input('target_department_id');
+        $newWgId = $request->input('target_working_group_id') ?: $request->input('working_group_id');
+
+        // Enforce the hierarchical subordination constraint:
+        // "អ្នកដែលមានតួនាទីនៅលើ អាចចំណារទៅអ្នកថ្នាក់ក្រោមបន្តបាន ឱ្យតែស្ថិតនៅក្នុងនាយកដ្ឋាន ការិយាល័យ ឬក្រុមការងារជាមួយគ្នា"
+        if (!$isSuper) {
+            // Non-super cannot forward to other departments
+            if ($targetType === 'DEPARTMENT' || $newDeptId) {
+                return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់នាយកដ្ឋានផ្សេងឡើយ!'], 403);
             }
 
-            $newTargetType = $request->input('target_type');
-            $newDeptId = $request->input('target_department_id');
-            $newOfficeId = $request->input('target_office_id');
-            $newUserId = $request->input('target_user_id');
+            // Non-super cannot forward to an entire working group
+            if ($targetType === 'WORKING_GROUP' || $newWgId) {
+                return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់ក្រុមការងារឡើយ!'], 403);
+            }
 
-            if ($newTargetType === 'OFFICE' && $newOfficeId && !$newDeptId) {
-                $off = \App\Models\Office::find($newOfficeId);
-                if ($off) $newDeptId = $off->department_id;
-            } elseif ($newTargetType === 'OFFICER' && $newUserId) {
-                $usr = User::find($newUserId);
-                if ($usr) {
-                    if (!$newDeptId) $newDeptId = $usr->department_id;
-                    if (!$newOfficeId) $newOfficeId = $usr->office_id;
+            // Forwarding to an Office: only Dept Director (level <= 4) can forward to an office in their department
+            if ($targetType === 'OFFICE' || $newOfficeId) {
+                if (!$isDeptDirector) {
+                    return response()->json(['message' => 'មានតែប្រធាននាយកដ្ឋានទេ ទើបអាចចាត់បន្តទៅកាន់ការិយាល័យបាន!'], 403);
+                }
+                $targetOffice = \App\Models\Office::find($newOfficeId);
+                if (!$targetOffice || (int)$targetOffice->department_id !== (int)$viewer->department_id) {
+                    return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានតែការិយាល័យចំណុះនាយកដ្ឋានរបស់លោកអ្នកប៉ុណ្ណោះ!'], 422);
                 }
             }
 
-            $doc->update([
-                'target_type' => $newTargetType,
-                'target_department_id' => $newDeptId,
-                'target_office_id' => $newOfficeId,
-                'target_user_id' => $newUserId,
-            ]);
+            // Forwarding to Officers:
+            if (!empty($userIds)) {
+                $targetUsers = User::with('position')->whereIn('id', $userIds)->get();
 
-            $doc->load(['targetDepartment', 'targetOffice', 'targetUser']);
-            $newTargetDesc = '';
-            if ($newTargetType === 'OFFICER' && $doc->targetUser) {
-                $newTargetDesc = 'មន្ត្រី៖ ' . ($doc->targetUser->name_kh ?? $doc->targetUser->name);
-            } elseif ($newTargetType === 'OFFICE' && $doc->targetOffice) {
-                $newTargetDesc = 'ការិយាល័យ៖ ' . $doc->targetOffice->name_kh;
-            } elseif ($newTargetType === 'DEPARTMENT' && $doc->targetDepartment) {
-                $newTargetDesc = 'នាយកដ្ឋាន៖ ' . $doc->targetDepartment->name_kh;
+                if ($targetType === 'WG_MEMBER' || ($isWgLeader && !$isDeptLeader && !$isOfficeLeader)) {
+                    // Must be active members of the assigned working group
+                    $activeMemberUserIds = \App\Models\WorkingGroupMember::whereIn('working_group_id', $assignedWgIds)
+                        ->where('status', 'ACTIVE')
+                        ->pluck('user_id')
+                        ->toArray();
+
+                    foreach ($targetUsers as $tu) {
+                        if (!in_array($tu->id, $activeMemberUserIds) || $tu->id === $viewer->id) {
+                            return response()->json(['message' => "មន្ត្រី {$tu->name_kh} មិនមែនជាសមាជិកក្នុងក្រុមការងារជាមួយគ្នាឡើយ!"], 422);
+                        }
+                    }
+                } elseif ($isOfficeLeader && !$isDeptLeader) {
+                    // Must be in the same office and strictly lower position level
+                    foreach ($targetUsers as $tu) {
+                        $tuLevel = $tu->position ? (int) $tu->position->level : 999;
+                        if ((int)$tu->office_id !== (int)$viewer->office_id || $tu->id === $viewer->id || $tuLevel <= $viewerPosLevel) {
+                            return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានត្រឹមតែមន្ត្រីក្រោមឱវាទក្នុងការិយាល័យជាមួយគ្នាតែប៉ុណ្ណោះ!'], 422);
+                        }
+                    }
+                } elseif ($isDeptLeader) {
+                    // Must be in the same department and strictly lower position level
+                    foreach ($targetUsers as $tu) {
+                        $tuLevel = $tu->position ? (int) $tu->position->level : 999;
+                        if ((int)$tu->department_id !== (int)$viewer->department_id || $tu->id === $viewer->id || $tuLevel <= $viewerPosLevel) {
+                            return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានត្រឹមតែមន្ត្រីក្រោមឱវាទក្នុងនាយកដ្ឋានជាមួយគ្នាតែប៉ុណ្ណោះ!'], 422);
+                        }
+                    }
+                } else {
+                    // Assigned officer forwarding to subordinates with strictly lower position level
+                    foreach ($targetUsers as $tu) {
+                        $tuLevel = $tu->position ? (int) $tu->position->level : 999;
+                        $sameDept = $viewer->department_id && (int)$tu->department_id === (int)$viewer->department_id;
+                        $sameOffice = $viewer->office_id && (int)$tu->office_id === (int)$viewer->office_id;
+                        if ((!$sameDept && !$sameOffice) || $tu->id === $viewer->id || $tuLevel <= $viewerPosLevel) {
+                            return response()->json(['message' => 'លោកអ្នកអាចចាត់បន្តបានត្រឹមតែមន្ត្រីក្រោមឱវាទជាមួយគ្នាតែប៉ុណ្ណោះ!'], 422);
+                        }
+                    }
+                }
+            }
+        }
+
+        $result = DB::transaction(function () use ($request, $viewer, $doc, $userIds, $targetType, $newOfficeId, $newDeptId, $newWgId, $isWgLeader, $assignedWgIds) {
+            $forwardingNotes = $request->input('forwarding_notes');
+
+            // Find parent assignment for viewer if exists
+            $parentAssignment = InboundDocumentAssignment::where('inbound_document_id', $doc->id)
+                ->where(function ($q) use ($viewer, $assignedWgIds) {
+                    $q->where('user_id', $viewer->id);
+                    if ($viewer->office_id) {
+                        $q->orWhere('office_id', $viewer->office_id);
+                    }
+                    if ($viewer->department_id) {
+                        $q->orWhere('department_id', $viewer->department_id);
+                    }
+                    if (!empty($assignedWgIds)) {
+                        $q->orWhereIn('working_group_id', $assignedWgIds);
+                    }
+                })
+                ->latest()
+                ->first();
+
+            $forwardedLabels = [];
+
+            if (!empty($userIds)) {
+                $wgIdForAssignment = ($targetType === 'WG_MEMBER' || $isWgLeader)
+                    ? ($parentAssignment?->working_group_id ?? (!empty($assignedWgIds) ? $assignedWgIds[0] : null))
+                    : null;
+
+                foreach ($userIds as $uId) {
+                    $usr = User::find($uId);
+                    InboundDocumentAssignment::create([
+                        'inbound_document_id' => $doc->id,
+                        'assigned_by' => $viewer->id,
+                        'parent_assignment_id' => $parentAssignment?->id,
+                        'target_type' => 'USER',
+                        'department_id' => $usr?->department_id,
+                        'office_id' => $usr?->office_id,
+                        'user_id' => $uId,
+                        'working_group_id' => $wgIdForAssignment,
+                        'instruction' => $forwardingNotes,
+                        'status' => 'PENDING',
+                    ]);
+                    if ($usr) $forwardedLabels[] = "មន្ត្រី៖ " . ($usr->name_kh ?? $usr->name);
+                }
+
+                // Update doc primary target
+                $primaryUsr = User::find($userIds[0]);
+                if ($primaryUsr) {
+                    $doc->update([
+                        'target_type' => 'OFFICER',
+                        'target_user_id' => $primaryUsr->id,
+                        'target_office_id' => $primaryUsr->office_id ?? $doc->target_office_id,
+                        'target_department_id' => $primaryUsr->department_id ?? $doc->target_department_id,
+                    ]);
+                }
+            } elseif ($newOfficeId) {
+                $off = \App\Models\Office::find($newOfficeId);
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'parent_assignment_id' => $parentAssignment?->id,
+                    'target_type' => 'OFFICE',
+                    'department_id' => $off?->department_id,
+                    'office_id' => $newOfficeId,
+                    'instruction' => $forwardingNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($off) $forwardedLabels[] = "ការិយាល័យ៖ {$off->name_kh}";
+
+                $doc->update([
+                    'target_type' => 'OFFICE',
+                    'target_office_id' => $newOfficeId,
+                    'target_department_id' => $off?->department_id ?? $doc->target_department_id,
+                    'target_user_id' => null,
+                ]);
+            } elseif ($newDeptId) {
+                $dept = \App\Models\Department::find($newDeptId);
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'parent_assignment_id' => $parentAssignment?->id,
+                    'target_type' => 'DEPARTMENT',
+                    'department_id' => $newDeptId,
+                    'instruction' => $forwardingNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($dept) $forwardedLabels[] = "នាយកដ្ឋាន៖ {$dept->name_kh}";
+            } elseif ($newWgId) {
+                $wg = \App\Models\WorkingGroup::find($newWgId);
+                InboundDocumentAssignment::create([
+                    'inbound_document_id' => $doc->id,
+                    'assigned_by' => $viewer->id,
+                    'parent_assignment_id' => $parentAssignment?->id,
+                    'target_type' => 'WORKING_GROUP',
+                    'working_group_id' => $newWgId,
+                    'instruction' => $forwardingNotes,
+                    'status' => 'PENDING',
+                ]);
+                if ($wg) $forwardedLabels[] = "ក្រុមការងារ៖ {$wg->name_kh}";
             }
 
-            $commentText = $request->input('forwarding_notes')
-                ? ('ចាត់ចែងបន្តទៅកាន់ ' . $newTargetDesc . ' ៖ ' . $request->input('forwarding_notes'))
-                : ('ចាត់ចែងបន្តទៅកាន់ ' . $newTargetDesc);
+            // Mark parent assignment status as IN_PROGRESS
+            if ($parentAssignment && $parentAssignment->status === 'PENDING') {
+                $parentAssignment->update(['status' => 'IN_PROGRESS']);
+            }
+
+            $targetSummary = !empty($forwardedLabels) ? implode(', ', $forwardedLabels) : 'មន្ត្រីក្រោមឱវាទ';
+            $commentText = $forwardingNotes
+                ? ("បានចាត់បន្តទៅកាន់ {$targetSummary} ៖ {$forwardingNotes}")
+                : ("បានចាត់បន្តទៅកាន់ {$targetSummary}");
 
             InboundDocumentMovement::create([
                 'inbound_document_id' => $doc->id,
@@ -1059,13 +1657,16 @@ class InboundDocumentController extends Controller
                 'to_status' => $doc->status,
                 'comment' => $commentText,
                 'meta' => [
-                    'from' => $prevTargetDesc ?: ($viewer->name_kh ?? $viewer->name),
-                    'to' => $newTargetDesc,
-                    'notes' => $request->input('forwarding_notes'),
+                    'from' => $viewer->name_kh ?? $viewer->name,
+                    'to' => $targetSummary,
+                    'notes' => $forwardingNotes,
                 ],
             ]);
 
-            return [$doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'movements.user']), $newTargetDesc];
+            return [
+                $doc->fresh(['targetDepartment', 'targetOffice', 'targetUser', 'assignments.department', 'assignments.office', 'assignments.user', 'assignments.workingGroup', 'movements.user']),
+                $targetSummary
+            ];
         });
 
         [$freshDoc, $targetDesc] = $result;
@@ -1127,134 +1728,263 @@ class InboundDocumentController extends Controller
 
     /**
      * 11. បេក្ខភាពថ្នាក់ដឹកនាំសម្រាប់ឆ្លងលិខិតឆ្លើយតប (Get Next Reviewer Candidates)
+     * គាំទ្រទាំងខ្សែរត់តាមឋានានុក្រមអង្គភាព (Officer -> Office Chief -> Dept Director -> Deputy DG -> DG)
+     * និងខ្សែរត់តាមក្រុមការងារ (Member -> WG Leader -> DG)
      */
     public function getNextResponseApprovers($id, Request $request)
     {
         $viewer = $request->user();
-        $doc = InboundDocument::findOrFail($id);
+        $doc = InboundDocument::with(['assignments.workingGroup'])->findOrFail($id);
 
-        // Reviewer position level
         $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
         $targetDeptId = $viewer->department_id;
         $targetOfficeId = $viewer->office_id;
 
         $candidates = collect();
 
-        if ($viewerPosLevel === 1) {
-            // DG (Level 1) - Final level
-            $candidates = collect();
-        } elseif ($viewerPosLevel === 2) {
-            // Deputy DG (Level 2) -> DG (Level 1)
-            $candidates = User::whereHas('position', fn($q) => $q->where('level', 1))
-                ->where('id', '!=', $viewer->id)
-                ->with('position:id,title_kh,title_en,level')
+        // 1. Check if doc has an assigned working group and user is an active member
+        $assignedWgIds = $doc->assignments->pluck('working_group_id')->filter()->unique()->toArray();
+        $isWgMember = false;
+        $isWgLeader = false;
+
+        if (!empty($assignedWgIds)) {
+            $wgMembership = \App\Models\WorkingGroupMember::whereIn('working_group_id', $assignedWgIds)
+                ->where('user_id', $viewer->id)
+                ->where('status', 'ACTIVE')
+                ->first();
+
+            if ($wgMembership) {
+                $isWgMember = true;
+                $isWgLeader = ($wgMembership->role === 'LEADER');
+            }
+        }
+
+        // If user is a working group member (not leader), include Working Group Leader and Deputy Leaders
+        if ($isWgMember && !$isWgLeader) {
+            $wgLeaderUserIds = \App\Models\WorkingGroupMember::whereIn('working_group_id', $assignedWgIds)
+                ->whereIn('role', ['LEADER', 'DEPUTY_LEADER'])
+                ->where('status', 'ACTIVE')
+                ->where('user_id', '!=', $viewer->id)
+                ->pluck('user_id');
+
+            $wgCandidates = User::whereIn('id', $wgLeaderUserIds)
+                ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                 ->get();
+
+            $candidates = $candidates->merge($wgCandidates);
+        }
+
+        if ($viewerPosLevel === 1) {
+            // DG (Level 1) - Final level, no next approver
+            return response()->json([
+                'candidates' => [],
+                'viewer_level' => $viewerPosLevel,
+                'is_dg' => true,
+            ]);
+        } elseif ($viewerPosLevel === 2 || ($isWgMember && $isWgLeader)) {
+            // Deputy DG (Level 2) or Working Group Leader -> DG (Level 1)
+            $dgCandidates = User::whereHas('position', fn($q) => $q->where('level', 1))
+                ->where('id', '!=', $viewer->id)
+                ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                ->get();
+            $candidates = $candidates->merge($dgCandidates);
         } elseif ($viewerPosLevel <= 4 && $viewerPosLevel >= 3) {
             // Dept Director -> Deputy DG / DG (Level 1, 2)
-            $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+            $leadershipCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
                 ->where('id', '!=', $viewer->id)
-                ->with('position:id,title_kh,title_en,level')
+                ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                 ->get();
+            $candidates = $candidates->merge($leadershipCandidates);
         } elseif ($viewerPosLevel === 5) {
-            // Deputy Dept Director -> Dept Director (Level 3, 4)
+            // Deputy Dept Director -> Dept Director (Level 3, 4) or Leadership
             if ($targetDeptId) {
-                $candidates = User::where('department_id', $targetDeptId)
+                $deptCandidates = User::where('department_id', $targetDeptId)
                     ->where('id', '!=', $viewer->id)
                     ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4]))
                     ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($deptCandidates);
             }
             if ($candidates->isEmpty()) {
-                $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                $leadershipCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
                     ->where('id', '!=', $viewer->id)
-                    ->with('position:id,title_kh,title_en,level')
+                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($leadershipCandidates);
             }
-        } elseif ($viewerPosLevel <= 7 && $viewerPosLevel >= 6) {
-            // Office Chief -> Dept Leadership (Level 3, 4, 5)
+        } elseif ($viewerPosLevel <= 8 && $viewerPosLevel >= 6) {
+            // Office Leadership (Office Chief 6, Acting 7, Deputy Chief 8) -> Dept Leadership (Level 3, 4, 5) or Leadership (Level 1, 2)
             if ($targetDeptId) {
-                $candidates = User::where('department_id', $targetDeptId)
+                $deptCandidates = User::where('department_id', $targetDeptId)
                     ->where('id', '!=', $viewer->id)
                     ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
                     ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($deptCandidates);
             }
             if ($candidates->isEmpty()) {
-                $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                $leadershipCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
                     ->where('id', '!=', $viewer->id)
-                    ->with('position:id,title_kh,title_en,level')
+                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($leadershipCandidates);
             }
         } else {
-            // Officer (Level 8, 9+) -> Office Chief (Level 6, 7) or Dept Leadership
+            // Regular Officer (Level >= 9) -> Office Leadership (Level 6, 7, 8) or Dept Leadership
             if ($targetOfficeId) {
-                $candidates = User::where('office_id', $targetOfficeId)
+                $officeCandidates = User::where('office_id', $targetOfficeId)
                     ->where('id', '!=', $viewer->id)
                     ->whereHas('position', fn($q) => $q->whereIn('level', [6, 7, 8]))
                     ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($officeCandidates);
             }
             if ($candidates->isEmpty() && $targetDeptId) {
-                $candidates = User::where('department_id', $targetDeptId)
+                $deptCandidates = User::where('department_id', $targetDeptId)
                     ->where('id', '!=', $viewer->id)
                     ->whereHas('position', fn($q) => $q->whereIn('level', [3, 4, 5]))
                     ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($deptCandidates);
             }
             if ($candidates->isEmpty()) {
-                $candidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
+                $leadershipCandidates = User::whereHas('position', fn($q) => $q->whereIn('level', [1, 2]))
                     ->where('id', '!=', $viewer->id)
-                    ->with('position:id,title_kh,title_en,level')
+                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
                     ->get();
+                $candidates = $candidates->merge($leadershipCandidates);
             }
         }
 
+        // Deduplicate and sort by level ASC, name_kh ASC
+        $uniqueCandidates = $candidates->unique('id')->sortBy([
+            fn($a, $b) => ($a->position?->level ?? 999) <=> ($b->position?->level ?? 999),
+            fn($a, $b) => strcmp($a->name_kh ?? $a->name, $b->name_kh ?? $b->name),
+        ])->values();
+
         return response()->json([
-            'candidates' => $candidates,
+            'candidates' => $uniqueCandidates,
             'viewer_level' => $viewerPosLevel,
             'is_dg' => ($viewerPosLevel === 1),
         ]);
     }
 
     /**
-     * 12. ដាក់ស្នើព្រាងលិខិតឆ្លើយតប (Submit Draft Response for Path B)
+     * 12. ដាក់ស្នើ ឬរក្សាទុកព្រាងលិខិតឆ្លើយតប (Submit or Save Draft Response)
+     * គាំទ្រទាំងទម្រង់ របាយការណ៍ (REPORT) និង កំណត់បង្ហាញ (SUBMISSION_NOTE) ជាមួយ Word-like Rich Text
      */
     public function submitResponseDraft($id, Request $request)
     {
         $viewer = $request->user();
-        $doc = InboundDocument::findOrFail($id);
+        $doc = InboundDocument::with('assignments')->findOrFail($id);
 
-        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isAuthorized = $isAdmin
-            || ($doc->target_user_id === $viewer->id)
-            || ($doc->target_office_id && $doc->target_office_id === $viewer->office_id)
-            || ($doc->target_department_id && $doc->target_department_id === $viewer->department_id)
-            || $viewer->hasPermission('inbound-documents-assistant');
-
-        if (!$isAuthorized) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិរៀបចំលិខិតឆ្លើយតបលើឯកសារនេះឡើយ!'], 403);
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារនេះឡើយ!'], 403);
         }
 
-        $validator = Validator::make($request->all(), [
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isDg = ($viewerPosLevel === 1);
+
+        // គ្រប់គ្នាដែលស្ថិតនៅក្រោមអគ្គនាយក សុទ្ធតែមានសិទ្ធិបង្កើតរបាយការណ៍
+        if (!$isAdmin && $isDg) {
+            return response()->json(['message' => 'ឯកឧត្តមអគ្គនាយកជាអ្នកពិនិត្យ និងឯកភាពលើរបាយការណ៍ មិនមែនជាអ្នករៀបចំឡើយ!'], 403);
+        }
+
+        $isDraft = filter_var($request->input('is_draft', false), FILTER_VALIDATE_BOOLEAN);
+
+        $rules = [
             'title' => 'required|string',
+            'response_type' => 'nullable|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'header_organization' => 'nullable|string',
+            'reference_note' => 'nullable|string',
             'content' => 'nullable|string',
-            'forwarded_to_id' => 'required|exists:users,id',
+            'sign_title' => 'nullable|string',
+            'sign_name' => 'nullable|string',
             'response_file' => 'nullable|file|max:25600',
-        ]);
+            'comment' => 'nullable|string',
+        ];
+
+        if (!$isDraft) {
+            $rules['forwarded_to_id'] = 'required|exists:users,id';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        $result = DB::transaction(function () use ($request, $viewer, $doc) {
+        $result = DB::transaction(function () use ($request, $viewer, $doc, $isDraft) {
             $filePath = null;
             $fileName = null;
             if ($request->hasFile('response_file')) {
                 $file = $request->file('response_file');
                 $fileName = $file->getClientOriginalName();
-                $filePath = $file->store('inbound_documents/responses', 'public');
+                $filePath = StorageService::store($file, 'inbound_documents/responses');
             }
 
+            $responseType = $request->input('response_type', 'REPORT');
+            $responseTypeKh = match ($responseType) {
+                'SUBMISSION_NOTE' => 'កំណត់បង្ហាញ',
+                'LETTER' => 'លិខិត',
+                default => 'របាយការណ៍',
+            };
+
+            // Check if existing draft or returned response already exists by this author
+            $response = InboundDocumentResponse::where('inbound_document_id', $doc->id)
+                ->where('drafted_by', $viewer->id)
+                ->whereIn('status', ['DRAFT', 'RETURNED'])
+                ->latest()
+                ->first();
+
+            $updateData = [
+                'response_type' => $responseType,
+                'title' => $request->input('title'),
+                'header_organization' => $request->input('header_organization'),
+                'reference_note' => $request->input('reference_note'),
+                'content' => $request->input('content'),
+                'sign_title' => $request->input('sign_title'),
+                'sign_name' => $request->input('sign_name', $viewer->name_kh ?? $viewer->name),
+                'department_id' => $viewer->department_id,
+                'office_id' => $viewer->office_id,
+            ];
+
+            if ($filePath) {
+                $updateData['file_path'] = $filePath;
+                $updateData['file_name'] = $fileName;
+            }
+
+            if ($isDraft) {
+                // Save Draft Mode
+                $updateData['status'] = 'DRAFT';
+                $updateData['current_approver_id'] = $viewer->id;
+                $updateData['current_stage'] = 'OFFICE';
+
+                if ($response) {
+                    $response->update($updateData);
+                } else {
+                    $updateData['inbound_document_id'] = $doc->id;
+                    $updateData['drafted_by'] = $viewer->id;
+                    $response = InboundDocumentResponse::create($updateData);
+                }
+
+                InboundDocumentMovement::create([
+                    'inbound_document_id' => $doc->id,
+                    'user_id' => $viewer->id,
+                    'action' => 'RESPONSE_DRAFTED',
+                    'from_status' => $doc->status,
+                    'to_status' => $doc->status,
+                    'comment' => "បានរក្សាទុកសេចក្តីព្រាង{$responseTypeKh} ៖ {$response->title}",
+                ]);
+
+                return [$response->load(['draftedByUser', 'currentApprover']), null, true];
+            }
+
+            // Submit Upward Mode
             $targetReviewer = User::with('position')->find($request->input('forwarded_to_id'));
             $reviewerLevel = $targetReviewer->position ? (int) $targetReviewer->position->level : 99;
 
@@ -1265,51 +1995,266 @@ class InboundDocumentController extends Controller
                 default => 'OFFICE',
             };
 
-            $response = InboundDocumentResponse::create([
-                'inbound_document_id' => $doc->id,
-                'title' => $request->input('title'),
-                'content' => $request->input('content'),
-                'drafted_by' => $viewer->id,
-                'department_id' => $viewer->department_id,
-                'office_id' => $viewer->office_id,
-                'file_path' => $filePath,
-                'file_name' => $fileName,
-                'current_approver_id' => $targetReviewer->id,
-                'current_stage' => $stage,
-                'status' => 'UNDER_REVIEW',
-                'submitted_at' => Carbon::now(),
-            ]);
+            $updateData['status'] = 'UNDER_REVIEW';
+            $updateData['current_approver_id'] = $targetReviewer->id;
+            $updateData['current_stage'] = $stage;
+            $updateData['submitted_at'] = Carbon::now();
+
+            if ($response) {
+                $response->update($updateData);
+            } else {
+                $updateData['inbound_document_id'] = $doc->id;
+                $updateData['drafted_by'] = $viewer->id;
+                $response = InboundDocumentResponse::create($updateData);
+            }
 
             InboundDocumentResponseApproval::create([
                 'response_id' => $response->id,
                 'user_id' => $viewer->id,
                 'action' => 'SUBMIT',
                 'stage' => $stage,
-                'comment' => $request->input('comment', 'បានរៀបចំ និងដាក់ស្នើព្រាងលិខិតឆ្លើយតប'),
+                'comment' => $request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}"),
                 'forwarded_to_id' => $targetReviewer->id,
             ]);
 
-            $doc->update(['status' => 'IN_RESPONSE_PROGRESS']);
+            $doc->update([
+                'status' => 'IN_RESPONSE_PROGRESS',
+                'is_response_required' => true,
+            ]);
 
             InboundDocumentMovement::create([
                 'inbound_document_id' => $doc->id,
                 'user_id' => $viewer->id,
-                'action' => 'RESPONSE_DRAFTED',
+                'action' => 'RESPONSE_FORWARDED',
                 'from_status' => $doc->status,
                 'to_status' => 'IN_RESPONSE_PROGRESS',
-                'comment' => "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh}",
+                'comment' => "បានដាក់ស្នើឆ្លង{$responseTypeKh} ទៅកាន់ {$targetReviewer->name_kh}",
             ]);
 
-            return [$response->load(['draftedByUser', 'currentApprover']), $targetReviewer];
+            return [$response->load(['draftedByUser', 'currentApprover']), $targetReviewer, false];
         });
 
-        [$responseModel, $targetReviewer] = $result;
-        $this->telegram->notifyResponseSubmitted($responseModel, $viewer, $targetReviewer);
+        [$responseModel, $targetReviewer, $isDraftSaved] = $result;
+
+        if (!$isDraftSaved && $targetReviewer) {
+            $this->telegram->notifyResponseSubmitted($responseModel, $viewer, $targetReviewer);
+        }
 
         return response()->json([
-            'message' => "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh} រួចរាល់!",
+            'message' => $isDraftSaved
+                ? 'បានរក្សាទុកសេចក្តីព្រាងដោយជោគជ័យ!'
+                : "បានដាក់ស្នើព្រាងលិខិតឆ្លើយតបទៅកាន់ {$targetReviewer->name_kh} រួចរាល់!",
             'response' => $responseModel,
+            'is_draft' => $isDraftSaved,
         ], 201);
+    }
+
+    /**
+     * 12B. កែប្រែសេចក្តីព្រាងលិខិតឆ្លើយតប (Update Draft Response)
+     */
+    public function updateResponseDraft($responseId, Request $request)
+    {
+        $viewer = $request->user();
+        $response = InboundDocumentResponse::findOrFail($responseId);
+
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        if (!$isAdmin && $response->drafted_by !== $viewer->id) {
+            return response()->json(['message' => 'លោកអ្នកមិនមែនជាអ្នកតាក់តែងលិខិតឆ្លើយតបនេះឡើយ!'], 403);
+        }
+
+        if (!in_array($response->status, ['DRAFT', 'RETURNED'])) {
+            return response()->json(['message' => 'មិនអាចកែប្រែលិខិតដែលកំពុងស្ថិតក្នុងដំណើរការពិនិត្យ ឬអនុម័តរួចបានទេ!'], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|required|string',
+            'response_type' => 'nullable|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'header_organization' => 'nullable|string',
+            'reference_note' => 'nullable|string',
+            'content' => 'nullable|string',
+            'sign_title' => 'nullable|string',
+            'sign_name' => 'nullable|string',
+            'response_file' => 'nullable|file|max:25600',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $updateData = $request->only([
+            'title',
+            'response_type',
+            'header_organization',
+            'reference_note',
+            'content',
+            'sign_title',
+            'sign_name',
+        ]);
+
+        if ($request->hasFile('response_file')) {
+            $file = $request->file('response_file');
+            $updateData['file_name'] = $file->getClientOriginalName();
+            $updateData['file_path'] = StorageService::store($file, 'inbound_documents/responses');
+        }
+
+        $response->update($updateData);
+
+        return response()->json([
+            'message' => 'បានកែសម្រួលលិខិតឆ្លើយតបជោគជ័យ!',
+            'response' => $response->fresh(['draftedByUser', 'currentApprover']),
+        ]);
+    }
+
+    /**
+     * 12C. មើលព័ត៌មានលម្អិតនៃលិខិតឆ្លើយតប (Get Response Detail)
+     */
+    public function getResponseDetail($responseId, Request $request)
+    {
+        $viewer = $request->user();
+        $response = InboundDocumentResponse::with([
+            'inboundDocument',
+            'draftedByUser:id,name,name_kh,email,department_id,office_id,position_id',
+            'draftedByUser.position:id,title_kh',
+            'currentApprover:id,name,name_kh,email,position_id',
+            'currentApprover.position:id,title_kh',
+            'approvedByUser:id,name,name_kh',
+            'approvals.user:id,name,name_kh,position_id',
+            'approvals.user.position:id,title_kh',
+            'approvals.forwardedTo:id,name,name_kh,position_id',
+            'approvals.forwardedTo.position:id,title_kh',
+        ])->findOrFail($responseId);
+
+        return response()->json($response);
+    }
+
+    /**
+     * 12D. ទាញយកព័ត៌មានតាមដានលំហូរឯកសារទាំងមូល (Get Visual Document Flow Tracking)
+     */
+    public function getTrackingFlow($id, Request $request)
+    {
+        $viewer = $request->user();
+        $doc = InboundDocument::with([
+            'registeredByUser:id,name,name_kh,email,position_id',
+            'registeredByUser.position:id,title_kh',
+            'assistant:id,name,name_kh,email,position_id',
+            'dispatchedByUser:id,name,name_kh,position_id',
+            'targetDepartment:id,name_kh,name_en',
+            'targetOffice:id,name_kh,name_en',
+            'targetUser:id,name,name_kh,email,position_id',
+            'targetUser.position:id,title_kh',
+            'acknowledgedByUser:id,name,name_kh',
+            'assignments.department:id,name_kh,name_en',
+            'assignments.office:id,name_kh,name_en',
+            'assignments.user:id,name,name_kh,email,position_id',
+            'assignments.user.position:id,title_kh',
+            'assignments.workingGroup:id,name_kh,name_en,code',
+            'assignments.assignedByUser:id,name,name_kh,position_id',
+            'assignments.assignedByUser.position:id,title_kh',
+            'assignments.childAssignments.user:id,name,name_kh,position_id',
+            'assignments.childAssignments.user.position:id,title_kh',
+            'assignments.childAssignments.office:id,name_kh',
+            'assignments.childAssignments.department:id,name_kh',
+            'movements.user:id,name,name_kh',
+            'responses.draftedByUser:id,name,name_kh,position_id',
+            'responses.draftedByUser.position:id,title_kh',
+            'responses.currentApprover:id,name,name_kh,position_id',
+            'responses.currentApprover.position:id,title_kh',
+            'responses.approvedByUser:id,name,name_kh',
+            'responses.approvals.user:id,name,name_kh,position_id',
+            'responses.approvals.user.position:id,title_kh',
+            'responses.approvals.forwardedTo:id,name,name_kh,position_id',
+            'responses.approvals.forwardedTo.position:id,title_kh',
+        ])->findOrFail($id);
+
+        if (!$this->canUserAccessDocument($doc, $viewer)) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិមើលលំហូរឯកសារនេះឡើយ!'], 403);
+        }
+
+        // Determine current custodian (អ្នកទទួលបន្ទុកបច្ចុប្បន្ន)
+        $currentCustodians = [];
+        if ($doc->status === 'RECEPTION_DRAFT') {
+            $currentCustodians[] = [
+                'type' => 'DESK',
+                'name' => 'មន្ត្រីទទួលឯកសារ (រដ្ឋបាល)',
+                'detail' => $doc->registeredByUser ? ($doc->registeredByUser->name_kh ?? $doc->registeredByUser->name) : 'រង់ចាំចុះបញ្ជី',
+            ];
+        } elseif ($doc->status === 'SUBMITTED_TO_ASSISTANT') {
+            $currentCustodians[] = [
+                'type' => 'DESK',
+                'name' => 'ជំនួយការអគ្គនាយក',
+                'detail' => 'រង់ចាំចុះលេខ និងដាក់ជូនឯកឧត្តមអគ្គនាយក',
+            ];
+        } elseif ($doc->status === 'SUBMITTED_TO_DG') {
+            $currentCustodians[] = [
+                'type' => 'DESK',
+                'name' => 'ឯកឧត្តមអគ្គនាយក',
+                'detail' => 'រង់ចាំពិនិត្យ និងធ្វើចំណារ',
+            ];
+        } elseif ($doc->status === 'DG_ANNOTATED') {
+            $currentCustodians[] = [
+                'type' => 'DESK',
+                'name' => 'ជំនួយការអគ្គនាយក',
+                'detail' => 'រង់ចាំ Scan ចំណារ និងចាត់ចែងចែកចាយ',
+            ];
+        } elseif (in_array($doc->status, ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])) {
+            $latestResponse = $doc->responses->first();
+            if ($latestResponse && $latestResponse->status === 'UNDER_REVIEW' && $latestResponse->currentApprover) {
+                $currentCustodians[] = [
+                    'type' => 'APPROVER',
+                    'name' => $latestResponse->currentApprover->name_kh ?? $latestResponse->currentApprover->name,
+                    'detail' => "កំពុងពិនិត្យ {$latestResponse->response_type_kh} ({$latestResponse->stage_kh})",
+                ];
+            } elseif ($latestResponse && in_array($latestResponse->status, ['DRAFT', 'RETURNED']) && $latestResponse->draftedByUser) {
+                $currentCustodians[] = [
+                    'type' => 'AUTHOR',
+                    'name' => $latestResponse->draftedByUser->name_kh ?? $latestResponse->draftedByUser->name,
+                    'detail' => $latestResponse->status === 'RETURNED' ? 'កំពុងកែសម្រួលតាមមតិណែនាំ' : 'កំពុងព្រាងលិខិតឆ្លើយតប',
+                ];
+            } else {
+                // List assigned recipients
+                if ($doc->assignments->isNotEmpty()) {
+                    foreach ($doc->assignments as $assign) {
+                        $currentCustodians[] = [
+                            'type' => $assign->target_type,
+                            'name' => $assign->target_label_kh,
+                            'detail' => $assign->instruction ?: 'ទទួលបន្ទុកអនុវត្តតាមចំណារ',
+                        ];
+                    }
+                } elseif ($doc->targetUser) {
+                    $currentCustodians[] = [
+                        'type' => 'USER',
+                        'name' => $doc->targetUser->name_kh ?? $doc->targetUser->name,
+                        'detail' => $doc->dispatch_notes ?: 'ទទួលបន្ទុកអនុវត្តតាមចំណារ',
+                    ];
+                } elseif ($doc->targetOffice) {
+                    $currentCustodians[] = [
+                        'type' => 'OFFICE',
+                        'name' => $doc->targetOffice->name_kh,
+                        'detail' => $doc->dispatch_notes ?: 'ការិយាល័យទទួលបន្ទុក',
+                    ];
+                } elseif ($doc->targetDepartment) {
+                    $currentCustodians[] = [
+                        'type' => 'DEPARTMENT',
+                        'name' => $doc->targetDepartment->name_kh,
+                        'detail' => $doc->dispatch_notes ?: 'នាយកដ្ឋានទទួលបន្ទុក',
+                    ];
+                }
+            }
+        } elseif ($doc->status === 'COMPLETED') {
+            $currentCustodians[] = [
+                'type' => 'COMPLETED',
+                'name' => 'បានបញ្ចប់រួចរាល់',
+                'detail' => $doc->completed_at ? Carbon::parse($doc->completed_at)->format('d/m/Y H:i') : 'បញ្ចប់ជាស្ថាពរ',
+            ];
+        }
+
+        return response()->json([
+            'document' => $doc,
+            'current_custodians' => $currentCustodians,
+        ]);
     }
 
     /**
@@ -1336,7 +2281,10 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         return DB::transaction(function () use ($request, $viewer, $doc, $response) {
@@ -1348,7 +2296,7 @@ class InboundDocumentController extends Controller
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $attachmentName = $file->getClientOriginalName();
-                $attachmentPath = $file->store('inbound_documents/responses/reviews', 'public');
+                $attachmentPath = StorageService::store($file, 'inbound_documents/responses/reviews');
             }
 
             if ($action === 'FORWARD') {
@@ -1490,11 +2438,11 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារនេះឡើយ!'], 403);
         }
 
-        if (!$doc->original_file_path || !Storage::disk('public')->exists($doc->original_file_path)) {
+        if (!$doc->original_file_path || !StorageService::exists($doc->original_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារដើមឡើយ!'], 404);
         }
 
-        return Storage::disk('public')->download(
+        return StorageService::download(
             $doc->original_file_path,
             $doc->original_file_name ?? basename($doc->original_file_path)
         );
@@ -1511,11 +2459,11 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារនេះឡើយ!'], 403);
         }
 
-        if (!$doc->annotated_file_path || !Storage::disk('public')->exists($doc->annotated_file_path)) {
+        if (!$doc->annotated_file_path || !StorageService::exists($doc->annotated_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារមានចំណារឡើយ!'], 404);
         }
 
-        return Storage::disk('public')->download(
+        return StorageService::download(
             $doc->annotated_file_path,
             $doc->annotated_file_name ?? basename($doc->annotated_file_path)
         );
@@ -1532,11 +2480,11 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារឆ្លើយតបនេះឡើយ!'], 403);
         }
 
-        if (!$response->file_path || !Storage::disk('public')->exists($response->file_path)) {
+        if (!$response->file_path || !StorageService::exists($response->file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារឆ្លើយតបឡើយ!'], 404);
         }
 
-        return Storage::disk('public')->download(
+        return StorageService::download(
             $response->file_path,
             $response->file_name ?? basename($response->file_path)
         );
@@ -1544,18 +2492,35 @@ class InboundDocumentController extends Controller
 
     /**
      * 17. កែប្រែព័ត៌មានឯកសារ (Update Inbound Document)
+     * - អគ្គនាយក ឬ Admin អាចកែប្រែបានគ្រប់ពេល
+     * - អ្នកទទួល ឬ ជំនួយការ អាចកែប្រែបានប្រសិនបើមិនទាន់បញ្ជូនទៅអគ្គនាយក
      */
     public function update($id, Request $request)
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
+
         $doc = InboundDocument::findOrFail($id);
 
-        if (!$isAdmin && $doc->registered_by !== $viewer->id && !$viewer->hasPermission('inbound-documents-assistant')) {
+        if ($isAdmin || $isDg) {
+            // DG or Admin can edit anytime
+        } elseif ($isReceptionist || $isAssistant || $doc->registered_by === $viewer->id) {
+            $notYetSubmittedToDg = in_array($doc->status, ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT']);
+            if (!$notYetSubmittedToDg) {
+                return response()->json([
+                    'message' => 'ឯកសារនេះត្រូវបានបញ្ជូនទៅអគ្គនាយករួចហើយ មិនអាចកែប្រែបានឡើយ! មានតែឯកឧត្តមអគ្គនាយក ឬអ្នកគ្រប់គ្រងប្រព័ន្ធទេទើបអាចកែប្រែបាន។'
+                ], 403);
+            }
+        } else {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិកែប្រែឯកសារនេះឡើយ!'], 403);
         }
 
         $validator = Validator::make($request->all(), [
+            'general_inbound_number' => 'sometimes|nullable|string|max:100',
             'received_date' => 'sometimes|date',
             'received_time' => 'sometimes',
             'deliverer_name' => 'sometimes|string|max:255',
@@ -1573,10 +2538,14 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $data = $request->only([
+            'general_inbound_number',
             'received_date',
             'received_time',
             'deliverer_name',
@@ -1593,15 +2562,24 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($request->hasFile('original_file')) {
-            if ($doc->original_file_path && Storage::disk('public')->exists($doc->original_file_path)) {
-                Storage::disk('public')->delete($doc->original_file_path);
+            if ($doc->original_file_path && StorageService::exists($doc->original_file_path)) {
+                StorageService::delete($doc->original_file_path);
             }
             $file = $request->file('original_file');
             $data['original_file_name'] = $file->getClientOriginalName();
-            $data['original_file_path'] = $file->store('inbound_documents/originals', 'public');
+            $data['original_file_path'] = StorageService::store($file, 'inbound_documents/originals');
         }
 
         $doc->update($data);
+
+        InboundDocumentMovement::create([
+            'inbound_document_id' => $doc->id,
+            'user_id' => $viewer->id,
+            'action' => 'DOCUMENT_UPDATED',
+            'from_status' => $doc->status,
+            'to_status' => $doc->status,
+            'comment' => "បានកែប្រែព័ត៌មានលម្អិតឯកសារ ដោយ {$viewer->name_kh}",
+        ]);
 
         return response()->json([
             'message' => 'បានកែប្រែព័ត៌មានឯកសារចូលដោយជោគជ័យ!',
@@ -1611,20 +2589,52 @@ class InboundDocumentController extends Controller
 
     /**
      * 18. លុបឯកសារចូល (Delete Inbound Document)
+     * - អគ្គនាយក ឬ Admin អាចលុបបាន
+     * - អ្នកទទួល ឬជំនួយការ ករណីមិនទាន់បញ្ជូនទៅអគ្គនាយក អាចលុបចេញបាន
      */
     public function destroy($id, Request $request)
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
+
         $doc = InboundDocument::findOrFail($id);
 
-        if (!$isAdmin && $doc->registered_by !== $viewer->id) {
+        // 1. អគ្គនាយក (DG) ឬ Admin អាចលុបឯកសារបានគ្រប់ដំណាក់កាល
+        if ($isAdmin || $isDg) {
+            // Authorized
+        }
+        // 2. អ្នកទទួល (Receptionist) ឬ ជំនួយការ (Assistant) ឬអ្នកចុះបញ្ជី ករណីមិនទាន់បញ្ជូនទៅអគ្គនាយក អាចលុបចេញបាន
+        elseif ($isReceptionist || $isAssistant || $doc->registered_by === $viewer->id) {
+            $notYetSubmittedToDg = in_array($doc->status, ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT']);
+            if (!$notYetSubmittedToDg) {
+                return response()->json([
+                    'message' => 'ឯកសារនេះត្រូវបានបញ្ជូនទៅអគ្គនាយករួចហើយ មិនអាចលុបបានឡើយ! មានតែឯកឧត្តមអគ្គនាយកទេទើបអាចលុបបាន។'
+                ], 403);
+            }
+            // Authorized
+        } else {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបឯកសារនេះឡើយ!'], 403);
         }
 
-        $doc->delete();
+        return DB::transaction(function () use ($doc) {
+            // Soft delete assignments & responses
+            $doc->assignments()->delete();
+            foreach ($doc->responses as $resp) {
+                $resp->approvals()->delete();
+                $resp->delete();
+            }
+            $doc->movements()->delete();
+            $doc->delete();
 
-        return response()->json(['message' => 'បានលុបឯកសារចូលដោយជោគជ័យ!']);
+            return response()->json([
+                'success' => true,
+                'message' => 'បានលុបឯកសារចូលដោយជោគជ័យ!'
+            ]);
+        });
     }
 
     /**
@@ -1689,7 +2699,10 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $viewer->update([
@@ -1739,8 +2752,8 @@ class InboundDocumentController extends Controller
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist') && !$viewer->hasPermission('inbound-documents')) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិបន្ថែមស្ថាប័នឡើយ!'], 403);
+        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist')) {
+            return response()->json(['message' => 'មានតែអ្នកទទួលឯកសារទេទើបមានសិទ្ធិបន្ថែមស្ថាប័នផ្ញើ!'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -1751,7 +2764,10 @@ class InboundDocumentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $nameKh = trim($request->input('name_kh'));
@@ -1789,8 +2805,8 @@ class InboundDocumentController extends Controller
     {
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist') && !$viewer->hasPermission('inbound-documents')) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបស្ថាប័នឡើយ!'], 403);
+        if (!$isAdmin && !$viewer->hasPermission('inbound-documents-receptionist')) {
+            return response()->json(['message' => 'មានតែអ្នកទទួលឯកសារទេទើបមានសិទ្ធិលុបស្ថាប័នផ្ញើ!'], 403);
         }
 
         $org = InboundSenderOrganization::findOrFail($id);
@@ -1810,17 +2826,14 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារនេះឡើយ!'], 403);
         }
 
-        if (!$doc->original_file_path || !Storage::disk('public')->exists($doc->original_file_path)) {
+        if (!$doc->original_file_path || !StorageService::exists($doc->original_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារដើមឡើយ!'], 404);
         }
 
-        $fullPath = Storage::disk('public')->path($doc->original_file_path);
-        $mimeType = Storage::disk('public')->mimeType($doc->original_file_path) ?: 'application/pdf';
-
-        return response()->file($fullPath, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . addslashes($doc->original_file_name ?? basename($doc->original_file_path)) . '"',
-        ]);
+        return StorageService::response(
+            $doc->original_file_path,
+            $doc->original_file_name ?? basename($doc->original_file_path)
+        );
     }
 
     /**
@@ -1834,17 +2847,14 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារនេះឡើយ!'], 403);
         }
 
-        if (!$doc->annotated_file_path || !Storage::disk('public')->exists($doc->annotated_file_path)) {
+        if (!$doc->annotated_file_path || !StorageService::exists($doc->annotated_file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារមានចំណារឡើយ!'], 404);
         }
 
-        $fullPath = Storage::disk('public')->path($doc->annotated_file_path);
-        $mimeType = Storage::disk('public')->mimeType($doc->annotated_file_path) ?: 'application/pdf';
-
-        return response()->file($fullPath, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . addslashes($doc->annotated_file_name ?? basename($doc->annotated_file_path)) . '"',
-        ]);
+        return StorageService::response(
+            $doc->annotated_file_path,
+            $doc->annotated_file_name ?? basename($doc->annotated_file_path)
+        );
     }
 
     /**
@@ -1858,16 +2868,13 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារឆ្លើយតបនេះឡើយ!'], 403);
         }
 
-        if (!$response->file_path || !Storage::disk('public')->exists($response->file_path)) {
+        if (!$response->file_path || !StorageService::exists($response->file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារឆ្លើយតបឡើយ!'], 404);
         }
 
-        $fullPath = Storage::disk('public')->path($response->file_path);
-        $mimeType = Storage::disk('public')->mimeType($response->file_path) ?: 'application/pdf';
-
-        return response()->file($fullPath, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . addslashes($response->file_name ?? basename($response->file_path)) . '"',
-        ]);
+        return StorageService::response(
+            $response->file_path,
+            $response->file_name ?? basename($response->file_path)
+        );
     }
 }

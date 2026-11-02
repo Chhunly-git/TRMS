@@ -536,11 +536,11 @@
                           <td class="text-center">
                             <div class="btn-group">
                               <router-link
-                                :to="{ name: 'inbound-documents.routing-slip', params: { id: doc.id } }"
-                                class="btn btn-xs btn-outline-info rounded-pill px-2"
-                                title="បោះពុម្ព ឬមើលបណ្ណបញ្ជូនសារ (Routing Slip)"
+                                :to="{ name: 'inbound-documents' }"
+                                class="btn btn-xs btn-outline-primary rounded-pill px-2"
+                                title="មើលព័ត៌មានលម្អិតឯកសារ"
                               >
-                                <i class="fas fa-route"></i> បណ្ណ
+                                <i class="fas fa-eye"></i> មើល
                               </router-link>
                             </div>
                           </td>
@@ -1036,7 +1036,8 @@ import { apiGetDashboardStats } from '@/functions/api/dashboard';
 import axios from 'axios';
 
 const userStore = useUserStore();
-const defaultAvatar = 'https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg';
+import emptyImage from '@/assets/images/emptyImage.png';
+const defaultAvatar = emptyImage;
 
 // State Variables
 const loading = ref(true);

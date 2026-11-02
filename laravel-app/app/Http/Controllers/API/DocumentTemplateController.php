@@ -7,6 +7,7 @@ use App\Models\DocumentTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\StorageService;
 
 class DocumentTemplateController extends Controller
 {
@@ -80,7 +81,7 @@ class DocumentTemplateController extends Controller
             $formattedSize = $this->formatFileSize($sizeInBytes);
 
             $filename = time() . '_' . uniqid() . '.' . $extension;
-            $path = $file->storeAs('document-templates', $filename, 'public');
+            $path = StorageService::storeAs($file, 'document-templates', $filename);
 
             $template = DocumentTemplate::create([
                 'title' => $request->title,
@@ -133,8 +134,9 @@ class DocumentTemplateController extends Controller
 
             if ($request->hasFile('file')) {
                 // Delete old file if exists
-                if ($template->file_path && Storage::disk('public')->exists($template->file_path)) {
-                    Storage::disk('public')->delete($template->file_path);
+                $oldPath = $template->getRawOriginal('file_path');
+                if ($oldPath && StorageService::exists($oldPath)) {
+                    StorageService::delete($oldPath);
                 }
 
                 $file = $request->file('file');
@@ -144,7 +146,7 @@ class DocumentTemplateController extends Controller
                 $formattedSize = $this->formatFileSize($sizeInBytes);
 
                 $filename = time() . '_' . uniqid() . '.' . $extension;
-                $path = $file->storeAs('document-templates', $filename, 'public');
+                $path = StorageService::storeAs($file, 'document-templates', $filename);
 
                 $data['file_path'] = $path;
                 $data['file_name'] = $originalName;
@@ -179,8 +181,9 @@ class DocumentTemplateController extends Controller
         try {
             DB::beginTransaction();
 
-            if ($template->file_path && Storage::disk('public')->exists($template->file_path)) {
-                Storage::disk('public')->delete($template->file_path);
+            $oldPath = $template->getRawOriginal('file_path');
+            if ($oldPath && StorageService::exists($oldPath)) {
+                StorageService::delete($oldPath);
             }
 
             $template->delete();

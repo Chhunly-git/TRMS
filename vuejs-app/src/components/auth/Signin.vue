@@ -16,7 +16,7 @@
           <div class="logo-circle mx-auto mb-2">
             <img :src="logoImage" alt="Logo" width="80" height="80" class="object-contain" />
           </div>
-          <h2 class="brand-title">ប្រព័ន្ធគ្រប់គ្រងទិន្នន័យមន្ត្រី</h2>
+          <h2 class="brand-title">ប្រព័ន្ធគ្រប់គ្រងផ្ទៃក្នុង ន.ប.ធ.</h2>
           <p class="brand-subtitle"></p>
         </div>
 
@@ -58,24 +58,29 @@
             </div>
           </div>
 
+          <!-- Remember Me & Forgot Password -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="custom-control custom-checkbox d-flex align-items-center">
+              <input 
+                type="checkbox" 
+                class="custom-control-input" 
+                id="rememberMe" 
+                v-model="rememberMe" 
+              />
+              <label class="custom-control-label user-select-none text-muted mb-0" for="rememberMe" style="cursor: pointer; font-size: 13px;">
+                ចងចាំខ្ញុំ (Remember me)
+              </label>
+            </div>
+            <router-link :to="{ name: 'auth.reset-password' }" class="link-item" style="font-size: 12px;">
+              ភ្លេចពាក្យសម្ងាត់?
+            </router-link>
+          </div>
+
           <!-- Submit Button -->
           <button type="submit" class="btn btn-primary-theme btn-block w-100">
             <span>ចូលប្រព័ន្ធ / Sign In</span> <i class="fas fa-arrow-right ml-2"></i>
           </button>
         </form>
-
-        <!-- Divider -->
-        <div class="divider my-4">
-          <span>ឬ / OR</span>
-        </div>
-
-       
-        <div class="text-center auth-links">
-          <router-link :to="{ name: 'auth.reset-password' }" class="d-block mb-1 link-item">
-            ភ្លេចពាក្យសម្ងាត់? (Forgot password?)
-          </router-link>
-          
-        </div>
       </div>
     </div>
   </div>
@@ -83,7 +88,7 @@
 
 <script setup>
 import { useRouter } from "vue-router";
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { apiSignIn } from "@/functions/api/auth";
 import { LoadingModal, MessageModal, CloseModal } from "@/functions/swal";
 import { useUserStore } from "@/stores/user";
@@ -93,6 +98,8 @@ import logoImage from '@/assets/images/logoImage.webp';
 
 const router = useRouter();
 const userStore = useUserStore();
+
+const rememberMe = ref(false);
 
 const user = reactive({
   email: "",
@@ -117,8 +124,9 @@ async function signIn() {
     LoadingModal('Signing In...');
     const response = await apiSignIn(user);
     const { data } = response;
+    userStore.setRememberMe(rememberMe.value);
     userStore.setState(data.user);
-    userStore.setSanctumToken(data.token);
+    userStore.setSanctumToken(data.token, rememberMe.value);
     resetAllState();
     router.replace({ name: "dashboard" });
     return CloseModal();
@@ -330,6 +338,15 @@ const googleSignIn = async () => {
 .link-item:hover {
   color: #1c6b66;
   text-decoration: underline;
+}
+
+:deep(.custom-control-input:checked ~ .custom-control-label::before) {
+  background-color: #0c2b29 !important;
+  border-color: #0c2b29 !important;
+}
+
+:deep(.custom-control-input:focus ~ .custom-control-label::before) {
+  box-shadow: 0 0 0 0.2rem rgba(12, 43, 41, 0.2) !important;
 }
 
 @media (max-width: 992px) {

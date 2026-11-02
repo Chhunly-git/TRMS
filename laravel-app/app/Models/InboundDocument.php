@@ -77,6 +77,8 @@ class InboundDocument extends Model
 
     protected $appends = [
         'status_kh',
+        'simplified_status',
+        'simplified_status_kh',
         'document_type_kh',
         'urgency_kh',
         'confidentiality_kh',
@@ -125,6 +127,13 @@ class InboundDocument extends Model
         return $this->hasMany(InboundDocumentMovement::class, 'inbound_document_id')->orderBy('created_at', 'asc');
     }
 
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(InboundDocumentAssignment::class, 'inbound_document_id')
+            ->with(['department', 'office', 'user', 'assignedByUser'])
+            ->orderBy('id', 'asc');
+    }
+
     public function responses(): HasMany
     {
         return $this->hasMany(InboundDocumentResponse::class, 'inbound_document_id')->orderBy('id', 'desc');
@@ -136,6 +145,38 @@ class InboundDocument extends Model
     }
 
     // Accessors for Khmer presentation
+    protected function simplifiedStatus(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (in_array($this->status, ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])) {
+                    return 'PENDING';
+                }
+                if (in_array($this->status, ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])) {
+                    return 'DOING';
+                }
+                if ($this->status === 'COMPLETED') {
+                    return 'COMPLETE';
+                }
+                return 'PENDING';
+            }
+        );
+    }
+
+    protected function simplifiedStatusKh(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                return match ($this->simplified_status) {
+                    'PENDING' => 'Pending (ករណីចូលមកដំបូង)',
+                    'DOING' => 'Doing (ករណីបានបញ្ជូនចេញ ឬកំពុងធ្វើ)',
+                    'COMPLETE' => 'Complete (ករណីអគ្គនាយកឯកភាព)',
+                    default => 'Pending',
+                };
+            }
+        );
+    }
+
     protected function statusKh(): Attribute
     {
         return Attribute::make(

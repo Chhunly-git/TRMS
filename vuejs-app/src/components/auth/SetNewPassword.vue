@@ -16,7 +16,7 @@
           <div class="logo-circle mx-auto mb-2">
             <img :src="logoImage" alt="Logo" width="80" height="80" class="object-contain" />
           </div>
-          <h2 class="brand-title">ប្រព័ន្ធគ្រប់គ្រងទិន្នន័យមន្ត្រី</h2>
+          <h2 class="brand-title">ប្រព័ន្ធគ្រប់គ្រងផ្ទៃក្នុង ន.ប.ធ.</h2>
           <p class="brand-subtitle">កំណត់ពាក្យសម្ងាត់ថ្មី (Set New Password)</p>
         </div>
 

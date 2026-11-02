@@ -2118,7 +2118,8 @@ const submitImport = async () => {
   }
 };
 
-const defaultAvatar = 'https://adminlte.io/themes/v3/dist/img/user2-160x160.jpg';
+import emptyImage from '@/assets/images/emptyImage.png';
+const defaultAvatar = emptyImage;
 
 const users = ref([]);
 const departments = ref([]);
@@ -2160,6 +2161,7 @@ const managementMenuItems = [
   { key: 'departments', label: 'នាយកដ្ឋាន', desc: 'គ្រប់គ្រងបញ្ជីនាយកដ្ឋាន', icon: 'fas fa-building', iconClass: 'text-secondary' },
   { key: 'divisions', label: 'ការិយាល័យ', desc: 'គ្រប់គ្រងបញ្ជីការិយាល័យ', icon: 'fas fa-door-closed', iconClass: 'text-info' },
   { key: 'positions', label: 'តួនាទី', desc: 'គ្រប់គ្រងបញ្ជីតួនាទីមន្ត្រី', icon: 'fas fa-id-badge', iconClass: 'text-danger' },
+  { key: 'working-groups', label: 'ក្រុមការងារ', desc: 'បង្កើត កែសម្រួល និងចាត់ចែងសមាជិកក្រុមការងារ', icon: 'fas fa-users', iconClass: 'text-indigo' },
   { key: 'backups', label: 'Backups', desc: 'ទាញយក និងគ្រប់គ្រង Backup', icon: 'fas fa-database', iconClass: 'text-dark' },
 ];
 
@@ -2167,7 +2169,7 @@ const allPermissionKeys = [
   'dashboard', 'profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents',
   'inbound-documents-receptionist', 'inbound-documents-assistant',
   'manage-document-templates', 'manage-meeting-rooms', 'users', 'attendances',
-  'departments', 'divisions', 'positions', 'backups'
+  'departments', 'divisions', 'positions', 'working-groups', 'backups'
 ];
 
 const openPermissionModal = (user) => {

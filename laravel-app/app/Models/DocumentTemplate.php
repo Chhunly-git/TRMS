@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\StorageService;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,5 +26,18 @@ class DocumentTemplate extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get full URL for template file
+     */
+    protected function filePath(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $file = $this->getRawOriginal('file_path');
+                return $file ? StorageService::url($file) : null;
+            }
+        );
     }
 }

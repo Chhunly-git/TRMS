@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
 use App\Services\ImageClassService;
+use App\Services\StorageService;
 use Carbon\Carbon;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -142,7 +143,7 @@ class User extends Authenticatable
 
         // ប្រសិនបើសិទ្ធិជា null ឬទទេ ផ្តល់សិទ្ធិលំនាំដើមរបស់មន្ត្រីទូទៅ
         if (empty($perms) || !is_array($perms)) {
-            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents']);
+            return in_array($permission, ['profile', 'my-attendances', 'document-templates', 'work-schedules', 'meeting-rooms', 'weekly-reports', 'leave-requests', 'inbound-documents', 'working-groups']);
         }
 
         return in_array($permission, $perms);
@@ -256,6 +257,32 @@ class User extends Authenticatable
 
                 return str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $imagePath);
             },
+        );
+    }
+
+    /**
+     * Get Full URL for National ID file
+     */
+    protected function nationalIdFile(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $file = $this->getRawOriginal('national_id_file');
+                return $file ? StorageService::url($file) : null;
+            }
+        );
+    }
+
+    /**
+     * Get Full URL for Passport file
+     */
+    protected function passportFile(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $file = $this->getRawOriginal('passport_file');
+                return $file ? StorageService::url($file) : null;
+            }
         );
     }
 
@@ -438,5 +465,23 @@ class User extends Authenticatable
     public function pendingLeaveReviews(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(LeaveRequest::class, 'current_approver_id')->where('status', 'PENDING');
+    }
+
+    /**
+     * សមាជិកភាពក្នុងក្រុមការងារនានា (Working Group Memberships)
+     */
+    public function workingGroupMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkingGroupMember::class, 'user_id');
+    }
+
+    /**
+     * ក្រុមការងារដែលមន្ត្រីរូបនេះជាសមាជិក (Working Groups)
+     */
+    public function workingGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(WorkingGroup::class, 'working_group_members')
+            ->withPivot(['id', 'role', 'custom_role_kh', 'order_index', 'status', 'joined_date'])
+            ->withTimestamps();
     }
 }

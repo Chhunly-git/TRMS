@@ -15,7 +15,15 @@ class CheckEnabled
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->user() || $request->user()->status !== 'ENABLED') {
+        $user = $request->user();
+        if (!$user) {
+            return response([
+                'message' => 'Unauthorized. Please login.'
+            ], 401);
+        }
+
+        $status = strtoupper($user->status ?? '');
+        if (in_array($status, ['DISABLED', 'SUSPENDED', 'INACTIVE'])) {
             return response([
                 'message' => 'Unauthorized. Account is disabled.'
             ], 403);

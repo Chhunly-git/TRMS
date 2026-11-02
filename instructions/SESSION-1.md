@@ -175,8 +175,11 @@ Access at: **http://localhost:5173**
 
 | Service | Container port | Host port | URL |
 |---|---|---|---|
-| Laravel | 8000 | 8000 | http://localhost:8000 |
-| Vue.js | 5173 | 5173 | http://localhost:5173 |
+| Laravel API | 8000 | 8000 | http://localhost:8000 |
+| Vue.js Frontend | 5173 | 5173 | http://localhost:5173 |
+| MinIO S3 API | 9000 | 9000 | http://localhost:9000 |
+| MinIO Web Console | 9001 | 9001 | http://localhost:9001 (User: `minioadmin`, Pass: `minioadminpassword`) |
+| phpMyAdmin | 80 | 9090 | http://localhost:9090 |
 
 ---
 
