@@ -160,20 +160,58 @@ class InboundDocumentController extends Controller
             'targetUser:id,name,name_kh,email',
             'acknowledgedByUser:id,name,name_kh',
             'latestResponse.currentApprover:id,name,name_kh',
-            'assignments:id,inbound_document_id,target_type,department_id,office_id,user_id,working_group_id,status,instruction',
+            'assignments:id,inbound_document_id,target_type,department_id,office_id,user_id,working_group_id,status,instruction,assigned_by',
+            'assignments.department:id,name_kh',
+            'assignments.office:id,name_kh',
+            'assignments.user:id,name,name_kh',
+            'assignments.workingGroup:id,name_kh',
         ]);
 
-        // Scopes
-        if ($scope === 'pending') {
-            $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
+        // 3-Status Unified Tabs (Doing, In Progress, Complete)
+        $tab = strtolower($request->input('tab', ''));
+        if ($tab === 'complete' || $tab === 'completed') {
+            $query->where('status', 'COMPLETED');
+        } elseif ($tab === 'in_progress') {
+            $query->where('status', '!=', 'COMPLETED')
+                ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
+                    if ($isDg) {
+                        $q->whereNotNull('dispatched_at');
+                    } elseif ($isAssistant) {
+                        $q->where(fn($sub) => $sub->whereNotNull('assistant_reviewed_at')->orWhereNotNull('dispatched_at'));
+                    } else {
+                        $q->where('registered_by', $viewer->id)
+                          ->orWhereHas('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id)->whereIn('status', ['PENDING', 'FORWARDED']));
+                    }
+                });
+        } elseif ($tab === 'doing') {
+            $query->where('status', '!=', 'COMPLETED')
+                ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
+                    if ($isDg) {
+                        $q->whereNull('dispatched_at');
+                    } elseif ($isAssistant) {
+                        $q->whereNull('dispatched_at')->whereNull('assistant_reviewed_at');
+                    } else {
+                        $q->where('target_user_id', $viewer->id)
+                          ->orWhereHas('assignments', function ($aq) use ($viewer) {
+                              $aq->where(function ($sub) use ($viewer) {
+                                  $sub->where('user_id', $viewer->id);
+                                  if ($viewer->office_id) $sub->orWhere('office_id', $viewer->office_id);
+                                  if ($viewer->department_id) $sub->orWhere('department_id', $viewer->department_id);
+                              })->where('status', 'PENDING')
+                                ->where('assigned_by', '!=', $viewer->id);
+                          });
+                    }
+                });
+        } elseif ($scope === 'pending') {
+            $this->applyPendingScope($query, $viewer);
         } elseif ($scope === 'doing') {
-            $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+            $this->applyDoingScope($query, $viewer);
         } elseif ($scope === 'completed' || $scope === 'complete') {
             $query->where('status', 'COMPLETED');
         } elseif ($scope === 'reception') {
             $query->where('status', 'RECEPTION_DRAFT');
         } elseif ($scope === 'assistant_inbox') {
-            $query->whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']);
+            $query->whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED']);
         } elseif ($scope === 'dg_inbox') {
             $query->where('status', 'SUBMITTED_TO_DG');
         } elseif ($scope === 'my_todo' || $scope === 'assigned_to_me') {
@@ -199,9 +237,9 @@ class InboundDocumentController extends Controller
         if ($request->filled('status')) {
             $statusVal = strtolower($request->input('status'));
             if ($statusVal === 'pending') {
-                $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
+                $this->applyPendingScope($query, $viewer);
             } elseif ($statusVal === 'doing') {
-                $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+                $this->applyDoingScope($query, $viewer);
             } elseif ($statusVal === 'complete' || $statusVal === 'completed') {
                 $query->where('status', 'COMPLETED');
             } elseif ($statusVal === 'dispatched_all') {
@@ -293,7 +331,7 @@ class InboundDocumentController extends Controller
             : 0;
 
         $assistantPending = ($isAdmin || $isAssistant)
-            ? InboundDocument::whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED'])->count()
+            ? InboundDocument::whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'])->count()
             : 0;
 
         $dgPending = ($isAdmin || $isLeadership)
@@ -313,13 +351,11 @@ class InboundDocumentController extends Controller
             : (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
         // 3-State Unified Counters (Pending, Doing, Complete)
-        $pendingCount = $isPrivileged
-            ? InboundDocument::whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])->count()
-            : (clone $baseAccessibleQuery)->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])->count();
+        $pendingBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
+        $pendingCount = $this->applyPendingScope($pendingBase, $viewer)->count();
 
-        $doingCount = $isPrivileged
-            ? InboundDocument::whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count()
-            : (clone $baseAccessibleQuery)->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
+        $doingBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
+        $doingCount = $this->applyDoingScope($doingBase, $viewer)->count();
 
         $myTodoQuery = $this->scopeMyTodo(InboundDocument::query(), $viewer);
         $myTodo = $isPrivileged ? $myTodoQuery->count() : $this->scopeAccessibleByViewer($myTodoQuery, $viewer)->count();
@@ -346,8 +382,46 @@ class InboundDocumentController extends Controller
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
             ->count();
 
+        $isDg = ($viewer->position && (int) $viewer->position->level === 1);
+
+        $tabDoingCount = InboundDocument::where('status', '!=', 'COMPLETED')
+            ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
+                if ($isDg) {
+                    $q->whereNull('dispatched_at');
+                } elseif ($isAssistant) {
+                    $q->whereNull('dispatched_at')->whereNull('assistant_reviewed_at');
+                } else {
+                    $q->where('target_user_id', $viewer->id)
+                      ->orWhereHas('assignments', function ($aq) use ($viewer) {
+                          $aq->where(function ($sub) use ($viewer) {
+                              $sub->where('user_id', $viewer->id);
+                              if ($viewer->office_id) $sub->orWhere('office_id', $viewer->office_id);
+                              if ($viewer->department_id) $sub->orWhere('department_id', $viewer->department_id);
+                          })->where('status', 'PENDING')
+                            ->where('assigned_by', '!=', $viewer->id);
+                      });
+                }
+            })->count();
+
+        $tabInProgressCount = InboundDocument::where('status', '!=', 'COMPLETED')
+            ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
+                if ($isDg) {
+                    $q->whereNotNull('dispatched_at');
+                } elseif ($isAssistant) {
+                    $q->where(fn($sub) => $sub->whereNotNull('assistant_reviewed_at')->orWhereNotNull('dispatched_at'));
+                } else {
+                    $q->where('registered_by', $viewer->id)
+                      ->orWhereHas('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id)->whereIn('status', ['PENDING', 'FORWARDED']));
+                }
+            })->count();
+
+        $tabCompleteCount = InboundDocument::where('status', 'COMPLETED')->count();
+
         return response()->json([
             'total' => $total,
+            'tab_doing' => $tabDoingCount,
+            'tab_in_progress' => $tabInProgressCount,
+            'tab_complete' => $tabCompleteCount,
             'pending' => $pendingCount,
             'doing' => $doingCount,
             'completed' => $completed,
@@ -364,6 +438,74 @@ class InboundDocumentController extends Controller
             'overdue' => $overdueCount,
             'due_soon' => $dueSoonCount,
         ]);
+    }
+
+    /**
+     * Scope Pending តាមតួនាទីអ្នកប្រើប្រាស់ (ករណីចូលមកដំបូង ឬមិនទាន់ចាត់ចែង)
+     */
+    protected function applyPendingScope($query, $viewer)
+    {
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
+
+        $query->whereNotIn('status', ['COMPLETED', 'CANCELLED']);
+
+        if ($isAdmin) {
+            $query->where(function ($q) {
+                $q->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])
+                  ->orWhereHas('assignments', fn($aq) => $aq->where('status', 'PENDING'));
+            });
+        } elseif ($isDg) {
+            $query->where('status', 'SUBMITTED_TO_DG');
+        } elseif ($isAssistant) {
+            $query->where('status', 'SUBMITTED_TO_DG')
+                  ->whereNull('assistant_reviewed_at')
+                  ->whereNull('dispatched_at');
+        } elseif ($isReceptionist && !$isDg && $viewerPosLevel > 5) {
+            $query->where('status', 'RECEPTION_DRAFT');
+        } else {
+            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី៖
+            // ឯកសារដែលបានចាត់ចែងមកកាន់អង្គភាព/ខ្លួន ហើយខ្លួនមិនទាន់បានចាត់ចែងបន្ត (មិនទាន់ Forward) និងមិនទាន់បានព្រាងឆ្លើយតប
+            $query->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])
+                  ->whereDoesntHave('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id))
+                  ->whereDoesntHave('responses', fn($rq) => $rq->where('drafted_by', $viewer->id));
+        }
+        return $query;
+    }
+
+    /**
+     * Scope Doing តាមតួនាទីអ្នកប្រើប្រាស់ (ករណីបានចាត់ចែងបន្ត ឬកំពុងដំណើរការ)
+     */
+    protected function applyDoingScope($query, $viewer)
+    {
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
+        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
+        $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
+
+        $query->whereNotIn('status', ['COMPLETED', 'CANCELLED']);
+
+        if ($isAdmin) {
+            $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+        } elseif ($isDg) {
+            $query->whereNotNull('dispatched_at');
+        } elseif ($isAssistant) {
+            $query->where(fn($q) => $q->whereNotNull('assistant_reviewed_at')->orWhereNotNull('dispatched_at'));
+        } elseif ($isReceptionist && !$isDg && $viewerPosLevel > 5) {
+            $query->where('status', '!=', 'RECEPTION_DRAFT');
+        } else {
+            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី៖
+            // ឯកសារដែលខ្លួនបានចាត់ចែងបន្តរួចហើយ (Has Forwarded) ឬកំពុងព្រាង/ដំណើរការលិខិតឆ្លើយតប
+            $query->where(function ($q) use ($viewer) {
+                $q->whereHas('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id))
+                  ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id));
+            });
+        }
+        return $query;
     }
 
     /**
@@ -512,7 +654,7 @@ class InboundDocumentController extends Controller
         }
 
         $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
-        $isDeptDirector = ($viewerPosLevel <= 4) && !empty($viewer->department_id); // Only Dept Director & Acting Dept Director (levels 3 & 4)
+        $isDeptDirector = ($viewerPosLevel <= 5) && !empty($viewer->department_id); // Dept Director, Acting, Deputy Director (levels 3, 4, 5)
         $isOfficeLeadership = ($viewerPosLevel <= 8) && !empty($viewer->office_id); // Office Chief / Acting / Deputy Chief (levels 6, 7, 8)
 
         // Working groups where viewer is an active member
@@ -559,10 +701,10 @@ class InboundDocumentController extends Controller
                 });
             }
 
-            // 8. Department Director (Level 3-4): Can see all documents received by their department AND documents of subordinate offices & officers
+            // 8. Department Leadership (Level 3-5): Can see all documents received by their department AND documents of subordinate offices & officers
             if ($isDeptDirector) {
                 $q->orWhere(function ($dq) use ($viewer) {
-                    $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'COMPLETED'])
+                    $dq->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'SUBMITTED_TO_DG', 'COMPLETED'])
                        ->where(function ($subDq) use ($viewer) {
                            // Directly to department
                            $subDq->where('target_department_id', $viewer->department_id)
@@ -668,8 +810,8 @@ class InboundDocumentController extends Controller
                 }
 
                 // 6. Assigned to this department (not yet delegated to an office or officer)
-                // Only for Department Director (level <= 4) or Admin
-                $isDeptDirector = ($viewerPosLevel <= 4);
+                // Only for Department Leadership (level <= 5) or Admin
+                $isDeptDirector = ($viewerPosLevel <= 5);
                 if ($viewer->department_id && ($isDeptDirector || $isAdmin)) {
                     $q->orWhere(function ($dq) use ($viewer) {
                         $dq->where('target_department_id', $viewer->department_id)
@@ -678,9 +820,8 @@ class InboundDocumentController extends Controller
                     });
                     $q->orWhereHas('assignments', function ($aq) use ($viewer) {
                         $aq->where('department_id', $viewer->department_id)
-                           ->whereNull('office_id')
                            ->whereNull('user_id')
-                           ->whereNotIn('status', ['COMPLETED']);
+                           ->whereNotIn('status', ['COMPLETED', 'RECALLED']);
                     });
                 }
 
@@ -805,6 +946,9 @@ class InboundDocumentController extends Controller
         $query = InboundDocument::with([
             'registeredByUser:id,name,name_kh,email',
             'assistant:id,name,name_kh,email',
+            'assistantReviewer:id,name,name_kh',
+            'recalledByUser:id,name,name_kh',
+            'outboundDocuments',
             'dispatchedByUser:id,name,name_kh',
             'targetDepartment:id,name_kh',
             'targetOffice:id,name_kh',
@@ -819,12 +963,18 @@ class InboundDocumentController extends Controller
             'assignments.childAssignments.user:id,name,name_kh',
             'assignments.childAssignments.office:id,name_kh',
             'assignments.childAssignments.department:id,name_kh',
-            'movements.user:id,name,name_kh',
-            'responses.draftedByUser:id,name,name_kh',
-            'responses.currentApprover:id,name,name_kh',
-            'responses.approvedByUser:id,name,name_kh',
-            'responses.approvals.user:id,name,name_kh',
-            'responses.approvals.forwardedTo:id,name,name_kh',
+            'movements.user:id,name,name_kh,position_id',
+            'movements.user.position:id,title_kh',
+            'responses.draftedByUser:id,name,name_kh,position_id',
+            'responses.draftedByUser.position:id,title_kh',
+            'responses.currentApprover:id,name,name_kh,position_id',
+            'responses.currentApprover.position:id,title_kh',
+            'responses.approvedByUser:id,name,name_kh,position_id',
+            'responses.approvedByUser.position:id,title_kh',
+            'responses.approvals.user:id,name,name_kh,position_id',
+            'responses.approvals.user.position:id,title_kh',
+            'responses.approvals.forwardedTo:id,name,name_kh,position_id',
+            'responses.approvals.forwardedTo.position:id,title_kh',
         ]);
 
         $this->scopeAccessibleByViewer($query, $viewer);
@@ -898,7 +1048,10 @@ class InboundDocumentController extends Controller
                 $filePath = StorageService::store($file, 'inbound_documents/originals');
             }
 
-            $initialStatus = $sendImmediately ? 'SUBMITTED_TO_ASSISTANT' : 'RECEPTION_DRAFT';
+            $assistantUser = User::where(function ($q) {
+                $q->whereHas('position', fn($pq) => $pq->where('title_kh', 'like', '%ជំនួយការ%')->orWhere('title_en', 'like', '%assistant%'))
+                  ->orWhere('permissions', 'like', '%"inbound-documents-assistant"%');
+            })->where('status', 'ACTIVE')->first();
 
             $doc = InboundDocument::create([
                 'general_inbound_number' => $generalNumber,
@@ -920,30 +1073,19 @@ class InboundDocumentController extends Controller
                 'original_file_path' => $filePath,
                 'original_file_name' => $fileName,
                 'registered_by' => $viewer->id,
-                'status' => $initialStatus,
+                'dg_assistant_id' => $assistantUser ? $assistantUser->id : null,
+                'status' => 'SUBMITTED_TO_DG',
             ]);
 
-            // Movement log: Registered
+            // Movement log: Registered and forwarded simultaneously to DG and Assistant
             InboundDocumentMovement::create([
                 'inbound_document_id' => $doc->id,
                 'user_id' => $viewer->id,
                 'action' => 'REGISTERED',
                 'from_status' => null,
-                'to_status' => 'RECEPTION_DRAFT',
-                'comment' => "បានចុះលេខចូលទូទៅ៖ {$generalNumber}",
+                'to_status' => 'SUBMITTED_TO_DG',
+                'comment' => "បានបញ្ជូនឯកសារលេខ៖ {$generalNumber} ជូនឯកឧត្តមអគ្គនាយក និងជំនួយការរួចរាល់",
             ]);
-
-            // If immediately sent to DG assistant
-            if ($sendImmediately) {
-                InboundDocumentMovement::create([
-                    'inbound_document_id' => $doc->id,
-                    'user_id' => $viewer->id,
-                    'action' => 'FORWARDED_TO_ASSISTANT',
-                    'from_status' => 'RECEPTION_DRAFT',
-                    'to_status' => 'SUBMITTED_TO_ASSISTANT',
-                    'comment' => 'បានបញ្ជូនទៅកាន់ជំនួយការអគ្គនាយក',
-                ]);
-            }
 
             return $doc;
         });
@@ -971,22 +1113,22 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'ឯកសារនេះត្រូវបានបញ្ជូនរួចហើយ!'], 400);
         }
 
-        $doc->update(['status' => 'SUBMITTED_TO_ASSISTANT']);
+        $doc->update(['status' => 'SUBMITTED_TO_DG']);
 
         InboundDocumentMovement::create([
             'inbound_document_id' => $doc->id,
             'user_id' => $viewer->id,
-            'action' => 'FORWARDED_TO_ASSISTANT',
+            'action' => 'FORWARDED_TO_DG_AND_ASSISTANT',
             'from_status' => 'RECEPTION_DRAFT',
-            'to_status' => 'SUBMITTED_TO_ASSISTANT',
-            'comment' => $request->input('comment', 'បានបញ្ជូនទៅកាន់ជំនួយការអគ្គនាយក'),
+            'to_status' => 'SUBMITTED_TO_DG',
+            'comment' => $request->input('comment', 'បានដាក់ជូនឯកឧត្តមអគ្គនាយក'),
         ]);
 
         // Telegram Notification
         $this->telegram->notifyNewInbound($doc);
 
         return response()->json([
-            'message' => 'បានបញ្ជូនឯកសារទៅកាន់ជំនួយការអគ្គនាយករួចរាល់!',
+            'message' => 'បានដាក់ជូនឯកឧត្តមអគ្គនាយករួចរាល់!',
             'document' => $doc,
         ]);
     }
@@ -1073,6 +1215,113 @@ class InboundDocumentController extends Controller
     }
 
     /**
+     * 7B. ជំនួយការអគ្គនាយកចុច «បានពិនិត្យរួចរាល់» (Mark as Reviewed)
+     */
+    public function markAssistantReviewed($id, Request $request)
+    {
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isAssistant = $isAdmin || $viewer->hasPermission('inbound-documents-assistant');
+        if (!$isAssistant) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិជាជំនួយការអគ្គនាយកឡើយ!'], 403);
+        }
+
+        $doc = InboundDocument::findOrFail($id);
+        if ($doc->dispatched_at) {
+            return response()->json(['message' => 'ឯកសារនេះត្រូវបានឯកឧត្តមអគ្គនាយកចំណាត់ការរួចហើយ!'], 400);
+        }
+
+        $doc->update([
+            'assistant_reviewed_at' => Carbon::now(),
+            'assistant_reviewed_by' => $viewer->id,
+            'dg_assistant_notes' => $request->input('notes', $doc->dg_assistant_notes),
+        ]);
+
+        InboundDocumentMovement::create([
+            'inbound_document_id' => $doc->id,
+            'user_id' => $viewer->id,
+            'action' => 'ASSISTANT_REVIEWED',
+            'from_status' => $doc->status,
+            'to_status' => $doc->status,
+            'comment' => 'ជំនួយការបានពិនិត្យ',
+        ]);
+
+        return response()->json([
+            'message' => 'បានកត់ត្រាការពិនិត្យរួចរាល់ដោយជោគជ័យ',
+            'document' => $doc->fresh(['assistantReviewer', 'registeredByUser']),
+        ]);
+    }
+
+    /**
+     * 7C. ទាញយកការចាត់ចែងមកវិញ (Recall Inbound Document Assignment)
+     */
+    public function recall($id, Request $request)
+    {
+        $viewer = $request->user();
+        $doc = InboundDocument::with('assignments')->findOrFail($id);
+        $isDg = ($viewer->position && (int)$viewer->position->level === 1) || strtoupper($viewer->level ?? '') === 'ADMIN';
+
+        if ($isDg && $doc->dispatched_by === $viewer->id) {
+            // DG recall
+            $pendingAssignments = InboundDocumentAssignment::where('inbound_document_id', $doc->id)
+                ->where('assigned_by', $viewer->id)
+                ->where('status', 'PENDING')
+                ->get();
+
+            if ($pendingAssignments->isEmpty()) {
+                return response()->json(['message' => 'មិនអាចទាញយកមកវិញបានឡើយ ព្រោះអ្នកទទួលប្រហែលជាបានចាត់ការបន្តរួចហើយ!'], 400);
+            }
+
+            foreach ($pendingAssignments as $pa) {
+                $pa->update(['status' => 'RECALLED']);
+            }
+
+            $doc->update([
+                'dispatched_at' => null,
+                'dispatched_by' => null,
+                'recalled_at' => Carbon::now(),
+                'recalled_by' => $viewer->id,
+            ]);
+
+            InboundDocumentMovement::create([
+                'inbound_document_id' => $doc->id,
+                'user_id' => $viewer->id,
+                'action' => 'RECALLED',
+                'comment' => 'ឯកឧត្តមអគ្គនាយកបានទាញយកឯកសារមកវិញ (Recall)',
+            ]);
+
+            return response()->json([
+                'message' => 'បានទាញយកឯកសារមកវិញជោគជ័យ',
+                'document' => $doc->fresh(),
+            ]);
+        }
+
+        // Subordinate leader/officer recall
+        $myAssignment = InboundDocumentAssignment::where('inbound_document_id', $doc->id)
+            ->where('assigned_by', $viewer->id)
+            ->where('status', 'PENDING')
+            ->first();
+
+        if (!$myAssignment) {
+            return response()->json(['message' => 'មិនអាចទាញយកមកវិញបានឡើយ ព្រោះអ្នកទទួលប្រហែលជាបានចាត់ការបន្តរួចហើយ ឬលោកអ្នកមិនមែនជាអ្នកចាត់ចែង!'], 400);
+        }
+
+        $myAssignment->update(['status' => 'RECALLED']);
+
+        InboundDocumentMovement::create([
+            'inbound_document_id' => $doc->id,
+            'user_id' => $viewer->id,
+            'action' => 'RECALLED',
+            'comment' => 'បានទាញយកការចាត់ចែងមកវិញ (Recall)',
+        ]);
+
+        return response()->json([
+            'message' => 'បានទាញយកការចាត់ចែងមកវិញជោគជ័យ',
+            'document' => $doc->fresh(),
+        ]);
+    }
+
+    /**
      * 8. ឯកឧត្តមអគ្គនាយកធ្វើចំណារ (DG Annotation)
      * គាំទ្រការជ្រើសរើសគោលដៅចាត់ចែងភ្លាមៗ (មន្ត្រី, នាយកដ្ឋាន, ការិយាល័យ, ក្រុមការងារ) ឬរក្សាទុកចំណាររង់ចាំជំនួយការចែកចាយ
      */
@@ -1081,9 +1330,8 @@ class InboundDocumentController extends Controller
         $viewer = $request->user();
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         $isDg = ($viewer->position && (int) $viewer->position->level === 1);
-        $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
 
-        if (!$isAdmin && !$isDg && !$isAssistant) {
+        if (!$isAdmin && !$isDg) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិកត់ត្រាចំណាររបស់អគ្គនាយកឡើយ!'], 403);
         }
 
@@ -1555,18 +1803,21 @@ class InboundDocumentController extends Controller
         $isDeptDirector = ($viewerPosLevel <= 4) && !empty($viewer->department_id);
         $isDeptLeader = ($viewerPosLevel <= 5) && !empty($viewer->department_id);
         $isOfficeLeader = ($viewerPosLevel <= 8) && !empty($viewer->office_id); // Head of Division (6), Acting (7), Deputy Head (8)
-        $isDirectlyAssigned = ($doc->target_user_id === $viewer->id)
-            || $doc->assignments->contains(fn($a) => $a->user_id === $viewer->id);
+        $isDirectlyAssigned = ((int)$doc->target_user_id === (int)$viewer->id)
+            || $doc->assignments->contains(fn($a) => (int)$a->user_id === (int)$viewer->id);
+
+        $hasDeptAssignment = $doc->assignments->contains(fn($a) => (int)$a->department_id === (int)$viewer->department_id);
+        $hasOfficeAssignment = $doc->assignments->contains(fn($a) => (int)$a->office_id === (int)$viewer->office_id);
 
         $isAuthorized = $isSuper
             || $isWgLeader
-            || ($isDeptDirector && (
-                $doc->target_department_id === $viewer->department_id
-                || $doc->assignments->contains(fn($a) => $a->department_id === $viewer->department_id)
+            || ($isDeptLeader && (
+                (int)$doc->target_department_id === (int)$viewer->department_id
+                || $hasDeptAssignment
             ))
             || ($isOfficeLeader && (
-                $doc->target_office_id === $viewer->office_id
-                || $doc->assignments->contains(fn($a) => $a->office_id === $viewer->office_id)
+                (int)$doc->target_office_id === (int)$viewer->office_id
+                || $hasOfficeAssignment
             ))
             || $isDirectlyAssigned;
 
@@ -1704,10 +1955,10 @@ class InboundDocumentController extends Controller
                 return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់បន្តទៅកាន់ក្រុមការងារឡើយ!'], 403);
             }
 
-            // Forwarding to an Office: only Dept Director (level <= 4) can forward to an office in their department
+            // Forwarding to an Office: Department Leadership (level <= 5) can forward to an office in their department
             if ($targetType === 'OFFICE' || $newOfficeId) {
-                if (!$isDeptDirector) {
-                    return response()->json(['message' => 'មានតែប្រធាននាយកដ្ឋានទេ ទើបអាចចាត់បន្តទៅកាន់ការិយាល័យបាន!'], 403);
+                if (!$isDeptLeader) {
+                    return response()->json(['message' => 'មានតែថ្នាក់ដឹកនាំនាយកដ្ឋានទេ ទើបអាចចាត់បន្តទៅកាន់ការិយាល័យបាន!'], 403);
                 }
                 $targetOffice = \App\Models\Office::find($newOfficeId);
                 if (!$targetOffice || (int)$targetOffice->department_id !== (int)$viewer->department_id) {
@@ -1813,6 +2064,9 @@ class InboundDocumentController extends Controller
                         'target_user_id' => $primaryUsr->id,
                         'target_office_id' => $primaryUsr->office_id ?? $doc->target_office_id,
                         'target_department_id' => $primaryUsr->department_id ?? $doc->target_department_id,
+                        'status' => in_array($doc->status, ['SUBMITTED_TO_DG', 'SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']) ? 'DISPATCHED' : $doc->status,
+                        'dispatched_at' => $doc->dispatched_at ?: Carbon::now(),
+                        'dispatched_by' => $doc->dispatched_by ?: $viewer->id,
                     ]);
                 }
             } elseif ($newOfficeId) {
@@ -1834,6 +2088,9 @@ class InboundDocumentController extends Controller
                     'target_office_id' => $newOfficeId,
                     'target_department_id' => $off?->department_id ?? $doc->target_department_id,
                     'target_user_id' => null,
+                    'status' => in_array($doc->status, ['SUBMITTED_TO_DG', 'SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']) ? 'DISPATCHED' : $doc->status,
+                    'dispatched_at' => $doc->dispatched_at ?: Carbon::now(),
+                    'dispatched_by' => $doc->dispatched_by ?: $viewer->id,
                 ]);
             } elseif ($newDeptId) {
                 $dept = \App\Models\Department::find($newDeptId);
@@ -1847,6 +2104,16 @@ class InboundDocumentController extends Controller
                     'status' => 'PENDING',
                 ]);
                 if ($dept) $forwardedLabels[] = "នាយកដ្ឋាន៖ {$dept->name_kh}";
+
+                $doc->update([
+                    'target_type' => 'DEPARTMENT',
+                    'target_department_id' => $newDeptId,
+                    'target_office_id' => null,
+                    'target_user_id' => null,
+                    'status' => in_array($doc->status, ['SUBMITTED_TO_DG', 'SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']) ? 'DISPATCHED' : $doc->status,
+                    'dispatched_at' => $doc->dispatched_at ?: Carbon::now(),
+                    'dispatched_by' => $doc->dispatched_by ?: $viewer->id,
+                ]);
             } elseif ($newWgId) {
                 $wg = \App\Models\WorkingGroup::find($newWgId);
                 InboundDocumentAssignment::create([
@@ -1859,6 +2126,13 @@ class InboundDocumentController extends Controller
                     'status' => 'PENDING',
                 ]);
                 if ($wg) $forwardedLabels[] = "ក្រុមការងារ៖ {$wg->name_kh}";
+
+                $doc->update([
+                    'target_type' => 'WORKING_GROUP',
+                    'status' => in_array($doc->status, ['SUBMITTED_TO_DG', 'SUBMITTED_TO_ASSISTANT', 'DG_ANNOTATED']) ? 'DISPATCHED' : $doc->status,
+                    'dispatched_at' => $doc->dispatched_at ?: Carbon::now(),
+                    'dispatched_by' => $doc->dispatched_by ?: $viewer->id,
+                ]);
             }
 
             // Mark parent assignment status as IN_PROGRESS
@@ -2379,7 +2653,8 @@ class InboundDocumentController extends Controller
             'assignments.childAssignments.user.position:id,title_kh',
             'assignments.childAssignments.office:id,name_kh',
             'assignments.childAssignments.department:id,name_kh',
-            'movements.user:id,name,name_kh',
+            'movements.user:id,name,name_kh,position_id',
+            'movements.user.position:id,title_kh',
             'responses.draftedByUser:id,name,name_kh,position_id',
             'responses.draftedByUser.position:id,title_kh',
             'responses.currentApprover:id,name,name_kh,position_id',

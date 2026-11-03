@@ -11,9 +11,17 @@
             type="button"
             class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
             @click="insertTemplate('REPORT')"
-            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ"
+            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ (១ ទំព័រ)"
           >
-            <i class="fas fa-file-alt mr-1"></i> គំរូ របាយការណ៍
+            <i class="fas fa-file-alt mr-1"></i> គំរូ របាយការណ៍ (១ ទំព័រ)
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
+            @click="insertTemplate('REPORT_2_PAGES')"
+            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ (២ ទំព័រ ដោយមានលេខទំព័រ)"
+          >
+            <i class="fas fa-copy mr-1"></i> គំរូ របាយការណ៍ (២ ទំព័រ)
           </button>
           <button
             type="button"
@@ -25,12 +33,57 @@
           </button>
           <button
             type="button"
+            class="btn btn-xs btn-outline-success mr-1 mb-1 font-weight-bold"
+            @click="insertTemplate('LETTER')"
+            title="បញ្ចូលទម្រង់លិខិតរដ្ឋបាលផ្លូវការ"
+          >
+            <i class="fas fa-envelope-open-text mr-1"></i> គំរូ លិខិត
+          </button>
+          <button
+            type="button"
             class="btn btn-xs btn-outline-secondary mr-2 mb-1"
             @click="insertTemplate('BLANK')"
             title="ទំព័រទទេ"
           >
             <i class="fas fa-file mr-1"></i> ទំព័រទទេ
           </button>
+
+          <!-- Insert Page Break & Reviewer Blocks -->
+          <div class="border-left pl-2 ml-1 d-inline-flex align-items-center flex-wrap">
+            <button
+              type="button"
+              class="btn btn-xs btn-primary font-weight-bold mr-1 mb-1 shadow-xs"
+              @click="insertPageBreak"
+              title="បន្ថែមទំព័រថ្មី (ទំព័រទី ២, ៣... ដោយមានលេខទំព័រត្រឹមត្រូវ)"
+            >
+              <i class="fas fa-plus-circle mr-1"></i> + ទំព័រថ្មី (Page Break)
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-outline-warning mr-1 mb-1 font-weight-bold text-dark shadow-xs"
+              @click="insertReviewerBlocks"
+              title="បញ្ចូលកំណត់ត្រាមតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំដែលបានដាក់រួច"
+            >
+              <i class="fas fa-clipboard-check mr-1 text-warning"></i> + យោបល់ថ្នាក់ដឹកនាំ
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-outline-dark mr-1 mb-1 font-weight-bold shadow-xs"
+              @click="insertDrafterSignature"
+              title="បញ្ចូលប្លុកហត្ថលេខាអ្នករៀបចំ"
+            >
+              <i class="fas fa-signature mr-1"></i> + ហត្ថលេខាអ្នករៀបចំ
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold shadow-xs"
+              @click="syncWorkflowApprovals"
+              v-if="approvals && approvals.length > 0"
+              title="ធ្វើបច្ចុប្បន្នភាពមតិយោបល់ថ្នាក់ដឹកនាំពី Workflow ចូលក្នុងតារាង"
+            >
+              <i class="fas fa-sync-alt mr-1"></i> 🔄 Sync យោបល់ Workflow
+            </button>
+          </div>
         </div>
 
         <!-- Action / View Buttons -->
@@ -41,7 +94,7 @@
             @click="printDocument"
             title="បោះពុម្ពឯកសារ ឬរក្សាទុកជា PDF"
           >
-            <i class="fas fa-print mr-1"></i> បោះពុម្ព
+            <i class="fas fa-print mr-1"></i> បោះពុម្ព / Preview PDF
           </button>
           <button
             type="button"
@@ -187,7 +240,8 @@
     <div class="word-statusbar bg-light p-1 px-3 border-top d-flex justify-content-between align-items-center text-muted small">
       <div>
         <span class="mr-3"><i class="fas fa-file-word text-primary mr-1"></i> កម្មវិធីរៀបចំឯកសារ (Word-like Editor)</span>
-        <span>ពាក្យសរុប៖ <strong>{{ wordCount }}</strong></span>
+        <span class="mr-3">ពាក្យសរុប៖ <strong>{{ wordCount }}</strong></span>
+        <span>ទំព័រប៉ាន់ប្រមាណ៖ <strong>{{ estimatedPages }}</strong> ទំព័រ</span>
       </div>
       <div>
         <span v-if="readonly" class="badge badge-secondary">មើលតែប៉ុណ្ណោះ (Read-Only)</span>
@@ -200,6 +254,7 @@
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import Swal from 'sweetalert2';
+
 
 const props = defineProps({
   modelValue: {
@@ -216,11 +271,15 @@ const props = defineProps({
   },
   organizationName: {
     type: String,
-    default: 'អគ្គនាយកដ្ឋាន'
+    default: 'និយ័តករបរធនបាលកិច្ច'
   },
   departmentName: {
     type: String,
-    default: 'នាយកដ្ឋាន'
+    default: 'នាយកដ្ឋាន...'
+  },
+  officeName: {
+    type: String,
+    default: ''
   },
   officerName: {
     type: String,
@@ -228,7 +287,11 @@ const props = defineProps({
   },
   officerPosition: {
     type: String,
-    default: 'មន្ត្រី'
+    default: 'អ្នកធ្វើរបាយការណ៍'
+  },
+  approvals: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -243,12 +306,31 @@ const selectedSize = ref("12pt");
 const textColor = ref("#000000");
 const highlightColor = ref("#ffff00");
 
-// Word counter
+// Khmer numbers
+const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+const toKhmerNum = (num) => String(num).split('').map(d => khmerDigits[d] || d).join('');
+
+const getCurrentKhmerDateString = () => {
+  const d = new Date();
+  const day = toKhmerNum(d.getDate());
+  const monthNamesKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  const month = monthNamesKh[d.getMonth()];
+  const year = toKhmerNum(d.getFullYear());
+  return `រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
+};
+
+// Word & Page counter
 const wordCount = computed(() => {
   if (!paperEditor.value) return 0;
   const text = paperEditor.value.innerText || '';
   const clean = text.trim();
   return clean ? clean.split(/\s+/).length : 0;
+});
+
+const estimatedPages = computed(() => {
+  if (!paperEditor.value) return 1;
+  const pageBreaks = paperEditor.value.querySelectorAll('.page-break');
+  return (pageBreaks ? pageBreaks.length : 0) + 1;
 });
 
 // Execute format command
@@ -264,7 +346,6 @@ const applyFont = () => {
 };
 
 const applySize = () => {
-  // execCommand fontSize only supports 1-7, so we style selected text via span
   const selection = window.getSelection();
   if (selection.rangeCount > 0 && !selection.isCollapsed) {
     const range = selection.getRangeAt(0);
@@ -282,6 +363,38 @@ const applyTextColor = () => {
 
 const applyHighlightColor = () => {
   exec('hiliteColor', highlightColor.value);
+};
+
+// Insert Page Break (Multi-page without clipped text)
+const insertPageBreak = () => {
+  if (props.readonly || !paperEditor.value) return;
+
+  const currentBreaks = paperEditor.value.querySelectorAll('.page-break');
+  const nextPageNum = (currentBreaks ? currentBreaks.length : 0) + 2;
+  const khmerPageNum = toKhmerNum(nextPageNum);
+
+  const pageBreakHtml = `
+    <div class="page-break" style="page-break-before: always; break-before: page; margin-top: 40px; margin-bottom: 25px; padding-top: 25px; border-top: 1.5px dashed #007bff; position: relative;">
+      <div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #007bff; color: #ffffff; padding: 2px 16px; border-radius: 12px; font-size: 9.5pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+        ទំព័រទី ${khmerPageNum}
+      </div>
+      <div class="page-number-header" style="text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 12pt; color: #222;" contenteditable="true">
+        - ${khmerPageNum} -
+      </div>
+    </div>
+    <p style="font-size: 12pt; line-height: 2.1; text-indent: 45px;"><br></p>
+  `;
+
+  paperEditor.value.focus();
+  document.execCommand('insertHTML', false, pageBreakHtml);
+  emitUpdate();
+
+  Swal.fire({
+    icon: 'success',
+    title: `បានបន្ថែមទំព័រទី ${khmerPageNum}!`,
+    timer: 1300,
+    showConfirmButton: false,
+  });
 };
 
 // Insert Table helper
@@ -318,15 +431,13 @@ const promptInsertTable = async () => {
 };
 
 const insertTableHtml = (rows, cols) => {
-  let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #333;">';
-  // Table Header
+  let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #333; line-height: 2.1;">';
   tableHtml += '<thead><tr style="background-color: #f2f2f2;">';
   for (let c = 1; c <= cols; c++) {
     tableHtml += `<th style="border: 1px solid #444; padding: 8px; text-align: center; font-weight: bold;">ចំណងជើង ${c}</th>`;
   }
   tableHtml += '</tr></thead><tbody>';
 
-  // Table Rows
   for (let r = 1; r < rows; r++) {
     tableHtml += '<tr>';
     for (let c = 1; c <= cols; c++) {
@@ -341,111 +452,346 @@ const insertTableHtml = (rows, cols) => {
   emitUpdate();
 };
 
-// Official Template Generators
+// Official Template & Signature Generators
+const getDrafterSignatureHtml = () => {
+  const dept = props.departmentName || 'នាយកដ្ឋាន...';
+  const office = props.officeName ? props.officeName : '';
+  const officer = props.officerName || '.....................................';
+  const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
+  const dateStr = getCurrentKhmerDateString();
+
+  return `
+    <table style="width: 100%; border: none; border-collapse: collapse; margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid; line-height: 2.1;">
+      <tr>
+        <td style="width: 45%; border: none;"></td>
+        <td style="width: 55%; border: none; text-align: center; font-size: 11pt; line-height: 2.1;">
+          <div style="font-size: 11pt; color: #333;">${dateStr}</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 2px;">
+            ${dept}
+          </div>
+          ${office ? `<div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000;">${office}</div>` : ''}
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px; margin-bottom: 60px;">
+            ${pos}
+          </div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; font-weight: bold;">
+            ${officer}
+          </div>
+        </td>
+      </tr>
+    </table>
+  `;
+};
+
+// Superiors' Review Block: ONLY renders reviews that have ALREADY been submitted!
+const getReviewBlockHtml = (approvalsList = []) => {
+  const list = (approvalsList && approvalsList.length > 0) ? approvalsList : (props.approvals || []);
+  if (!list || !list.length) return '';
+
+  // Only display completed actions by actual users
+  const completedReviews = list.filter(a => ['FORWARD', 'SUBMIT', 'DG_APPROVE', 'RETURN'].includes(a.action) && a.user);
+  if (!completedReviews.length) return '';
+
+  const formatAppDate = (app) => {
+    if (!app || !app.created_at) return '';
+    try {
+      const d = new Date(app.created_at);
+      const day = toKhmerNum(d.getDate());
+      const monthNamesKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+      const month = monthNamesKh[d.getMonth()];
+      const year = toKhmerNum(d.getFullYear());
+      return `ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
+    } catch {
+      return '';
+    }
+  };
+
+  let reviewCardsHtml = '';
+  completedReviews.forEach((app, idx) => {
+    const numKh = toKhmerNum(idx + 1);
+    const dateKh = formatAppDate(app);
+    const reviewerName = app.user?.name_kh || app.user?.name || '';
+    const reviewerPos = app.user?.position?.title_kh || app.stage_kh || 'ថ្នាក់ដឹកនាំ';
+    const isDg = (app.action === 'DG_APPROVE' || app.stage === 'DG');
+
+    const title = isDg
+      ? `${numKh}. ចំណារ និងការសម្រេចរបស់ឯកឧត្តមអគ្គនាយក`
+      : `${numKh}. យោបល់របស់${reviewerPos}`;
+
+    const badge = isDg
+      ? `<span style="display:inline-block; font-size:8.5pt; color:#1e40af; background:#dbeafe; padding:1px 8px; border-radius:4px; font-weight:bold;">✓ បានសម្រេច និងឯកភាព</span>`
+      : `<span style="display:inline-block; font-size:8.5pt; color:#16a34a; background:#dcfce7; padding:1px 8px; border-radius:4px; font-weight:bold;">✓ បានពិនិត្យ និងចារឆ្លង</span>`;
+
+    const comment = app.comment
+      ? `<span style="color:#0f172a; font-weight:500;">${app.comment}</span>`
+      : `<span style="color:#64748b; font-style:italic;">(បានឯកភាពតាមឋានានុក្រម)</span>`;
+
+    reviewCardsHtml += `
+      <div style="border: 1px solid #94a3b8; border-radius: 4px; padding: 12px 16px; margin-bottom: 12px; background-color: ${isDg ? '#f8fafc' : '#ffffff'}; page-break-inside: avoid; break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+          <div>
+            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 10.5pt; color: ${isDg ? '#002060' : '#0f172a'}; margin-bottom: 3px;">
+              ${title}
+            </div>
+            ${badge}
+          </div>
+          ${dateKh ? `<div style="font-size: 9.5pt; color: #475569;">កាលបរិច្ឆេទ៖ ${dateKh}</div>` : ''}
+        </div>
+        <div style="font-size: 10.5pt; line-height: 2.1; margin-top: 8px; margin-bottom: 15px; color: #1e293b;">
+          <strong>${isDg ? 'ខ្លឹមសារចំណារ៖' : 'ខ្លឹមសារយោបល់៖'}</strong> ${comment}
+        </div>
+        <div style="text-align: right; padding-right: 10px;">
+          <div style="font-style: italic; font-size: 9pt; color: #64748b;">${isDg ? '(ហត្ថលេខា និងត្រា)' : '(ហត្ថលេខា និងឈ្មោះ)'}</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: ${isDg ? '#002060' : '#000'}; margin-top: 25px;">
+            ${reviewerName}
+          </div>
+          <div style="font-size: 9.5pt; color: #475569;">
+            ${reviewerPos}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  return `
+    <div class="review-signatures-wrapper" style="margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid;">
+      <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #002060; margin-bottom: 10px; border-bottom: 1.5px solid #002060; padding-bottom: 4px;">
+        កំណត់ត្រាមតិយោបល់ និងការសម្រេចរបស់ថ្នាក់ដឹកនាំ៖
+      </div>
+      ${reviewCardsHtml}
+    </div>
+  `;
+};
+
+const insertReviewerBlocks = () => {
+  if (props.readonly || !paperEditor.value) return;
+  const html = getReviewBlockHtml(props.approvals);
+  if (!html) {
+    Swal.fire({
+      icon: 'info',
+      title: 'ពុំទាន់មានមតិយោបល់',
+      text: 'របាយការណ៍នេះមិនទាន់មានមតិយោបល់របស់ថ្នាក់ដឹកនាំនៅឡើយទេ។ មតិយោបល់ និងហត្ថលេខានឹងបង្ហាញដោយស្វ័យប្រវត្តិតាមការចារឆ្លងជាក់ស្តែង!',
+      confirmButtonText: 'យល់ព្រម'
+    });
+    return;
+  }
+  paperEditor.value.focus();
+  document.execCommand('insertHTML', false, html);
+  emitUpdate();
+  Swal.fire({
+    icon: 'success',
+    title: 'បានបញ្ចូលកំណត់ត្រាមតិយោបល់ថ្នាក់ដឹកនាំ!',
+    timer: 1500,
+    showConfirmButton: false,
+  });
+};
+
+const syncWorkflowApprovals = () => {
+  if (props.readonly || !paperEditor.value) return;
+  const newHtml = getReviewBlockHtml(props.approvals);
+  const existingBlock = paperEditor.value.querySelector('.review-signatures-wrapper');
+  if (existingBlock) {
+    if (newHtml) {
+      existingBlock.outerHTML = newHtml;
+    } else {
+      existingBlock.remove();
+    }
+  } else if (newHtml) {
+    paperEditor.value.insertAdjacentHTML('beforeend', newHtml);
+  }
+  emitUpdate();
+  Swal.fire({
+    icon: 'success',
+    title: 'បានធ្វើបច្ចុប្បន្នភាព!',
+    text: 'បាន Sync មតិយោបល់ និងការសម្រេចរបស់ថ្នាក់ដឹកនាំពី Workflow ចូលក្នុងតារាងដោយជោគជ័យ។',
+    timer: 1600,
+    showConfirmButton: false
+  });
+};
+
+const insertDrafterSignature = () => {
+  if (props.readonly || !paperEditor.value) return;
+  paperEditor.value.focus();
+  document.execCommand('insertHTML', false, getDrafterSignatureHtml());
+  emitUpdate();
+  Swal.fire({
+    icon: 'success',
+    title: 'បានបញ្ចូលប្លុកហត្ថលេខាអ្នករៀបចំ!',
+    timer: 1500,
+    showConfirmButton: false,
+  });
+};
+
+// Official Template Generators (No LetterHead images, pristine administrative text format)
 const getOfficialTemplates = () => {
-  const todayKh = new Date().toLocaleDateString('km-KH', { year: 'numeric', month: 'long', day: 'numeric' });
-  const dateStr = `រាជធានីភ្នំពេញ, ថ្ងៃទី... ខែ... ឆ្នាំ២០២...`;
+  const dept = props.departmentName || 'នាយកដ្ឋាន...';
+  const office = props.officeName ? props.officeName : '';
+  const officer = props.officerName || '.....................................';
+  const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
+
+  // Standard official administrative text header
+  const textHeaderHtml = `
+    <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 25px; font-size: 11pt; line-height: 2.1;">
+      <tr>
+        <td style="width: 50%; border: none; vertical-align: top; text-align: left;">
+           <img src="logo.png" alt="Logo" style="width: 120px; height: auto; margin-bottom: 4px; padding-left: 40px">
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #008000;">${props.organizationName || 'និយ័តករបរធនបាលកិច្ច'}</div>
+          
+          <div style="font-size: 11pt; color: #000;">លេខ៖.................... ន.ប.ធ.</div>
+        </td>
+        <td style="width: 50%; border: none; vertical-align: top; text-align: center;">
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color:  #008000; margin-bottom: 4px;">ព្រះរាជាណាចក្រកម្ពុជា</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color:  #008000;">ជាតិ សាសនា ព្រះមហាក្សត្រ</div>
+          <div style="font-size: 11pt; letter-spacing: 3px;">* * *</div>
+        </td>
+      </tr>
+    </table>
+  `;
 
   return {
     REPORT: `
-      <div style="font-family: 'Khmer OS Battambang', sans-serif; line-height: 1.8; color: #111;">
-        <!-- Header Section -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: none;">
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+        <!-- Header Text (No Letterhead Image) -->
+        ${textHeaderHtml}
+
+        <!-- Recipient Block -->
+        <div style="text-align: center; margin-bottom: 20px; padding-right: 25px;">
+          <div style="display: inline-block; text-align: center;">
+            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; margin-bottom: 4px;">
+              សូមគោរពជូន
+            </div>
+            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000;">
+              ឯកឧត្តមអគ្គនាយកនៃនិយ័តករបរធនបាលកិច្ច
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject & Reference Table -->
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
           <tr>
-            <td style="width: 50%; vertical-align: top; text-align: left; border: none; font-size: 12pt;">
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #002060;">${props.organizationName || 'អគ្គនាយកដ្ឋាន...'}</div>
-              <div style="font-weight: bold; font-size: 11pt;">${props.departmentName || 'នាយកដ្ឋាន...'}</div>
-              <div>លេខ៖ .................... របក</div>
+            <td style="width: 85px; vertical-align: top; border: none; padding: 2px 0; white-space: nowrap; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000;">កម្មវត្ថុ៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0;">
+              របាយការណ៍ស្តីពី...
             </td>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none;">
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #002060;">ព្រះរាជាណាចក្រកម្ពុជា</div>
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #002060;">ជាតិ សាសនា ព្រះមហាក្សត្រ</div>
-              <div style="margin-top: 4px; font-size: 11pt; letter-spacing: 2px;">3 3 3</div>
+          </tr>
+          <tr>
+            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0;">
+              <div>- លិខិតលេខ...</div>
+              <div>- ចំណារឯកឧត្តមអគ្គនាយក...</div>
             </td>
           </tr>
         </table>
 
-        <!-- Document Title -->
-        <div style="text-align: center; margin: 25px 0 20px 0;">
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 15pt; color: #000; margin-bottom: 8px;">
-            របាយការណ៍
+        <!-- Body Paragraph 1 -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។
+        </div>
+
+        <!-- Body Paragraph 2 -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាពិនិត្យ ព្រមទាំងផ្តល់ការណែនាំបន្ថែមដោយមេត្តាអនុគ្រោះដ៏ខ្ពង់ខ្ពស់។
+        </div>
+
+        <!-- Body Paragraph 3 -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
+          សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់ពីខ្ញុំ។
+        </div>
+
+        <!-- 1. Drafter Signature Block -->
+        ${getDrafterSignatureHtml()}
+
+        <!-- 2. Superiors' Review & Opinion Block (Only displays reviews that have already been placed!) -->
+        ${getReviewBlockHtml()}
+      </div>
+    `,
+    REPORT_2_PAGES: `
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+        <!-- Header Text -->
+        ${textHeaderHtml}
+
+        <!-- Recipient Block -->
+        <div style="text-align: right; margin-bottom: 20px; padding-right: 25px;">
+          <div style="display: inline-block; text-align: center;">
+            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #000; margin-bottom: 4px;">
+              សូមគោរពជូន
+            </div>
+            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #000;">
+              ឯកឧត្តមអគ្គនាយកនៃនិយ័តករបរធនបាលកិច្ច
+            </div>
           </div>
-          <div style="font-size: 13pt; font-weight: bold;">
-            ស្តីពី៖ សេចក្តីរាយការណ៍អំពីលទ្ធផលការងារ ឬការអនុវត្តតាមចំណារ...
-          </div>
         </div>
 
-        <!-- Respectfully Line -->
-        <div style="margin-bottom: 18px; font-size: 12pt;">
-          <strong>គោរពជូន៖ ឯកឧត្តមអគ្គនាយក មេត្តាជ្រាប និងពិនិត្យសម្រេចដ៏ខ្ពង់ខ្ពស់។</strong>
-        </div>
-
-        <!-- Content Body -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 40px; margin-bottom: 15px;">
-          តបតាមកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំបាទ/នាងខ្ញុំ មានកិត្តិយសសូមគោរពរាយការណ៍ជូន ឯកឧត្តមអគ្គនាយក មេត្តាជ្រាបថា៖
-        </div>
-
-        <div style="font-size: 12pt; margin-bottom: 15px;">
-          <p><strong>១. សេចក្តីផ្តើម និងស្ថានភាពទូទៅ៖</strong></p>
-          <p style="text-indent: 40px;">(សូមសរសេរបរិយាយលម្អិតអំពីព័ត៌មានទូទៅ និងដើមចមនៃបញ្ហា ឬឯកសារចូល...)</p>
-
-          <p><strong>២. លទ្ធផលនៃការពិនិត្យ និងការស្រាវជ្រាវ៖</strong></p>
-          <p style="text-indent: 40px;">(សរសេរចំណុចលម្អិត និងទិន្នន័យជាក់ស្តែងដែលទទួលបាន...)</p>
-
-          <p><strong>៣. សេចក្តីសន្និដ្ឋាន និងសំណូមពរ៖</strong></p>
-          <p style="text-indent: 40px;">អាស្រ័យហេតុនេះ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាប និងផ្តល់ការណែនាំ ឬការសម្រេចដ៏ខ្ពង់ខ្ពស់។</p>
-        </div>
-
-        <!-- Signature Section -->
-        <table style="width: 100%; border-collapse: collapse; margin-top: 40px; border: none;">
+        <!-- Subject & Reference Table -->
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
           <tr>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none;">
-              <!-- Left side: Office/Dept Chief endorsement if needed -->
+            <td style="width: 85px; vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">កម្មវត្ថុ៖</td>
+            <td style="vertical-align: top; border: none; font-weight: bold; padding: 2px 0;">
+              របាយការណ៍ស្តីពី...
             </td>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none; font-size: 12pt;">
-              <div style="margin-bottom: 5px;">${dateStr}</div>
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; margin-bottom: 65px;">
-                ${props.officerPosition || 'អ្នកធ្វើរបាយការណ៍'}
-              </div>
-              <div style="font-weight: bold; font-size: 12pt;">
-                ${props.officerName || '.....................................'}
-              </div>
+          </tr>
+          <tr>
+            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0;">
+              <div>- លិខិតលេខ...</div>
+              <div>- ចំណារឯកឧត្តមអគ្គនាយក...</div>
             </td>
           </tr>
         </table>
+
+        <!-- Page 1 Content -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៃទំព័រទី១ នៅទីនេះ...)។
+        </div>
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
+          (ខ្លឹមសារលម្អិតចំណុចទី១... ចំណុចទី២...)
+        </div>
+      </div>
+
+      <!-- PAGE 2 (Centered Page Number) -->
+      <div class="page-break" style="page-break-before: always; break-before: page; margin-top: 40px; margin-bottom: 25px; padding-top: 25px; border-top: 1.5px dashed #007bff; position: relative;">
+        <div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #007bff; color: #ffffff; padding: 2px 16px; border-radius: 12px; font-size: 9.5pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+          ទំព័រទី ២
+        </div>
+        <div class="page-number-header" style="text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 12pt; color: #222;" contenteditable="true">
+          - ២ -
+        </div>
+
+        <!-- Page 2 Body Continuation -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          (ខ្លឹមសារបន្តសម្រាប់ទំព័រទី២...)
+        </div>
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាពិនិត្យ ព្រមទាំងផ្តល់ការណែនាំបន្ថែមដោយមេត្តាអនុគ្រោះដ៏ខ្ពង់ខ្ពស់។
+        </div>
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
+          សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់ពីខ្ញុំ។
+        </div>
+
+        <!-- 1. Drafter Signature Block at end of content -->
+        ${getDrafterSignatureHtml()}
+
+        <!-- 2. Superiors' Review & Opinion Block (Only displays reviews that have already been placed!) -->
+        ${getReviewBlockHtml()}
       </div>
     `,
     SUBMISSION_NOTE: `
-      <div style="font-family: 'Khmer OS Battambang', sans-serif; line-height: 1.8; color: #111;">
-        <!-- Header Section -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: none;">
-          <tr>
-            <td style="width: 50%; vertical-align: top; text-align: left; border: none; font-size: 12pt;">
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #002060;">${props.organizationName || 'អគ្គនាយកដ្ឋាន...'}</div>
-              <div style="font-weight: bold; font-size: 11pt;">${props.departmentName || 'នាយកដ្ឋាន...'}</div>
-              <div>លេខ៖ .................... ក.ប.</div>
-            </td>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none;">
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #002060;">ព្រះរាជាណាចក្រកម្ពុជា</div>
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #002060;">ជាតិ សាសនា ព្រះមហាក្សត្រ</div>
-              <div style="margin-top: 4px; font-size: 11pt; letter-spacing: 2px;">3 3 3</div>
-            </td>
-          </tr>
-        </table>
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+        <!-- Header Text -->
+        ${textHeaderHtml}
 
         <!-- Document Title -->
-        <div style="text-align: center; margin: 25px 0 20px 0;">
+        <div style="text-align: center; margin: 20px 0;">
           <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 15pt; color: #000; margin-bottom: 8px;">
             កំណត់បង្ហាញ
           </div>
         </div>
 
         <!-- Subject & Reference -->
-        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2;">
-          <table style="width: 100%; border: none;">
+        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1;">
+          <table style="width: 100%; border: none; border-collapse: collapse; line-height: 2.1;">
             <tr>
               <td style="width: 110px; vertical-align: top; font-weight: bold; border: none;">កម្មវត្ថុ៖</td>
-              <td style="vertical-align: top; border: none;">
+              <td style="vertical-align: top; border: none; font-weight: bold;">
                 ករណីស្នើសុំការពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់លើ...
               </td>
             </tr>
@@ -465,7 +811,7 @@ const getOfficialTemplates = () => {
         </div>
 
         <!-- Content Body -->
-        <div style="font-size: 12pt; margin-bottom: 20px;">
+        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1;">
           <p><strong>I. សេចក្តីសង្ខេបអំពីអង្គហេតុ៖</strong></p>
           <p style="text-indent: 40px; text-align: justify;">(រៀបរាប់សង្ខេបអំពីព័ត៌មានលម្អិត និងអង្គហេតុដែលបានកើតឡើង...)</p>
 
@@ -482,19 +828,73 @@ const getOfficialTemplates = () => {
           </ul>
         </div>
 
-        <!-- Signature Section -->
-        <table style="width: 100%; border-collapse: collapse; margin-top: 40px; border: none;">
+        <!-- 1. Drafter Signature Block -->
+        ${getDrafterSignatureHtml()}
+
+        <!-- 2. Superiors' Review & Opinion Block -->
+        ${getReviewBlockHtml()}
+      </div>
+    `,
+    LETTER: `
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+        <!-- Header Text -->
+        ${textHeaderHtml}
+
+        <!-- Recipient Block -->
+        <div style="margin-bottom: 25px;">
+          <table style="width: 100%; border: none; border-collapse: collapse;">
+            <tr>
+              <td style="width: 45%; border: none;"></td>
+              <td style="width: 55%; border: none; text-align: left; font-size: 12pt; line-height: 2.1;">
+                <div style="font-family: 'Khmer OS Muol Light', serif; margin-bottom: 4px;">សូមគោរពជូន</div>
+                <div style="font-weight: bold; margin-bottom: 4px;">ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី...</div>
+                <div style="color: #444;">(ស្ថាប័ន ឬក្រុមហ៊ុនទទួល)</div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Subject & Reference Table -->
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
           <tr>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none;">
-              <!-- Hierarchy endorsement space -->
+            <td style="width: 85px; vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">កម្មវត្ថុ៖</td>
+            <td style="vertical-align: top; border: none; font-weight: bold; padding: 2px 0;">
+              ករណី...
             </td>
-            <td style="width: 50%; vertical-align: top; text-align: center; border: none; font-size: 12pt;">
-              <div style="margin-bottom: 5px;">${dateStr}</div>
-              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; margin-bottom: 65px;">
-                ${props.officerPosition || 'អ្នករៀបចំកំណត់បង្ហាញ'}
+          </tr>
+          <tr>
+            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0;">
+              <div>- លិខិតលេខ...</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Body -->
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្តីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមជម្រាបជូន <strong>ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី</strong> មេត្តាជ្រាបថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលិខិតផ្លូវការនៅទីនេះ...)។
+        </div>
+
+        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
+          អាស្រ័យហេតុនេះ សូម <strong>ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី</strong> មេត្តាជ្រាប និងចាត់ចែងតាមការគួរ។
+        </div>
+
+        <!-- Signature Block: Right aligned for Leadership / DG -->
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-top: 35px; margin-bottom: 25px; line-height: 2.1;">
+          <tr>
+            <td style="width: 45%; border: none; vertical-align: bottom; font-size: 10pt; line-height: 1.8;">
+              <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">ចម្លងជូន៖</div>
+              <div>- ឯកឧត្តមអគ្គនាយក "ដើម្បីគោរពជ្រាប"</div>
+              <div>- នាយកដ្ឋានរដ្ឋបាល និងហិរញ្ញវត្ថុ</div>
+              <div>- ឯកសារ - កាលប្បវត្ត</div>
+            </td>
+            <td style="width: 55%; border: none; text-align: center; font-size: 11pt; line-height: 2.1;">
+              <div style="font-size: 11pt; color: #333;">${getCurrentKhmerDateString()}</div>
+              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #002060; margin-top: 4px; margin-bottom: 75px;">
+                អគ្គនាយក
               </div>
-              <div style="font-weight: bold; font-size: 12pt;">
-                ${props.officerName || '.....................................'}
+              <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #002060;">
+                (ហត្ថលេខា និងត្រា)
               </div>
             </td>
           </tr>
@@ -502,7 +902,7 @@ const getOfficialTemplates = () => {
       </div>
     `,
     BLANK: `
-      <div style="font-family: 'Khmer OS Battambang', sans-serif; line-height: 1.8; font-size: 12pt;">
+      <div style="font-family: 'Khmer OS Battambang', 'Battambang', sans-serif; line-height: 2.1; font-size: 12pt;">
         <p><br></p>
       </div>
     `
@@ -550,7 +950,7 @@ const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
 };
 
-// Print
+// Print Document with Multi-Page styling
 const printDocument = () => {
   if (!paperEditor.value) return;
   const content = paperEditor.value.innerHTML;
@@ -562,9 +962,44 @@ const printDocument = () => {
         <title>បោះពុម្ពឯកសារ</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap');
-          @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
-          body { font-family: 'Khmer OS Battambang', 'Battambang', sans-serif; font-size: 12pt; line-height: 1.8; color: #000; }
-          table { width: 100%; border-collapse: collapse; }
+          @page {
+            size: A4 portrait;
+            margin: 20mm 20mm 20mm 25mm;
+          }
+          body {
+            font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
+            font-size: 12pt;
+            line-height: 2.1 !important;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+            text-rendering: optimizeLegibility;
+          }
+          p, div { line-height: 2.1 !important; }
+          table { width: 100%; border-collapse: collapse; line-height: 2.1 !important; }
+          tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+          .page-break {
+            page-break-before: always !important;
+            break-before: page !important;
+            border-top: none !important;
+            margin-top: 0 !important;
+            padding-top: 10mm !important;
+          }
+          .page-break-badge {
+            display: none !important;
+          }
+          .page-number-header {
+            text-align: center !important;
+            margin-bottom: 25px !important;
+            font-weight: bold !important;
+            font-size: 12pt !important;
+            color: #000 !important;
+          }
+          .review-signatures-wrapper {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         </style>
       </head>
       <body>
@@ -584,7 +1019,14 @@ const printDocument = () => {
 // Export to Microsoft Word (.doc)
 const exportToWord = () => {
   if (!paperEditor.value) return;
-  const htmlContent = paperEditor.value.innerHTML;
+  let htmlContent = paperEditor.value.innerHTML;
+
+  // Replace page breaks with Word XML page-breaks
+  htmlContent = htmlContent.replace(
+    /<div class="page-break"[^>]*>[\s\S]*?<div class="page-number-header"[^>]*>([\s\S]*?)<\/div>/gi,
+    `<br clear="all" style="page-break-before:always; mso-break-type:section-break" /><p align="center" style="text-align:center;">$1</p>`
+  );
+
   const header = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office'
           xmlns:w='urn:schemas-microsoft-com:office:word'
@@ -595,7 +1037,7 @@ const exportToWord = () => {
       <style>
         @page WordSection1 {
           size: 595.3pt 841.9pt; /* A4 */
-          margin: 70.85pt 56.7pt 70.85pt 70.85pt; /* margins in pt */
+          margin: 56.7pt 56.7pt 56.7pt 56.7pt;
         }
         div.WordSection1 { page: WordSection1; }
         body {
@@ -727,7 +1169,7 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   min-height: 520px;
-  max-height: 680px;
+  max-height: 720px;
 }
 
 .fullscreen-mode .document-canvas-container {
@@ -737,17 +1179,21 @@ onMounted(() => {
 .document-paper {
   background-color: #ffffff;
   width: 100%;
-  max-width: 820px; /* A4 aspect ratio width */
-  min-height: 1050px;
-  padding: 55px 65px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  max-width: 794px; /* Exact standard A4 width at 96 DPI (210mm) */
+  min-height: 1123px; /* Exact standard A4 height at 96 DPI (297mm) */
+  padding: 45px 55px; /* Clean standard Cambodian margins */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   border-radius: 2px;
   color: #111;
   outline: none;
-  font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
+  font-family: 'Khmer OS Battambang', 'Siemreap', 'Battambang', sans-serif;
   font-size: 12pt;
-  line-height: 1.8;
+  line-height: 2.1;
   cursor: text;
+  box-sizing: border-box;
+  overflow: visible;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .document-paper:focus {

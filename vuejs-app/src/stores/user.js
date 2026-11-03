@@ -200,6 +200,12 @@ export const useUserStore = defineStore('user',
         this.employee_type = user.employee_type;
         this.employee_code = user.employee_code;
         this.mef_card_number = user.mef_card_number;
+        this.department_id = user.department_id;
+        this.office_id = user.office_id;
+        this.position_id = user.position_id;
+        this.department = user.department;
+        this.office = user.office;
+        this.position = user.position;
 
         // ព័ត៌មានផ្ទាល់ខ្លួន
         this.gender = user.gender;

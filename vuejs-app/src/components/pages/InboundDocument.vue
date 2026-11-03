@@ -6,10 +6,10 @@
         <div class="row mb-3 align-items-center">
           <div class="col-sm-6">
             <h1 class="m-0 font-weight-bold text-dark khmer-page-title">
-              <i class="fas fa-file-import text-success mr-2"></i>គ្រប់គ្រងលំហូរឯកសារចូល (ន.ប.ធ.)
+              <i class="fas fa-file-import text-success mr-2"></i>ឯកសារចូល (ន.ប.ធ.)
             </h1>
             <p class="text-muted small mb-0 mt-1">
-              តាមដាន និងចាត់ចែងលំហូរឯកសារចូល ចាប់ពីការចុះលេខទូទៅ លេខជំនួយការអគ្គនាយក ចំណារ រហូតដល់ការឆ្លើយតប
+              តាមដាន និងចាត់ចែងឯកសារចូល
             </p>
           </div>
           <div class="col-sm-6 text-right">
@@ -25,7 +25,7 @@
               class="btn btn-dark-custom shadow-sm font-khmer"
               @click="openCreateModal"
             >
-              <i class="fas fa-plus-circle mr-1"></i> ចុះបញ្ជីឯកសារចូលថ្មី
+              <i class="fas fa-plus-circle mr-1"></i> ចុះលេខឯកសារចូលថ្មី
             </button>
           </div>
         </div>
@@ -48,7 +48,7 @@
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <span class="text-muted small d-block font-weight-bold">
-                    {{ isRegularOfficer ? 'ឯកសារទទួលបានសរុប' : 'ឯកសារចូលសរុប' }}
+                    {{ isRegularOfficer ? 'ឯកសារចូលសរុប' : 'ឯកសារចូលសរុប' }}
                   </span>
                   <h3 class="font-weight-bold mb-0 text-dark">{{ stats.total || 0 }}</h3>
                 </div>
@@ -68,7 +68,7 @@
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">Pending (ករណីចូលមកដំបូង)</span>
+                  <span class="text-muted small d-block font-weight-bold">រងចាំ</span>
                   <h3 class="font-weight-bold mb-0 text-warning">{{ stats.pending || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-warning-light text-warning">
@@ -87,7 +87,7 @@
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">Doing (បញ្ជូនចេញ / កំពុងធ្វើ)</span>
+                  <span class="text-muted small d-block font-weight-bold">កំពុងដំណើរការ</span>
                   <h3 class="font-weight-bold mb-0 text-primary">{{ stats.doing || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-primary-light text-primary">
@@ -106,7 +106,7 @@
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
-                  <span class="text-muted small d-block font-weight-bold">Complete (អគ្គនាយកឯកភាព)</span>
+                  <span class="text-muted small d-block font-weight-bold">បញ្ចប់</span>
                   <h3 class="font-weight-bold mb-0 text-success">{{ stats.completed || 0 }}</h3>
                 </div>
                 <div class="stat-icon-circle bg-success-light text-success">
@@ -117,76 +117,10 @@
           </div>
         </div>
 
-        <!-- Secondary Stats Row with Desks and Deadline Counters -->
+        <!-- Secondary Stats Row with My Unit and Deadline Counters -->
         <div class="row mb-3">
-          <!-- Card 5: អ្នកទទួលឯកសារ (Reception Desk) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="canRegister || isAdmin">
-            <div
-              class="stat-mini-card stat-mini-cyan shadow-sm h-100 cursor-pointer"
-              :class="{ 'is-active': activeTab === 'reception' }"
-              @click="switchTab('reception')"
-              title="ចុចដើម្បីមើលឯកសារនៅអ្នកទទួលឯកសារ"
-            >
-              <div class="stat-mini-content">
-                <span class="stat-mini-title">អ្នកទទួល (មិនទាន់បញ្ជូន)</span>
-                <div class="d-flex align-items-baseline mt-1">
-                  <span class="stat-mini-number text-cyan">{{ stats.reception_pending || 0 }}</span>
-                  <span class="stat-mini-tag ml-2 text-cyan">រង់ចាំបញ្ជូន</span>
-                </div>
-              </div>
-              <div class="stat-mini-icon bg-cyan-subtle text-cyan">
-                <i class="fas fa-inbox"></i>
-              </div>
-              <div class="stat-mini-bar bg-cyan"></div>
-            </div>
-          </div>
-
-          <!-- Card 6: ជំនួយការអគ្គនាយក (Assistant Desk) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="canAssist || isAdmin">
-            <div
-              class="stat-mini-card stat-mini-indigo shadow-sm h-100 cursor-pointer"
-              :class="{ 'is-active': activeTab === 'assistant_inbox' }"
-              @click="switchTab('assistant_inbox')"
-              title="ចុចដើម្បីមើលឯកសារនៅជំនួយការអគ្គនាយក"
-            >
-              <div class="stat-mini-content">
-                <span class="stat-mini-title">ជំនួយការអគ្គនាយក</span>
-                <div class="d-flex align-items-baseline mt-1">
-                  <span class="stat-mini-number text-indigo">{{ stats.assistant_pending || 0 }}</span>
-                  <span class="stat-mini-tag ml-2 text-indigo">រង់ចាំចុះលេខ</span>
-                </div>
-              </div>
-              <div class="stat-mini-icon bg-indigo-subtle text-indigo">
-                <i class="fas fa-user-shield"></i>
-              </div>
-              <div class="stat-mini-bar bg-indigo"></div>
-            </div>
-          </div>
-
-          <!-- Card 7: ដាក់ជូនអគ្គនាយក (DG Desk) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="isDg || canAssist || isAdmin">
-            <div
-              class="stat-mini-card stat-mini-rose shadow-sm h-100 cursor-pointer"
-              :class="{ 'is-active': activeTab === 'dg_inbox' }"
-              @click="switchTab('dg_inbox')"
-              title="ចុចដើម្បីមើលឯកសាររង់ចាំចំណារអគ្គនាយក"
-            >
-              <div class="stat-mini-content">
-                <span class="stat-mini-title">រង់ចាំចំណារអគ្គនាយក</span>
-                <div class="d-flex align-items-baseline mt-1">
-                  <span class="stat-mini-number text-rose">{{ stats.dg_pending || 0 }}</span>
-                  <span class="stat-mini-tag ml-2 text-rose">តុអគ្គនាយក</span>
-                </div>
-              </div>
-              <div class="stat-mini-icon bg-rose-subtle text-rose">
-                <i class="fas fa-pen-nib"></i>
-              </div>
-              <div class="stat-mini-bar bg-rose"></div>
-            </div>
-          </div>
-
-          <!-- Card 8: អង្គភាពរបស់ខ្ញុំ (My Unit) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2" v-if="userStore.department_id || userStore.office_id">
+          <!-- Card: អង្គភាពរបស់ខ្ញុំ (My Unit) -->
+          <div class="col-xl-4 col-md-4 col-sm-6 mb-2" v-if="userStore.department_id || userStore.office_id">
             <div
               class="stat-mini-card stat-mini-teal shadow-sm h-100 cursor-pointer"
               :class="{ 'is-active': activeTab === 'my_unit' }"
@@ -207,8 +141,8 @@
             </div>
           </div>
 
-          <!-- Card 9: ជិតដល់កាលកំណត់ (Due Soon <= 3 days) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2">
+          <!-- Card: ជិតដល់កាលកំណត់ (Due Soon <= 3 days) -->
+          <div :class="(userStore.department_id || userStore.office_id) ? 'col-xl-4 col-md-4 col-sm-6 mb-2' : 'col-xl-6 col-md-6 col-sm-6 mb-2'">
             <div
               class="stat-mini-card stat-mini-amber shadow-sm h-100 cursor-pointer"
               :class="{ 'is-active': filters.deadline_filter === 'due_soon' }"
@@ -229,8 +163,8 @@
             </div>
           </div>
 
-          <!-- Card 10: ហួសកាលកំណត់ (Overdue) -->
-          <div class="col-xl col-md-4 col-sm-6 mb-2">
+          <!-- Card: ហួសកាលកំណត់ (Overdue) -->
+          <div :class="(userStore.department_id || userStore.office_id) ? 'col-xl-4 col-md-4 col-sm-6 mb-2' : 'col-xl-6 col-md-6 col-sm-6 mb-2'">
             <div
               class="stat-mini-card stat-mini-red shadow-sm h-100 cursor-pointer"
               :class="{ 'is-active': filters.deadline_filter === 'overdue' }"
@@ -264,7 +198,7 @@
                   href="javascript:void(0)"
                   @click="switchTab('all')"
                 >
-                  <i class="fas fa-th-list text-secondary mr-1"></i> {{ isRegularOfficer ? 'ឯកសារទទួលបានទាំងអស់' : 'ឯកសារទាំងអស់' }}
+                  <i class="fas fa-th-list text-secondary mr-1"></i> {{ isRegularOfficer ? 'ឯកសារចូលទាំងអស់' : 'ឯកសារទាំងអស់' }}
                   <span class="badge badge-light ml-1">{{ stats.total || 0 }}</span>
                 </a>
               </li>
@@ -277,7 +211,7 @@
                   href="javascript:void(0)"
                   @click="switchTab('pending')"
                 >
-                  <i class="fas fa-clock text-warning mr-1"></i> Pending (ចូលដំបូង)
+                  <i class="fas fa-clock text-warning mr-1"></i> រងចាំ
                   <span class="badge badge-warning ml-1" v-if="stats.pending > 0">{{ stats.pending }}</span>
                 </a>
               </li>
@@ -290,7 +224,7 @@
                   href="javascript:void(0)"
                   @click="switchTab('doing')"
                 >
-                  <i class="fas fa-tasks text-primary mr-1"></i> Doing (បញ្ជូនចេញ / កំពុងធ្វើ)
+                  <i class="fas fa-tasks text-primary mr-1"></i> កំពុងដំណើរការ
                   <span class="badge badge-primary ml-1" v-if="stats.doing > 0">{{ stats.doing }}</span>
                 </a>
               </li>
@@ -303,14 +237,9 @@
                   href="javascript:void(0)"
                   @click="switchTab('completed')"
                 >
-                  <i class="fas fa-check-circle text-success mr-1"></i> Complete (អគ្គនាយកឯកភាព)
+                  <i class="fas fa-check-circle text-success mr-1"></i> បញ្ចប់
                   <span class="badge badge-success ml-1" v-if="stats.completed > 0">{{ stats.completed }}</span>
                 </a>
-              </li>
-
-              <!-- Divider if specialized desks exist -->
-              <li class="nav-item d-none d-lg-block mx-2 text-muted" v-if="userStore.department_id || canRegister || canAssist || isDg || isAdmin" style="opacity: 0.35;">
-                |
               </li>
 
               <!-- Tab 5: អង្គភាពរបស់ខ្ញុំ (My Unit) - For Department / Office leaders & members -->
@@ -323,45 +252,6 @@
                 >
                   <i class="fas fa-sitemap text-info mr-1"></i> អង្គភាពរបស់ខ្ញុំ
                   <span class="badge badge-info ml-1" v-if="stats.my_unit > 0">{{ stats.my_unit }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 6: តុចុះបញ្ជីទទួល (Reception Desk) -->
-              <li class="nav-item" v-if="canRegister">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'reception' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('reception')"
-                >
-                  <i class="fas fa-inbox mr-1 text-info"></i> តុចុះបញ្ជីទទួល
-                  <span class="badge badge-info ml-1" v-if="stats.reception_pending > 0">{{ stats.reception_pending }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 7: តុជំនួយការ (Assistant Desk) -->
-              <li class="nav-item" v-if="canAssist">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'assistant_inbox' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('assistant_inbox')"
-                >
-                  <i class="fas fa-user-shield mr-1 text-indigo"></i> តុជំនួយការ
-                  <span class="badge badge-indigo text-white ml-1" v-if="stats.assistant_pending > 0">{{ stats.assistant_pending }}</span>
-                </a>
-              </li>
-
-              <!-- Tab 8: តុអគ្គនាយក (DG Desk) -->
-              <li class="nav-item" v-if="isDg || isAdmin">
-                <a
-                  class="nav-link font-weight-bold"
-                  :class="{ active: activeTab === 'dg_inbox' }"
-                  href="javascript:void(0)"
-                  @click="switchTab('dg_inbox')"
-                >
-                  <i class="fas fa-pen-nib mr-1 text-rose"></i> តុអគ្គនាយក
-                  <span class="badge badge-rose text-white ml-1" v-if="stats.dg_pending > 0">{{ stats.dg_pending }}</span>
                 </a>
               </li>
             </ul>
@@ -390,24 +280,9 @@
               <div class="col-lg-2 col-md-3 col-sm-6 mb-2">
                 <select class="form-control form-control-sm font-khmer font-weight-bold" v-model="filters.status" @change="loadDocuments">
                   <option value="">-- ស្ថានភាព (ទាំងអស់) --</option>
-                  <option value="pending">🟡 Pending (ករណីចូលដំបូង)</option>
-                  <option value="doing">🔵 Doing (បញ្ជូនចេញ/កំពុងធ្វើ)</option>
-                  <option value="completed">🟢 Complete (អគ្គនាយកឯកភាព)</option>
-                </select>
-              </div>
-
-              <!-- DG Category Filter -->
-              <div class="col-lg-2 col-md-3 col-sm-6 mb-2">
-                <select class="form-control form-control-sm font-khmer" v-model="filters.dg_inbound_category" @change="loadDocuments">
-                  <option value="">-- ប្រភេទលេខចូល អ.ន. --</option>
-                  <option value="COMPANY">ក្រុមហ៊ុន (AA)</option>
-                  <option value="MEF">ក្រសួងសេដ្ឋកិច្ច (E)</option>
-                  <option value="FSA_REGULATOR">អ.ស.ហ. និងនិយ័តករ (NF)</option>
-                  <option value="DEPT_GENERAL_AFFAIRS">នាយកដ្ឋានកិច្ចការទូទៅ (A)</option>
-                  <option value="DEPT_REGISTRATION">នាយកដ្ឋានចុះបញ្ជី (R)</option>
-                  <option value="DEPT_RESEARCH">នាយកដ្ឋានស្រាវជ្រាវ (T)</option>
-                  <option value="DEPT_LEGAL">នាយកដ្ឋានគតិយុត្ត (L)</option>
-                  <option value="PROJECT_ACSEP">គម្រោង ACSEP (AS)</option>
+                  <option value="pending">🟡 រងចាំ</option>
+                  <option value="doing">🔵 កំពុងដំណើរការ</option>
+                  <option value="completed">🟢 បញ្ចប់</option>
                 </select>
               </div>
 
@@ -470,20 +345,19 @@
               <table class="table table-hover table-striped mb-0 align-middle">
                 <thead class="thead-light font-khmer">
                   <tr>
-                    <th style="width: 105px;">លេខចូលទូទៅ</th>
-                    <th style="width: 120px;">លេខចូល អ.ន.</th>
-                    <th style="min-width: 140px;">កាលបរិច្ឆេទ & អ្នកយក</th>
-                    <th style="min-width: 160px;">មកពីអង្គភាព / លេខដើម</th>
-                    <th>កម្មវត្ថុ / ប្រភេទឯកសារ</th>
+                    <th style="width: 120px;">លេខឯកសារ</th>
+                    <th style="min-width: 140px;">កាលបរិច្ឆេទ</th>
+                    <th style="min-width: 160px;">ប្រភាព</th>
+                    <th>កម្មវត្ថុ</th>
                     <th style="width: 130px;">ស្ថានភាព</th>
-                    <th style="min-width: 175px;">ទីតាំងឯកសារ / អ្នកកាន់បច្ចុប្បន្ន</th>
+                    <th style="min-width: 175px;">អ្នកទទួលបន្ទុក</th>
                     <th style="width: 150px;" class="text-center">សកម្មភាព</th>
                   </tr>
                 </thead>
                 <tbody class="font-khmer">
                   <!-- Loading State -->
                   <tr v-if="loading">
-                    <td colspan="8" class="text-center py-5 text-muted">
+                    <td colspan="7" class="text-center py-5 text-muted">
                       <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
                       កំពុងទាញយកទិន្នន័យឯកសារ...
                     </td>
@@ -491,7 +365,7 @@
 
                   <!-- Empty State -->
                   <tr v-else-if="!documents.data || documents.data.length === 0">
-                    <td colspan="8" class="text-center py-5 text-muted">
+                    <td colspan="7" class="text-center py-5 text-muted">
                       <i class="fas fa-folder-open fa-3x mb-2 text-secondary d-block"></i>
                       មិនមានទិន្នន័យឯកសារចូលនៅក្នុងប្រព័ន្ធឡើយ
                     </td>
@@ -499,25 +373,14 @@
 
                   <!-- Data Rows -->
                   <tr v-for="doc in documents.data" :key="doc.id">
-                    <!-- 1. លេខចូលទូទៅ -->
+                    <!-- 1. លេខឯកសារ -->
                     <td>
                       <span class="badge badge-dark font-13 px-2 py-1 shadow-2xs font-monospace">
                         {{ doc.general_inbound_number || '---' }}
                       </span>
                     </td>
 
-                    <!-- 2. លេខចូលជំនួយការអគ្គនាយក -->
-                    <td>
-                      <span
-                        v-if="doc.dg_inbound_number"
-                        class="badge badge-primary font-13 px-2 py-1 shadow-2xs font-monospace"
-                      >
-                        {{ doc.dg_inbound_number }}
-                      </span>
-                      <span v-else class="text-muted small italic">មិនទាន់ចុះ</span>
-                    </td>
-
-                    <!-- 3. កាលបរិច្ឆេទ & អ្នកយក -->
+                    <!-- 3. កាលបរិច្ឆេទ -->
                     <td>
                       <div class="font-weight-bold font-13 text-dark">
                         <i class="far fa-calendar-alt text-muted mr-1"></i>
@@ -526,10 +389,7 @@
                       <div class="small text-muted">
                         <i class="far fa-clock mr-1"></i>{{ doc.received_time ? doc.received_time.substring(0, 5) : '' }}
                       </div>
-                      <div class="small text-secondary mt-1">
-                        <i class="far fa-user mr-1"></i>{{ doc.deliverer_name }}
-                        <span v-if="doc.deliverer_phone">({{ doc.deliverer_phone }})</span>
-                      </div>
+                      
                     </td>
 
                     <!-- 4. មកពីអង្គភាព & លេខលិខិតដើម -->
@@ -538,9 +398,12 @@
                         <i class="fas fa-building text-secondary mr-1"></i>
                         {{ doc.sender_organization }}
                       </div>
+                      <div class="small text-secondary mt-1">
+                        <i class="far fa-user mr-1"></i>{{ doc.deliverer_name }}
+                        <span v-if="doc.deliverer_phone">({{ doc.deliverer_phone }})</span>
+                      </div>
                       <div class="small text-muted mt-1" v-if="doc.external_reference_number">
                         លេខដើម៖ <span class="font-weight-bold">{{ doc.external_reference_number }}</span>
-                        <span v-if="doc.external_document_date"> ({{ formatDateKh(doc.external_document_date) }})</span>
                       </div>
                     </td>
 
@@ -550,11 +413,6 @@
                         {{ doc.title }}
                       </div>
                       <div class="d-flex flex-wrap gap-1 align-items-center">
-                        <!-- Type -->
-                        <span class="badge badge-light border text-dark font-11">
-                          {{ doc.document_type_kh }}
-                        </span>
-
                         <!-- Urgency -->
                         <span
                           v-if="doc.urgency === 'URGENT' || doc.urgency === 'MOST_URGENT'"
@@ -562,14 +420,6 @@
                           :class="doc.urgency === 'MOST_URGENT' ? 'badge-danger' : 'badge-warning text-dark'"
                         >
                           <i class="fas fa-bolt mr-1"></i>{{ doc.urgency_kh }}
-                        </span>
-
-                        <!-- Confidentiality -->
-                        <span
-                          v-if="doc.confidentiality !== 'NORMAL'"
-                          class="badge badge-dark font-11"
-                        >
-                          <i class="fas fa-shield-alt mr-1"></i>{{ doc.confidentiality_kh }}
                         </span>
 
                         <!-- Response Requirement Tag -->
@@ -610,6 +460,15 @@
                       <div class="small text-muted font-11" v-if="getSimplifiedStatus(doc).subText">
                         {{ getSimplifiedStatus(doc).subText }}
                       </div>
+                      <!-- ជំនួយការបានពិនិត្យ / មិនទាន់ពិនិត្យ (សម្រាប់ DG / Assistant) -->
+                      <div v-if="(isDg || canAssist || isAdmin) && doc.status !== 'COMPLETED'" class="mt-1">
+                        <span v-if="doc.assistant_reviewed_at" class="badge badge-success px-1 py-1 font-10">
+                          <i class="fas fa-check-circle mr-1"></i>ជំនួយការបានពិនិត្យរួច
+                        </span>
+                        <span v-else-if="!doc.dispatched_at" class="badge badge-warning px-1 py-1 font-10">
+                          <i class="fas fa-clock mr-1"></i>ជំនួយការមិនទាន់ពិនិត្យ
+                        </span>
+                      </div>
                     </td>
 
                     <!-- 7. ទីតាំងឯកសារ / អ្នកកាន់បច្ចុប្បន្ន (Current Custodian & Desk) -->
@@ -645,44 +504,24 @@
                           <i class="fas fa-project-diagram text-info"></i>
                         </button>
 
-                        <!-- Step 1 -> Step 2: Send to Assistant (by Receptionist) -->
+                        <!-- Step 1: Send to DG & Assistant (by Receptionist) -->
                         <button
                           v-if="canRegister && doc.status === 'RECEPTION_DRAFT'"
                           class="btn btn-outline-primary"
-                          title="បញ្ជូនទៅជំនួយការអគ្គនាយក"
+                          title="បញ្ជូនទៅអគ្គនាយក និងជំនួយការ"
                           @click="sendToAssistantAction(doc)"
                         >
                           <i class="fas fa-paper-plane"></i>
                         </button>
 
-                        <!-- Step 2: Assistant Receive & Numbering -->
+                        <!-- Step 3: DG Annotation & Dispatch (ឯកឧត្តមអគ្គនាយកកត់ត្រាចំណារ & ចាត់ចែងចែកចាយ) -->
                         <button
-                          v-if="canAssist && doc.status === 'SUBMITTED_TO_ASSISTANT'"
-                          class="btn btn-outline-success"
-                          title="ជំនួយការចុះលេខចូល អ.ន. & ដាក់ជូនអគ្គនាយក"
-                          @click="openAssistantReceiveModal(doc)"
-                        >
-                          <i class="fas fa-barcode"></i>
-                        </button>
-
-                        <!-- Step 3: DG Annotation -->
-                        <button
-                          v-if="(isDg || canAssist || isAdmin) && doc.status === 'SUBMITTED_TO_DG'"
+                          v-if="(isDg || isAdmin) && doc.status === 'SUBMITTED_TO_DG'"
                           class="btn btn-outline-danger"
-                          title="កត់ត្រាចំណារឯកឧត្តមអគ្គនាយក"
+                          title="កត់ត្រាចំណារ និងចាត់ចែង (ឯកឧត្តមអគ្គនាយក)"
                           @click="openDgAnnotateModal(doc)"
                         >
                           <i class="fas fa-signature"></i>
-                        </button>
-
-                        <!-- Step 4: Assistant Scan & Dispatch -->
-                        <button
-                          v-if="(canAssist || isDg || isAdmin) && doc.status === 'DG_ANNOTATED'"
-                          class="btn btn-outline-warning text-dark"
-                          title="Scan ចំណារ និងចែកចាយបន្ត"
-                          @click="openAssistantDispatchModal(doc)"
-                        >
-                          <i class="fas fa-share-square"></i>
                         </button>
 
                         <!-- Step 5A: Acknowledge (Path A) -->
@@ -695,16 +534,6 @@
                           <i class="fas fa-check-double"></i>
                         </button>
 
-                        <!-- Step 5B: Draft Response (Path B) -->
-                        <button
-                          v-if="canDraftResponse(doc)"
-                          class="btn btn-outline-warning text-dark"
-                          title="រៀបចំ និងឆ្លងលិខិតឆ្លើយតប"
-                          @click="openSubmitResponseModal(doc)"
-                        >
-                          <i class="fas fa-reply"></i>
-                        </button>
-
                         <!-- Step 5C: Cascading Forward / Re-assign Downward -->
                         <button
                           v-if="canForward(doc)"
@@ -714,6 +543,36 @@
                         >
                           <i class="fas fa-directions"></i>
                         </button>
+
+                        <!-- ជំនួយការអគ្គនាយកចុច «បានពិនិត្យរួចរាល់» -->
+                        <button
+                          v-if="canAssist && !doc.dispatched_at && !doc.assistant_reviewed_at && doc.status !== 'COMPLETED'"
+                          class="btn btn-outline-success"
+                          title="ជំនួយការចុច៖ បានពិនិត្យរួចរាល់"
+                          @click="markAssistantReviewedAction(doc)"
+                        >
+                          <i class="fas fa-check"></i>
+                        </button>
+
+                        <!-- ទាញយកការចាត់ចែងមកវិញ (Recall) -->
+                        <button
+                          v-if="canRecallInbound(doc)"
+                          class="btn btn-outline-danger"
+                          title="ទាញយកការចាត់ចែងមកវិញ (Recall)"
+                          @click="recallInboundAction(doc)"
+                        >
+                          <i class="fas fa-undo"></i>
+                        </button>
+
+                        <!-- បង្កើតឯកសារចេញ / របាយការណ៍ឆ្លើយតប (Report) -->
+                        <router-link
+                          v-if="canCreateReport(doc)"
+                          :to="{ name: 'outbound-documents', query: { link_inbound_id: doc.id } }"
+                          class="btn btn-outline-primary"
+                          title="បង្កើតរបាយការណ៍/កំណត់បង្ហាញឆ្លើយតប (Report)"
+                        >
+                          <i class="fas fa-file-export"></i>
+                        </router-link>
 
                         <!-- Step 6B: Process Review Action on Response -->
                         <button
@@ -931,7 +790,6 @@
                           class="form-control font-khmer font-13"
                           placeholder="វាយស្វែងរក (ខ្មែរ / Code)..."
                           v-model="orgSearchQuery"
-                          autofocus
                         />
                         <div class="input-group-append" v-if="orgSearchQuery">
                           <button class="btn btn-light border" type="button" @click="orgSearchQuery = ''">
@@ -990,7 +848,7 @@
 
                 <!-- Row 3: លេខលិខិតដើមខាងក្រៅ, កាលបរិច្ឆេទលិខិតដើម & កាលកំណត់ (Deadline) -->
                 <div class="row">
-                  <div class="col-md-4 mb-3">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label font-weight-bold">លេខលិខិតដើមខាងក្រៅ (បើមាន)</label>
                     <input
                       type="text"
@@ -1000,12 +858,7 @@
                     />
                   </div>
 
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទលិខិតដើមខាងក្រៅ</label>
-                    <input type="date" class="form-control" v-model="createForm.external_document_date" />
-                  </div>
-
-                  <div class="col-md-4 mb-3">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label font-weight-bold text-danger">
                       <i class="far fa-calendar-times mr-1"></i>កាលកំណត់ (Deadline បើមាន)
                     </label>
@@ -1025,38 +878,15 @@
                   ></textarea>
                 </div>
 
-                <!-- Row 5: ប្រភេទឯកសារ, កម្រិតបន្ទាន់, កម្រិតសម្ងាត់ -->
-                <div class="row">
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">ប្រភេទឯកសារ</label>
-                    <select class="form-control" v-model="createForm.document_type">
-                      <option value="LETTER">លិខិត</option>
-                      <option value="PRAKAS">ប្រកាស</option>
-                      <option value="DECISION">សេចក្តីសម្រេច</option>
-                      <option value="REPORT">របាយការណ៍</option>
-                      <option value="INVITATION">លិខិតអញ្ជើញ</option>
-                      <option value="OTHER">ផ្សេងៗ</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
-                    <select class="form-control" v-model="createForm.urgency">
-                      <option value="NORMAL">ធម្មតា</option>
-                      <option value="MEDIUM">មធ្យម</option>
-                      <option value="URGENT">បន្ទាន់</option>
-                      <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កម្រិតសម្ងាត់</label>
-                    <select class="form-control" v-model="createForm.confidentiality">
-                      <option value="NORMAL">ធម្មតា</option>
-                      <option value="CONFIDENTIAL">សម្ងាត់</option>
-                      <option value="TOP_SECRET">សម្ងាត់បំផុត</option>
-                    </select>
-                  </div>
+                <!-- Row 5: កម្រិតបន្ទាន់ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
+                  <select class="form-control" v-model="createForm.urgency">
+                    <option value="NORMAL">ធម្មតា</option>
+                    <option value="MEDIUM">មធ្យម</option>
+                    <option value="URGENT">បន្ទាន់</option>
+                    <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
+                  </select>
                 </div>
 
                 <!-- Row 6: Upload Scan ឯកសារដើម -->
@@ -1078,18 +908,6 @@
                   </div>
                 </div>
 
-                <!-- Checkbox: Send immediately to DG assistant -->
-                <div class="custom-control custom-checkbox mt-3 mb-2">
-                  <input
-                    type="checkbox"
-                    class="custom-control-input"
-                    id="sendImmediatelyCheck"
-                    v-model="createForm.send_immediately"
-                  />
-                  <label class="custom-control-label font-weight-bold text-primary" for="sendImmediatelyCheck">
-                    បញ្ជូនបន្តទៅកាន់ជំនួយការអគ្គនាយកភ្លាមៗ (DG Assistant Inbox)
-                  </label>
-                </div>
               </div>
 
               <!-- Pinned Footer at bottom of dialog -->
@@ -1186,7 +1004,7 @@
 
                 <!-- Row 3: លេខលិខិតដើម, កាលបរិច្ឆេទលិខិតដើម, កាលកំណត់ -->
                 <div class="row">
-                  <div class="col-md-4 mb-3">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label font-weight-bold">លេខលិខិតដើម (ខាងក្រៅ)</label>
                     <input
                       type="text"
@@ -1196,12 +1014,7 @@
                     />
                   </div>
 
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កាលបរិច្ឆេទលិខិតដើម</label>
-                    <input type="date" class="form-control" v-model="editForm.external_document_date" />
-                  </div>
-
-                  <div class="col-md-4 mb-3">
+                  <div class="col-md-6 mb-3">
                     <label class="form-label font-weight-bold text-danger">កាលកំណត់ឆ្លើយតប (Deadline)</label>
                     <input type="date" class="form-control border-danger" v-model="editForm.deadline" />
                   </div>
@@ -1219,38 +1032,15 @@
                   ></textarea>
                 </div>
 
-                <!-- Row 5: ប្រភេទឯកសារ, កម្រិតបន្ទាន់, កម្រិតសម្ងាត់ -->
-                <div class="row">
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">ប្រភេទឯកសារ</label>
-                    <select class="form-control" v-model="editForm.document_type">
-                      <option value="LETTER">លិខិត</option>
-                      <option value="PRAKAS">ប្រកាស</option>
-                      <option value="DECISION">សេចក្តីសម្រេច</option>
-                      <option value="REPORT">របាយការណ៍</option>
-                      <option value="INVITATION">លិខិតអញ្ជើញ</option>
-                      <option value="OTHER">ផ្សេងៗ</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
-                    <select class="form-control" v-model="editForm.urgency">
-                      <option value="NORMAL">ធម្មតា</option>
-                      <option value="MEDIUM">មធ្យម</option>
-                      <option value="URGENT">បន្ទាន់</option>
-                      <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold">កម្រិតសម្ងាត់</label>
-                    <select class="form-control" v-model="editForm.confidentiality">
-                      <option value="NORMAL">ធម្មតា</option>
-                      <option value="CONFIDENTIAL">សម្ងាត់</option>
-                      <option value="TOP_SECRET">សម្ងាត់បំផុត</option>
-                    </select>
-                  </div>
+                <!-- Row 5: កម្រិតបន្ទាន់ -->
+                <div class="mb-3">
+                  <label class="form-label font-weight-bold">កម្រិតបន្ទាន់</label>
+                  <select class="form-control" v-model="editForm.urgency">
+                    <option value="NORMAL">ធម្មតា</option>
+                    <option value="MEDIUM">មធ្យម</option>
+                    <option value="URGENT">បន្ទាន់</option>
+                    <option value="MOST_URGENT">បន្ទាន់បំផុត</option>
+                  </select>
                 </div>
 
                 <!-- Row 6: កំណត់សម្គាល់ & ឯកសារ Scan -->
@@ -1301,94 +1091,6 @@
         </div>
       </div>
     </Teleport>
-    <Teleport to="body">
-      <div class="custom-modal-backdrop" v-if="showAssistantReceiveModal">
-        <div class="modal-dialog modal-md modal-dialog-centered my-auto" style="width: 100%; max-width: 600px;">
-          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
-            <div class="modal-header bg-primary text-white py-3 px-4 flex-shrink-0 align-items-center">
-              <h5 class="modal-title font-khmer font-weight-bold mb-0">
-                <i class="fas fa-barcode mr-2"></i>ចុះលេខចូលជំនួយការអគ្គនាយក
-              </h5>
-              <button type="button" class="close text-white" @click="showAssistantReceiveModal = false">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
-              <div class="alert alert-info py-2 font-13 mb-3">
-                ឯកសារលេខទូទៅ៖ <strong>{{ selectedDoc?.general_inbound_number }}</strong><br />
-                មកពី៖ <strong>{{ selectedDoc?.sender_organization }}</strong>
-              </div>
-
-              <form @submit.prevent="submitAssistantReceive">
-                <!-- ប្រភេទប្រភពឯកសារ -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">ជ្រើសរើសប្រភេទឯកសារ / ប្រភព <span class="text-danger">*</span></label>
-                  <select
-                    class="form-control"
-                    v-model="assistantReceiveForm.dg_inbound_category"
-                    @change="fetchNextDgNumber"
-                    required
-                  >
-                    <optgroup label="ឯកសារខាងក្រៅ">
-                      <option value="COMPANY">ក្រុមហ៊ុន (AA001/26)</option>
-                      <option value="MEF">ក្រសួងសេដ្ឋកិច្ច និងហិរញ្ញវត្ថុ (E001/26)</option>
-                      <option value="FSA_REGULATOR">អ.ស.ហ. និងនិយ័តករ (NF001/26)</option>
-                    </optgroup>
-                    <optgroup label="ឯកសារទទួលបានពីនាយកដ្ឋានមកវិញ">
-                      <option value="DEPT_GENERAL_AFFAIRS">A - នាយកដ្ឋានកិច្ចការទូទៅ (A001/26)</option>
-                      <option value="DEPT_REGISTRATION">R - នាយកដ្ឋានចុះបញ្ជី (R001/26)</option>
-                      <option value="DEPT_RESEARCH">T - នាយកដ្ឋានស្រាវជ្រាវ (T001/26)</option>
-                      <option value="DEPT_LEGAL">L - នាយកដ្ឋានគតិយុត្ត (L001/26)</option>
-                      <option value="PROJECT_ACSEP">AS - គម្រោង ACSEP (AS001/26)</option>
-                    </optgroup>
-                  </select>
-                </div>
-
-                <!-- លេខចូលជំនួយការអគ្គនាយក (Auto-generated with edit option) -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">លេខចូលជំនួយការអគ្គនាយក <span class="text-danger">*</span></label>
-                  <div class="input-group">
-                    <input
-                      type="text"
-                      class="form-control font-weight-bold font-monospace text-primary font-16"
-                      v-model="assistantReceiveForm.custom_dg_number"
-                      required
-                    />
-                    <div class="input-group-append">
-                      <button class="btn btn-outline-secondary" type="button" @click="fetchNextDgNumber" title="ទាញយកលេខឡើងវិញ">
-                        <i class="fas fa-sync-alt"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <small class="text-muted">ប្រព័ន្ធគណនាលេខស្វ័យប្រវត្តិតាមប្រភេទខាងលើ (អាចកែប្រែដោយដៃបានបើចាំបាច់)</small>
-                </div>
-
-                <!-- កាលបរិច្ឆេទជំនួយការចុះចូល -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">កាលបរិច្ឆេទចុះចូល <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" v-model="assistantReceiveForm.dg_received_date" required />
-                </div>
-
-                <!-- កំណត់សម្គាល់របស់ជំនួយការ -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">កំណត់សម្គាល់បន្ថែម (បើមាន)</label>
-                  <textarea class="form-control" rows="2" v-model="assistantReceiveForm.dg_assistant_notes"></textarea>
-                </div>
-
-                <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                  <button type="button" class="btn btn-secondary" @click="showAssistantReceiveModal = false">បោះបង់</button>
-                  <button type="submit" class="btn btn-primary" :disabled="submitting">
-                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                    <i class="fas fa-check mr-1"></i> ចុះលេខ & ដាក់ជូនអគ្គនាយក
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <!-- ==================== MODAL 3: ចំណារឯកឧត្តមអគ្គនាយក (DG ANNOTATION) ==================== -->
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showDgAnnotateModal">
@@ -1404,7 +1106,7 @@
             </div>
             <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
               <div class="alert alert-secondary py-2 font-13 mb-3">
-                លេខចូល អ.ន.៖ <strong class="text-primary">{{ selectedDoc?.dg_inbound_number }}</strong><br />
+                លេខឯកសារ៖ <strong class="text-primary">{{ selectedDoc?.general_inbound_number }}</strong><br />
                 កម្មវត្ថុ៖ {{ selectedDoc?.title }}
               </div>
 
@@ -1421,38 +1123,6 @@
                   ></textarea>
                 </div>
 
-                <!-- លក្ខខណ្ឌតម្រូវឱ្យឆ្លើយតប (Path A vs Path B) -->
-                <div class="card bg-light border-warning p-3 mb-3">
-                  <label class="form-label font-weight-bold mb-2">តម្រូវការលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                  <div class="custom-control custom-radio mb-2">
-                    <input
-                      type="radio"
-                      id="radioNoResponse"
-                      class="custom-control-input"
-                      :value="false"
-                      v-model="dgAnnotateForm.is_response_required"
-                    />
-                    <label class="custom-control-label" for="radioNoResponse">
-                      <strong>សម្រាប់ជ្រាប / មិនបាច់ឆ្លើយតប (Path A)</strong>
-                      <div class="small text-muted">អង្គភាព ឬមន្ត្រីទទួល ត្រឹមតែចុច «ទទួលជ្រាប» ដើម្បីបញ្ចប់</div>
-                    </label>
-                  </div>
-
-                  <div class="custom-control custom-radio">
-                    <input
-                      type="radio"
-                      id="radioRequireResponse"
-                      class="custom-control-input"
-                      :value="true"
-                      v-model="dgAnnotateForm.is_response_required"
-                    />
-                    <label class="custom-control-label text-danger" for="radioRequireResponse">
-                      <strong>តម្រូវឱ្យមានលិខិតឆ្លើយតប (Path B)</strong>
-                      <div class="small text-muted">មន្ត្រីទទួលបន្ទុកត្រូវរៀបចំសេចក្តីព្រាងលិខិតឆ្លើយតប និងឆ្លងតាមឋានានុក្រមជូនអគ្គនាយក</div>
-                    </label>
-                  </div>
-                </div>
-
                 <!-- កាលបរិច្ឆេទកំណត់ / Deadline -->
                 <div class="mb-3">
                   <label class="form-label font-weight-bold text-danger">
@@ -1466,19 +1136,19 @@
                   <small class="text-muted">កំណត់កាលបរិច្ឆេទដែលត្រូវចាត់ចែង ឬឆ្លើយតបឱ្យបានរួចរាល់ (បើមាន)</small>
                 </div>
 
-                <!-- ជ្រើសរើសភាគីពាក់ព័ន្ធដើម្បីចាត់ចែងភ្លាមៗ (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី, ក្រុមការងារ) -->
+                <!-- ជ្រើសរើសភាគីពាក់ព័ន្ធដើម្បីចាត់ចែង (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី, ក្រុមការងារ) -->
                 <div class="mb-3">
                   <div class="card border rounded-lg p-3 bg-light">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <label class="form-label font-weight-bold text-dark m-0">
-                        <i class="fas fa-sitemap text-danger mr-1"></i> ចំណារចាត់ចែងទៅកាន់ភាគីពាក់ព័ន្ធ (ជ្រើសរើសដើម្បីចាត់ចែងភ្លាមៗ)
+                        <i class="fas fa-sitemap text-danger mr-1"></i> ចំណារចាត់ចែងទៅកាន់ភាគីពាក់ព័ន្ធ (ជ្រើសរើសដើម្បីចាត់ចែង)
                       </label>
                       <span class="badge badge-dark">
                         សរុប {{ dgAnnotateForm.department_ids.length + dgAnnotateForm.office_ids.length + dgAnnotateForm.user_ids.length + (dgAnnotateForm.working_group_ids ? dgAnnotateForm.working_group_ids.length : 0) }} គោលដៅ
                       </span>
                     </div>
                     <small class="text-muted d-block mb-3">
-                      * ឯកឧត្តមអគ្គនាយកអាចជ្រើសរើសគោលដៅចាត់ចែងភ្លាមៗ ឬទុកឱ្យជំនួយការ Scan និងចែកចាយតាមក្រោយ។
+                      * ឯកឧត្តមអគ្គនាយកអាចជ្រើសរើសគោលដៅចាត់ចែងភ្លាមៗ (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី ឬក្រុមការងារ)។
                     </small>
 
                     <!-- Section 1: Departments -->
@@ -1499,6 +1169,7 @@
                             class="d-none"
                             :value="d.id"
                             v-model="dgAnnotateForm.department_ids"
+                            @change="syncDgTargetsToAnnotation"
                           />
                           <i class="fas" :class="dgAnnotateForm.department_ids.includes(d.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
                           {{ d.name_kh }}
@@ -1524,6 +1195,7 @@
                             class="d-none"
                             :value="o.id"
                             v-model="dgAnnotateForm.office_ids"
+                            @change="syncDgTargetsToAnnotation"
                           />
                           <i class="fas" :class="dgAnnotateForm.office_ids.includes(o.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
                           {{ o.name_kh }}
@@ -1557,6 +1229,7 @@
                             class="d-none"
                             :value="u.id"
                             v-model="dgAnnotateForm.user_ids"
+                            @change="syncDgTargetsToAnnotation"
                           />
                           <i class="fas" :class="dgAnnotateForm.user_ids.includes(u.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
                           {{ u.name_kh || u.name }} <small v-if="u.position?.title_kh">({{ u.position.title_kh }})</small>
@@ -1582,6 +1255,7 @@
                             class="d-none"
                             :value="wg.id"
                             v-model="dgAnnotateForm.working_group_ids"
+                            @change="syncDgTargetsToAnnotation"
                           />
                           <i class="fas" :class="dgAnnotateForm.working_group_ids.includes(wg.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
                           {{ wg.name_kh }}
@@ -1620,352 +1294,9 @@
       </div>
     </Teleport>
 
-    <!-- ==================== MODAL 4: ជំនួយការ SCAN ចំណារ និងចែកចាយ ==================== -->
-    <Teleport to="body">
-      <div class="custom-modal-backdrop" v-if="showAssistantDispatchModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
-          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
-            <div class="modal-header bg-warning text-dark py-3 px-4 flex-shrink-0 align-items-center">
-              <h5 class="modal-title font-khmer font-weight-bold mb-0">
-                <i class="fas fa-share-square mr-2"></i>Scan ចំណារអគ្គនាយក និងចែកចាយបន្ត
-              </h5>
-              <button type="button" class="close text-dark" @click="showAssistantDispatchModal = false">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
-              <div class="alert alert-info py-2 font-13 mb-3">
-                ឯកសារ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong> |
-                ចំណារ៖ <strong class="text-danger">{{ selectedDoc?.dg_annotation }}</strong> |
-                ប្រភេទ៖ <strong>{{ selectedDoc?.is_response_required ? 'តម្រូវឱ្យឆ្លើយតប' : 'សម្រាប់ជ្រាប' }}</strong>
-              </div>
 
-              <form @submit.prevent="submitAssistantDispatch">
-                <!-- Upload Scan ដែលមានចំណារ -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">
-                    <i class="fas fa-file-upload text-primary mr-1"></i>Scan ឯកសារដែលមានចំណារអគ្គនាយក
-                  </label>
-                  <div class="custom-file">
-                    <input
-                      type="file"
-                      class="custom-file-input"
-                      id="annotatedFileInput"
-                      @change="handleAnnotatedFileChange"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    <label class="custom-file-label" for="annotatedFileInput">
-                      {{ selectedAnnotatedFileName || 'ជ្រើសរើសឯកសារ Scan ចំណារ...' }}
-                    </label>
-                  </div>
-                </div>
 
-                <!-- ចាត់ចែងច្រើនគោលដៅ Multi-Target Dispatch (នាយកដ្ឋាន, ការិយាល័យ, មន្ត្រី) -->
-                <div class="mb-3">
-                  <div class="card border rounded-lg p-3 bg-light">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                      <label class="form-label font-weight-bold text-dark m-0">
-                        <i class="fas fa-sitemap text-primary mr-1"></i> ចាត់ចែងទៅកាន់ភាគីពាក់ព័ន្ធ (អាចជ្រើសរើសបានច្រើន) <span class="text-danger">*</span>
-                      </label>
-                      <span class="badge badge-dark">
-                        សរុប {{ dispatchForm.department_ids.length + dispatchForm.office_ids.length + dispatchForm.user_ids.length + (dispatchForm.working_group_ids ? dispatchForm.working_group_ids.length : 0) }} គោលដៅ
-                      </span>
-                    </div>
 
-                    <!-- Section 1: Departments -->
-                    <div class="mb-3 bg-white p-2 rounded border">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="font-13 text-primary"><i class="fas fa-building mr-1"></i> ១. នាយកដ្ឋានគោលដៅ៖</strong>
-                        <span class="badge badge-primary">{{ dispatchForm.department_ids.length }} បានជ្រើស</span>
-                      </div>
-                      <div class="d-flex flex-wrap gap-2" style="max-height: 120px; overflow-y: auto;">
-                        <label
-                          v-for="d in recipientOptions.departments"
-                          :key="d.id"
-                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
-                          :class="dispatchForm.department_ids.includes(d.id) ? 'btn-primary text-white' : 'btn-light text-dark'"
-                        >
-                          <input
-                            type="checkbox"
-                            class="d-none"
-                            :value="d.id"
-                            v-model="dispatchForm.department_ids"
-                          />
-                          <i class="fas" :class="dispatchForm.department_ids.includes(d.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
-                          {{ d.name_kh }}
-                        </label>
-                      </div>
-                    </div>
-
-                    <!-- Section 2: Offices -->
-                    <div class="mb-3 bg-white p-2 rounded border">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="font-13 text-info"><i class="fas fa-door-closed mr-1"></i> ២. ការិយាល័យគោលដៅ៖</strong>
-                        <span class="badge badge-info">{{ dispatchForm.office_ids.length }} បានជ្រើស</span>
-                      </div>
-                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
-                        <label
-                          v-for="o in recipientOptions.offices"
-                          :key="o.id"
-                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
-                          :class="dispatchForm.office_ids.includes(o.id) ? 'btn-info text-white' : 'btn-light text-dark'"
-                        >
-                          <input
-                            type="checkbox"
-                            class="d-none"
-                            :value="o.id"
-                            v-model="dispatchForm.office_ids"
-                          />
-                          <i class="fas" :class="dispatchForm.office_ids.includes(o.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
-                          {{ o.name_kh }}
-                        </label>
-                      </div>
-                    </div>
-
-                    <!-- Section 3: Specific Officers -->
-                    <div class="bg-white p-2 rounded border">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="font-13 text-success"><i class="fas fa-user-check mr-1"></i> ៣. មន្ត្រីទទួលបន្ទុកជាក់លាក់៖</strong>
-                        <span class="badge badge-success">{{ dispatchForm.user_ids.length }} បានជ្រើស</span>
-                      </div>
-                      <div class="input-group input-group-sm mb-2">
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="ស្វែងរកឈ្មោះមន្ត្រី..."
-                          v-model="officerDispatchSearch"
-                        />
-                      </div>
-                      <div class="d-flex flex-wrap gap-2" style="max-height: 140px; overflow-y: auto;">
-                        <label
-                          v-for="u in filteredOfficerOptions"
-                          :key="u.id"
-                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
-                          :class="dispatchForm.user_ids.includes(u.id) ? 'btn-success text-white' : 'btn-light text-dark'"
-                        >
-                          <input
-                            type="checkbox"
-                            class="d-none"
-                            :value="u.id"
-                            v-model="dispatchForm.user_ids"
-                          />
-                          <i class="fas" :class="dispatchForm.user_ids.includes(u.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
-                          {{ u.name_kh || u.name }} <small v-if="u.position?.title_kh">({{ u.position.title_kh }})</small>
-                        </label>
-                      </div>
-                    </div>
-
-                    <!-- Section 4: Working Groups -->
-                    <div class="mt-3 bg-white p-2 rounded border">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="font-13 text-indigo"><i class="fas fa-users-cog mr-1"></i> ៤. ក្រុមការងារ (Working Groups)៖</strong>
-                        <span class="badge badge-indigo text-white">{{ dispatchForm.working_group_ids ? dispatchForm.working_group_ids.length : 0 }} បានជ្រើស</span>
-                      </div>
-                      <div class="d-flex flex-wrap gap-2" style="max-height: 130px; overflow-y: auto;">
-                        <label
-                          v-for="wg in recipientOptions.working_groups"
-                          :key="wg.id"
-                          class="btn btn-xs mr-1 mb-1 font-khmer cursor-pointer border"
-                          :class="dispatchForm.working_group_ids && dispatchForm.working_group_ids.includes(wg.id) ? 'btn-indigo text-white' : 'btn-light text-dark'"
-                        >
-                          <input
-                            type="checkbox"
-                            class="d-none"
-                            :value="wg.id"
-                            v-model="dispatchForm.working_group_ids"
-                          />
-                          <i class="fas" :class="dispatchForm.working_group_ids && dispatchForm.working_group_ids.includes(wg.id) ? 'fa-check-circle mr-1' : 'fa-plus-circle text-muted mr-1'"></i>
-                          {{ wg.name_kh }}
-                          <span class="badge badge-light border ml-1 text-xs" v-if="wg.leader_name_kh && wg.leader_name_kh !== 'មិនទាន់កំណត់'">
-                            ប្រធាន៖ {{ wg.leader_name_kh }}
-                          </span>
-                        </label>
-                        <div v-if="!recipientOptions.working_groups || recipientOptions.working_groups.length === 0" class="text-muted text-xs p-1">
-                          មិនទាន់មានក្រុមការងារត្រូវបានកំណត់ឡើយ
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Dispatch Notes -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">សេចក្តីណែនាំ / កំណត់សម្គាល់បញ្ជូន</label>
-                  <textarea class="form-control" rows="2" placeholder="កំណត់សម្គាល់សម្រាប់អ្នកទទួល..." v-model="dispatchForm.dispatch_notes"></textarea>
-                </div>
-
-                <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                  <button type="button" class="btn btn-secondary" @click="showAssistantDispatchModal = false">បោះបង់</button>
-                  <button type="submit" class="btn btn-warning font-weight-bold" :disabled="submitting">
-                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                    <i class="fas fa-paper-plane mr-1"></i> ចែកចាយឯកសារ
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- ==================== MODAL 5: ដាក់ស្នើ ឬរក្សាទុកព្រាងលិខិតឆ្លើយតប (SUBMIT / DRAFT RESPONSE) ==================== -->
-    <Teleport to="body">
-      <div class="custom-modal-backdrop" v-if="showSubmitResponseModal">
-        <div class="modal-dialog modal-xl modal-dialog-centered my-auto" style="width: 100%; max-width: 1100px;">
-          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden d-flex flex-column" style="max-height: 92vh;">
-            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-file-signature text-warning mr-2 fa-lg"></i>
-                <div>
-                  <h5 class="modal-title font-khmer font-weight-bold mb-0">
-                    រៀបចំលិខិតឆ្លើយតប (របាយការណ៍ / កំណត់បង្ហាញ)
-                  </h5>
-                  <small class="text-white-50">សរសេរលើប្រព័ន្ធដូច File Word និងឆ្លងតាមឋានានុក្រមរហូតដល់ឯកឧត្តមអគ្គនាយក</small>
-                </div>
-              </div>
-              <button type="button" class="close text-white" @click="showSubmitResponseModal = false">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            
-            <div class="modal-body p-4 font-khmer flex-grow-1" style="overflow-y: auto; background-color: #f8f9fa;">
-              <!-- Original Document Reference Banner -->
-              <div class="alert alert-secondary py-2 px-3 font-13 mb-3 border">
-                <div class="d-flex flex-wrap align-items-center justify-content-between">
-                  <div>
-                    ឆ្លើយតបលើឯកសារលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number || selectedDoc?.general_inbound_number }}</strong>
-                    <span class="mx-2">•</span>
-                    កម្មវត្ថុដើម៖ <em>{{ selectedDoc?.title }}</em>
-                  </div>
-                  <div v-if="selectedDoc?.dg_annotation">
-                    ចំណារអគ្គនាយក៖ <span class="text-danger font-weight-bold">{{ selectedDoc?.dg_annotation }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Top Controls: Document Type & Subject -->
-              <div class="card border rounded-lg p-3 bg-white mb-3">
-                <div class="row">
-                  <!-- Response Type Selector -->
-                  <div class="col-md-4 mb-2">
-                    <label class="form-label font-weight-bold">ទម្រង់លិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                    <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
-                      <label class="btn btn-outline-primary btn-sm font-khmer" :class="{ active: responseForm.response_type === 'REPORT' }">
-                        <input type="radio" value="REPORT" v-model="responseForm.response_type" /> <i class="fas fa-file-alt mr-1"></i> របាយការណ៍
-                      </label>
-                      <label class="btn btn-outline-info btn-sm font-khmer" :class="{ active: responseForm.response_type === 'SUBMISSION_NOTE' }">
-                        <input type="radio" value="SUBMISSION_NOTE" v-model="responseForm.response_type" /> <i class="fas fa-file-signature mr-1"></i> កំណត់បង្ហាញ
-                      </label>
-                      <label class="btn btn-outline-secondary btn-sm font-khmer" :class="{ active: responseForm.response_type === 'LETTER' }">
-                        <input type="radio" value="LETTER" v-model="responseForm.response_type" /> លិខិតទូទៅ
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Title / Subject -->
-                  <div class="col-md-8 mb-2">
-                    <label class="form-label font-weight-bold">កម្មវត្ថុលិខិតឆ្លើយតប <span class="text-danger">*</span></label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      placeholder="ឧ. របាយការណ៍ស្តីពី..."
-                      v-model="responseForm.title"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Word-like Editor Component -->
-              <div class="mb-3">
-                <WordEditor
-                  v-model="responseForm.content"
-                  :doc-type="responseForm.response_type"
-                  :organization-name="userStore.user?.department?.name_kh || 'អគ្គនាយកដ្ឋាន...'"
-                  :department-name="userStore.user?.office?.name_kh || 'នាយកដ្ឋាន...'"
-                  :officer-name="userStore.user?.name_kh || userStore.user?.name"
-                  :officer-position="userStore.user?.position?.title_kh || 'មន្ត្រី'"
-                />
-              </div>
-
-              <!-- Hierarchy Approver Selection & Attachment -->
-              <div class="card border rounded-lg p-3 bg-white mb-2">
-                <div class="row">
-                  <!-- Next Approver -->
-                  <div class="col-md-6 mb-3 mb-md-0">
-                    <label class="form-label font-weight-bold">
-                      <i class="fas fa-user-check text-success mr-1"></i>ជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីឆ្លងបន្ត (Hierarchy Approver)
-                    </label>
-                    <select class="form-control font-weight-bold text-dark" v-model="responseForm.forwarded_to_id">
-                      <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ (ឬទុកនៅទទេបើគ្រាន់តែរក្សាទុកព្រាង) --</option>
-                      <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
-                        {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }} ({{ c.office?.name_kh || c.department?.name_kh || '' }})
-                      </option>
-                    </select>
-                    <small class="text-muted">ជ្រើសរើសដើម្បីដាក់ស្នើឆ្លងឡើងលើ ឬទុកទទេដើម្បីគ្រាន់តែ «រក្សាទុកព្រាង»</small>
-                  </div>
-
-                  <!-- Optional Scanned Attachment -->
-                  <div class="col-md-6">
-                    <label class="form-label font-weight-bold">
-                      <i class="fas fa-paperclip text-primary mr-1"></i>ភ្ជាប់ឯកសារ Scan បន្ថែម (បើមាន)
-                    </label>
-                    <div class="custom-file">
-                      <input
-                        type="file"
-                        class="custom-file-input"
-                        id="responseFileInput"
-                        @change="handleResponseFileChange"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      />
-                      <label class="custom-file-label" for="responseFileInput">
-                        {{ selectedResponseFileName || 'ជ្រើសរើសឯកសារភ្ជាប់បន្ថែម...' }}
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mt-2" v-if="responseForm.forwarded_to_id">
-                  <label class="form-label font-weight-bold small text-muted">កំណត់សម្គាល់ឆ្លង / មតិគោរពជូន</label>
-                  <input
-                    type="text"
-                    class="form-control form-control-sm"
-                    placeholder="សូមគោរពជូនឯកឧត្តម/លោក/លោកស្រី..."
-                    v-model="responseForm.comment"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="modal-footer bg-light py-2 px-4 justify-content-between">
-              <button type="button" class="btn btn-secondary px-3" @click="showSubmitResponseModal = false">
-                បិទផ្ទាំង
-              </button>
-              <div>
-                <button
-                  type="button"
-                  class="btn btn-outline-primary px-3 mr-2"
-                  @click="saveResponseDraftOnly"
-                  :disabled="submitting"
-                >
-                  <i class="fas fa-save mr-1"></i> រក្សាទុកព្រាង (Save Draft)
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-warning px-4 font-weight-bold text-dark"
-                  @click="submitResponseDraftAction"
-                  :disabled="submitting"
-                >
-                  <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                  <i class="fas fa-paper-plane mr-1"></i> ដាក់ស្នើឆ្លងតាមឋានានុក្រម
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
 
     <!-- ==================== MODAL 6: ថ្នាក់ដឹកនាំពិនិត្យ & ចារឆ្លងលិខិតឆ្លើយតប (REVIEW ACTION) ==================== -->
     <Teleport to="body">
@@ -1982,7 +1313,7 @@
             </div>
             <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
               <div class="alert alert-secondary py-2 font-13 mb-3">
-                ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.dg_inbound_number }}</strong><br />
+                ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.general_inbound_number }}</strong><br />
                 លិខិតឆ្លើយតប៖ <strong>{{ selectedResponse?.title }}</strong><br />
                 អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh }}</strong>
                 <div class="mt-2 d-flex flex-wrap" v-if="selectedResponse?.file_path">
@@ -2091,44 +1422,33 @@
                     <table class="table table-sm table-borderless mb-0">
                       <tbody>
                         <tr>
-                          <td class="text-muted" style="width: 170px;">លេខចូលទូទៅ៖</td>
+                          <td class="text-muted" style="width: 170px;">លេខឯកសារ៖</td>
                           <td><span class="badge badge-dark font-13">{{ selectedDoc.general_inbound_number || '---' }}</span></td>
                         </tr>
                         <tr>
-                          <td class="text-muted">លេខចូល អ.ន.៖</td>
-                          <td>
-                            <span v-if="selectedDoc.dg_inbound_number" class="badge badge-primary font-13">
-                              {{ selectedDoc.dg_inbound_number }}
-                            </span>
-                            <span v-else class="text-muted small">មិនទាន់ចុះ</span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td class="text-muted">កាលបរិច្ឆេទចូល៖</td>
+                          <td class="text-muted">កាលបរិច្ឆេទ៖</td>
                           <td><strong>{{ formatDateKh(selectedDoc.received_date) }}</strong> ម៉ោង {{ selectedDoc.received_time }}</td>
                         </tr>
                         <tr>
-                          <td class="text-muted">អ្នកយកមក៖</td>
+                          <td class="text-muted">អ្នកប្រគល់៖</td>
                           <td><strong>{{ selectedDoc.deliverer_name }}</strong> {{ selectedDoc.deliverer_phone ? `(${selectedDoc.deliverer_phone})` : '' }}</td>
                         </tr>
                         <tr>
-                          <td class="text-muted">មកពីអង្គភាព៖</td>
+                          <td class="text-muted">ប្រភព</td>
                           <td><strong class="text-dark font-14">{{ selectedDoc.sender_organization }}</strong></td>
                         </tr>
                         <tr>
                           <td class="text-muted">លេខលិខិតដើម៖</td>
-                          <td>{{ selectedDoc.external_reference_number || '---' }} {{ selectedDoc.external_document_date ? `(${formatDateKh(selectedDoc.external_document_date)})` : '' }}</td>
+                          <td>{{ selectedDoc.external_reference_number || '---' }}</td>
                         </tr>
                         <tr>
                           <td class="text-muted">កម្មវត្ថុ៖</td>
                           <td><span class="font-weight-bold text-primary font-14">{{ selectedDoc.title }}</span></td>
                         </tr>
                         <tr>
-                          <td class="text-muted">ប្រភេទ / បន្ទាន់ / សម្ងាត់៖</td>
+                          <td class="text-muted">កម្រិតបន្ទាន់៖</td>
                           <td>
-                            <span class="badge badge-light border mr-1">{{ selectedDoc.document_type_kh }}</span>
-                            <span class="badge badge-warning text-dark mr-1">{{ selectedDoc.urgency_kh }}</span>
-                            <span class="badge badge-dark">{{ selectedDoc.confidentiality_kh }}</span>
+                            <span class="badge badge-warning text-dark">{{ selectedDoc.urgency_kh }}</span>
                           </td>
                         </tr>
                         <tr v-if="selectedDoc.deadline">
@@ -2231,50 +1551,236 @@
 
               <!-- Right Column: Flow Movements & Response History -->
               <div class="col-lg-5 mb-3">
-                <div class="card border rounded-lg h-100">
-                  <div class="card-header bg-light py-2 font-weight-bold text-dark">
-                    <i class="fas fa-history text-secondary mr-1"></i> ប្រវត្តិនៃការចរាចរឯកសារ
+                <div class="card border rounded-lg h-100 shadow-sm d-flex flex-column">
+                  <!-- Tab Header: Inbound Movements & Response Flow -->
+                  <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center flex-shrink-0">
+                    <div class="d-flex align-items-center flex-wrap gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm mr-1 font-khmer font-weight-bold"
+                        :class="detailFlowTab === 'inbound' ? 'btn-primary shadow-xs' : 'btn-outline-secondary'"
+                        @click="detailFlowTab = 'inbound'"
+                      >
+                        <i class="fas fa-history mr-1"></i> លំហូរឯកសារចូល
+                        <span class="badge badge-light ml-1" v-if="selectedDoc.movements?.length">{{ selectedDoc.movements.length }}</span>
+                      </button>
+
+                      <button
+                        v-if="selectedDoc.responses && selectedDoc.responses.length > 0"
+                        type="button"
+                        class="btn btn-sm font-khmer font-weight-bold"
+                        :class="detailFlowTab === 'responses' ? 'btn-info text-white shadow-xs' : 'btn-outline-info'"
+                        @click="detailFlowTab = 'responses'"
+                      >
+                        <i class="fas fa-file-signature mr-1"></i> លំហូរឆ្លងរបាយការណ៍
+                        <span class="badge badge-light ml-1">{{ selectedDoc.responses.length }}</span>
+                      </button>
+                    </div>
+
+                    <span class="badge badge-warning text-dark font-11" v-if="selectedDoc.responses && selectedDoc.responses.length > 0 && detailFlowTab === 'inbound'">
+                      <i class="fas fa-reply mr-1"></i> មានរបាយការណ៍
+                    </span>
                   </div>
-                  <div class="card-body p-3 overflow-auto max-h-500 font-13">
-                    <!-- Timeline Item list -->
-                    <div class="timeline" v-if="selectedDoc.movements && selectedDoc.movements.length > 0">
-                      <div v-for="m in selectedDoc.movements" :key="m.id" class="mb-3 pl-3 border-left border-primary position-relative timeline-step">
-                        <div class="font-weight-bold text-dark">
-                          {{ m.action_kh }}
+
+                  <div class="card-body p-3 overflow-auto flex-grow-1 font-13" style="max-height: 540px;">
+                    <!-- TAB 1: Inbound Movements Flow with User Holding Duration -->
+                    <div v-if="detailFlowTab === 'inbound'">
+                      <div class="timeline" v-if="selectedDoc.movements && selectedDoc.movements.length > 0">
+                        <div
+                          v-for="(m, mIdx) in selectedDoc.movements"
+                          :key="m.id"
+                          class="mb-3 pl-3 border-left border-primary position-relative timeline-step"
+                        >
+                          <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap">
+                            <span class="font-weight-bold text-dark font-13">
+                              <i class="fas fa-check-circle text-primary mr-1"></i>
+                              {{ m.action_kh }}
+                            </span>
+                            <small class="text-muted"><i class="far fa-clock mr-1"></i>{{ formatDateTimeKh(m.created_at) }}</small>
+                          </div>
+
+                          <div class="small text-muted mb-1">
+                            <i class="far fa-user text-secondary mr-1"></i>
+                            <strong>{{ m.user?.name_kh || m.user?.name || 'ប្រព័ន្ធ' }}</strong>
+                            <span class="text-secondary ml-1" v-if="m.user?.position?.title_kh">({{ m.user.position.title_kh }})</span>
+                          </div>
+
+                          <!-- Holding duration badge: រយៈពេលដែលស្ថិតនៅក្នុងដៃ User -->
+                          <div class="my-1">
+                            <span
+                              class="badge font-11 py-1 px-2 shadow-2xs"
+                              :class="mIdx === selectedDoc.movements.length - 1 && selectedDoc.status !== 'COMPLETED' ? 'badge-warning text-dark' : 'badge-light border text-dark'"
+                            >
+                              <i class="fas fa-stopwatch mr-1" :class="mIdx === selectedDoc.movements.length - 1 && selectedDoc.status !== 'COMPLETED' ? 'text-danger' : 'text-primary'"></i>
+                              <strong>រយៈពេលកាន់កាប់៖</strong> {{ getMovementDuration(m, mIdx, selectedDoc.movements, selectedDoc) }}
+                            </span>
+                          </div>
+
+                          <div class="text-secondary font-12 mt-1 bg-light p-2 rounded border" v-if="m.comment">
+                            <em>«{{ m.comment }}»</em>
+                          </div>
                         </div>
-                        <div class="small text-muted mb-1">
-                          <i class="far fa-user mr-1"></i>{{ m.user?.name_kh || m.user?.name }} |
-                          <i class="far fa-clock mr-1"></i>{{ formatDateTimeKh(m.created_at) }}
-                        </div>
-                        <div class="text-secondary font-12" v-if="m.comment">
-                          {{ m.comment }}
+                      </div>
+                      <div v-else class="text-muted text-center py-4">
+                        <i class="fas fa-inbox fa-2x text-black-50 mb-2 d-block"></i>
+                        មិនទាន់មានប្រវត្តិផ្លាស់ប្តូរឡើយ
+                      </div>
+
+                      <!-- Bottom Shortcut if Response Exists -->
+                      <div class="mt-4 pt-3 border-top" v-if="selectedDoc.responses && selectedDoc.responses.length > 0">
+                        <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center mb-0">
+                          <div>
+                            <i class="fas fa-reply-all mr-1 text-primary"></i>
+                            <strong>ឯកសារនេះមានរបាយការណ៍ឆ្លើយតប ({{ selectedDoc.responses.length }})</strong>
+                          </div>
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-primary font-khmer shadow-sm"
+                            @click="detailFlowTab = 'responses'"
+                          >
+                            <i class="fas fa-stream mr-1"></i> មើលលំហូរឆ្លង &rarr;
+                          </button>
                         </div>
                       </div>
                     </div>
-                    <div v-else class="text-muted text-center py-4">
-                      មិនទាន់មានប្រវត្តិផ្លាស់ប្តូរឡើយ
-                    </div>
 
-                    <!-- Latest Response Info if any -->
-                    <div class="mt-4 pt-3 border-top" v-if="selectedDoc.responses && selectedDoc.responses.length > 0">
-                      <span class="font-weight-bold text-dark d-block mb-2">
-                        <i class="fas fa-reply-all text-warning mr-1"></i> សេចក្តីព្រាងលិខិតឆ្លើយតប៖
-                      </span>
-                      <div class="card bg-light p-2 font-12 mb-2" v-for="resp in selectedDoc.responses" :key="resp.id">
-                        <div class="font-weight-bold text-primary">{{ resp.title }}</div>
-                        <div class="text-muted">ស្ថានភាព៖ <span class="badge badge-info">{{ resp.status_kh }}</span> ({{ resp.stage_kh }})</div>
-                        <div class="text-muted">រៀបចំដោយ៖ {{ resp.drafted_by_user?.name_kh }} | {{ formatDateTimeKh(resp.created_at) }}</div>
-                        <div class="mt-2 d-flex flex-wrap" v-if="resp.file_path">
-                          <button
-                            type="button"
-                            class="btn btn-xs btn-outline-info mr-2 font-khmer"
-                            @click="previewResponseDoc(resp)"
+                    <!-- TAB 2: Hierarchical Response Workflow Flow (លំហូរឆ្លងរបាយការណ៍) -->
+                    <div v-else-if="detailFlowTab === 'responses'">
+                      <div v-if="!selectedDoc.responses || selectedDoc.responses.length === 0" class="text-center py-5 text-muted">
+                        <i class="fas fa-file-excel fa-2x text-black-50 mb-2 d-block"></i>
+                        មិនទាន់មានសេចក្តីព្រាងរបាយការណ៍ ឬលិខិតឆ្លើយតបនៅឡើយ
+                      </div>
+
+                      <div v-else v-for="resp in selectedDoc.responses" :key="resp.id" class="card border rounded-lg mb-3 shadow-xs">
+                        <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+                          <div>
+                            <span class="badge badge-primary mr-2">{{ resp.response_type_kh || 'របាយការណ៍' }}</span>
+                            <strong class="text-dark font-14">{{ resp.title }}</strong>
+                            <span class="badge badge-dark ml-2" v-if="resp.response_number">លេខ៖ {{ resp.response_number }}</span>
+                          </div>
+                          <div>
+                            <span
+                              class="badge"
+                              :class="resp.status === 'APPROVED_BY_DG' ? 'badge-success' : (resp.status === 'RETURNED' ? 'badge-danger' : 'badge-warning text-dark')"
+                            >
+                              {{ resp.status_kh }} ({{ resp.stage_kh }})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="card-body p-3 font-13">
+                          <div class="text-muted small mb-2 pb-2 border-bottom d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                              <i class="fas fa-user-edit mr-1 text-primary"></i> រៀបចំដោយ៖
+                              <strong class="text-dark">{{ resp.drafted_by_user?.name_kh || resp.drafted_by_user?.name }}</strong>
+                              <span class="text-secondary ml-1" v-if="resp.drafted_by_user?.position?.title_kh">({{ resp.drafted_by_user.position.title_kh }})</span>
+                              <span class="mx-2">•</span>
+                              <i class="far fa-calendar-alt mr-1"></i> {{ formatDateTimeKh(resp.created_at) }}
+                            </div>
+
+                            <div class="btn-group btn-group-sm mt-1 mt-sm-0">
+                              <button
+                                v-if="resp.content"
+                                type="button"
+                                class="btn btn-xs btn-outline-info font-khmer"
+                                @click="previewResponseHtml(resp)"
+                                title="មើលខ្លឹមសារពេញ"
+                              >
+                                <i class="fas fa-eye mr-1"></i> មើលខ្លឹមសារ
+                              </button>
+                              <button
+                                v-if="resp.file_path"
+                                type="button"
+                                class="btn btn-xs btn-outline-danger font-khmer"
+                                @click="previewResponseDoc(resp)"
+                                title="មើលឯកសារ PDF"
+                              >
+                                <i class="fas fa-file-pdf mr-1"></i> PDF
+                              </button>
+                              <a
+                                v-if="resp.file_path"
+                                :href="getResponseFileUrl(resp.id)"
+                                download
+                                class="btn btn-xs btn-outline-secondary font-khmer"
+                                title="ទាញយកឯកសារ"
+                              >
+                                <i class="fas fa-download mr-1"></i> ទាញយក
+                              </a>
+                            </div>
+                          </div>
+
+                          <!-- Active Custodian Banner if under review -->
+                          <div
+                            v-if="resp.status === 'UNDER_REVIEW' && resp.current_approver"
+                            class="alert alert-warning py-2 px-3 mb-3 font-12 d-flex justify-content-between align-items-center"
                           >
-                            <i class="fas fa-eye mr-1"></i> មើលព្រាង (PDF)
-                          </button>
-                          <a :href="getResponseFileUrl(resp.id)" download class="btn btn-xs btn-outline-secondary">
-                            <i class="fas fa-download mr-1"></i> ទាញយក
-                          </a>
+                            <span>
+                              <i class="fas fa-user-clock mr-1 text-warning"></i>
+                              កំពុងស្ថិតនៅដៃ៖ <strong>{{ resp.current_approver.name_kh || resp.current_approver.name }}</strong>
+                              <span class="text-secondary ml-1" v-if="resp.current_approver.position?.title_kh">({{ resp.current_approver.position.title_kh }})</span>
+                            </span>
+                            <span class="badge badge-warning text-dark font-11">
+                              <i class="fas fa-stopwatch mr-1"></i>
+                              {{ getApprovalDuration(resp.approvals?.[resp.approvals?.length - 1], (resp.approvals?.length || 1) - 1, resp.approvals || [], resp) }}
+                            </span>
+                          </div>
+
+                          <!-- Approval Ladder / Workflow timeline (លំហូរឆ្លង) -->
+                          <div>
+                            <strong class="d-block mb-2 text-dark font-12">
+                              <i class="fas fa-layer-group text-primary mr-1"></i>
+                              ប្រវត្តិឆ្លង និងអនុម័តតាមឋានានុក្រម (Review & Approval Flow)៖
+                            </strong>
+
+                            <div v-if="!resp.approvals || resp.approvals.length === 0" class="text-muted small py-2 pl-3">
+                              <em>មិនទាន់មានកំណត់ត្រាពិនិត្យឆ្លងនៅឡើយ</em>
+                            </div>
+
+                            <div class="timeline-approvals" v-else>
+                              <div
+                                v-for="(app, aIdx) in resp.approvals"
+                                :key="app.id"
+                                class="mb-2 pl-3 border-left position-relative timeline-step"
+                                :class="app.action === 'DG_APPROVE' ? 'border-success' : (app.action === 'RETURN' ? 'border-danger' : 'border-info')"
+                              >
+                                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap">
+                                  <div>
+                                    <span class="badge badge-info mr-1 font-11">{{ app.stage_kh }}</span>
+                                    <span
+                                      class="badge font-11 mr-1"
+                                      :class="app.action === 'DG_APPROVE' ? 'badge-success' : (app.action === 'RETURN' ? 'badge-danger' : (app.action === 'SUBMIT' ? 'badge-primary' : 'badge-dark'))"
+                                    >
+                                      {{ app.action_kh }}
+                                    </span>
+                                    <strong class="text-dark font-12">
+                                      {{ app.user?.name_kh || app.user?.name || 'ថ្នាក់ដឹកនាំ' }}
+                                    </strong>
+                                    <span class="text-secondary small ml-1" v-if="app.user?.position?.title_kh">
+                                      ({{ app.user.position.title_kh }})
+                                    </span>
+                                    <span v-if="app.forwarded_to" class="text-primary font-12 font-weight-bold ml-1">
+                                      &rarr; {{ app.forwarded_to.name_kh || app.forwarded_to.name }}
+                                      <small class="text-secondary" v-if="app.forwarded_to.position?.title_kh">({{ app.forwarded_to.position.title_kh }})</small>
+                                    </span>
+                                  </div>
+                                  <small class="text-muted"><i class="far fa-clock mr-1"></i>{{ formatDateTimeKh(app.created_at) }}</small>
+                                </div>
+
+                                <!-- Holding / Review Duration Badge -->
+                                <div class="my-1">
+                                  <span class="badge badge-light border text-dark font-11 py-1 px-2 shadow-2xs">
+                                    <i class="fas fa-stopwatch text-warning mr-1"></i>
+                                    <strong>រយៈពេលពិនិត្យ៖</strong> {{ getApprovalDuration(app, aIdx, resp.approvals, resp) }}
+                                  </span>
+                                </div>
+
+                                <!-- Comment / Directive -->
+                                <div class="mt-1 text-secondary font-12 bg-light p-2 rounded border" v-if="app.comment">
+                                  <em>«{{ app.comment }}»</em>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2312,13 +1818,14 @@
                 >
                   <i class="fas fa-trash-alt mr-1"></i> លុបឯកសារ
                 </button>
-                <button
-                  v-if="selectedDoc && canDraftResponse(selectedDoc)"
-                  class="btn btn-warning text-dark font-weight-bold mr-2"
-                  @click="showDetailModal = false; openSubmitResponseModal(selectedDoc)"
+                <router-link
+                  v-if="selectedDoc && canCreateReport(selectedDoc)"
+                  :to="{ name: 'outbound-documents', query: { link_inbound_id: selectedDoc.id } }"
+                  class="btn btn-primary font-weight-bold mr-2"
+                  @click="showDetailModal = false"
                 >
-                  <i class="fas fa-reply mr-1"></i> បង្កើតរបាយការណ៍ / លិខិតឆ្លើយតប
-                </button>
+                  <i class="fas fa-file-export mr-1"></i> បង្កើតរបាយការណ៍ / លិខិតឆ្លើយតប
+                </router-link>
                 <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
               </div>
             </div>
@@ -2352,12 +1859,8 @@
                 <div class="card bg-light border-0 rounded-lg p-3 mb-3">
                   <div class="row">
                     <div class="col-sm-6 mb-2">
-                      <span class="text-muted small d-block">លេខចូលទូទៅ</span>
+                      <span class="text-muted small d-block">លេខឯកសារ</span>
                       <span class="font-weight-bold text-dark font-15">{{ selectedDoc.general_inbound_number }}</span>
-                    </div>
-                    <div class="col-sm-6 mb-2" v-if="selectedDoc.dg_inbound_number">
-                      <span class="text-muted small d-block">លេខចូលជំនួយការអគ្គនាយក</span>
-                      <span class="font-weight-bold text-primary font-15">{{ selectedDoc.dg_inbound_number }}</span>
                     </div>
                     <div class="col-12 mb-2">
                       <span class="text-muted small d-block">កម្មវត្ថុ</span>
@@ -2633,7 +2136,7 @@
               </h5>
               <div class="d-flex align-items-center">
                 <a
-                  :href="pdfModalUrl"
+                  :href="pdfModalDownloadUrl || pdfModalUrl"
                   target="_blank"
                   class="btn btn-xs btn-outline-light mr-2 font-khmer"
                   title="បើកក្នុងផ្ទាំងថ្មី (New Tab)"
@@ -2641,7 +2144,7 @@
                   <i class="fas fa-external-link-alt mr-1"></i> បើកផ្ទាំងថ្មី
                 </a>
                 <a
-                  :href="pdfModalDownloadUrl"
+                  :href="pdfModalDownloadUrl || pdfModalUrl"
                   download
                   class="btn btn-xs btn-warning text-dark font-weight-bold mr-2 font-khmer"
                   title="ទាញយកឯកសារ"
@@ -2662,7 +2165,27 @@
                 <div class="spinner-border text-light mb-2" role="status"></div>
                 <span class="font-khmer font-14">កំពុងផ្ទុកឯកសារ PDF...</span>
               </div>
+              <div
+                v-else-if="pdfError"
+                class="position-absolute w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white p-4"
+                style="background: #343a40; z-index: 10; top: 0; left: 0;"
+              >
+                <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+                <h5 class="font-khmer font-weight-bold mb-2">មិនអាចបើកបង្ហាញឯកសារ PDF ក្នុងផ្ទាំងនេះបានទេ</h5>
+                <p class="font-khmer text-muted font-13 mb-3 text-center">
+                  ឯកសារអាចមានទំហំធំ ឬតម្រូវឱ្យទាញយកដោយផ្ទាល់។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីទាញយក ឬបើកមើលក្នុង Tab ថ្មី។
+                </p>
+                <div>
+                  <a :href="pdfModalDownloadUrl || pdfModalUrl" download class="btn btn-warning text-dark font-weight-bold font-khmer mr-2">
+                    <i class="fas fa-download mr-1"></i> ទាញយក PDF
+                  </a>
+                  <a :href="pdfModalDownloadUrl || pdfModalUrl" target="_blank" class="btn btn-outline-light font-khmer">
+                    <i class="fas fa-external-link-alt mr-1"></i> បើកមើលក្នុង Tab ថ្មី
+                  </a>
+                </div>
+              </div>
               <iframe
+                v-if="pdfModalUrl && !pdfError"
                 :src="pdfModalUrl"
                 class="w-100 h-100 border-0"
                 @load="isPdfLoading = false"
@@ -2859,6 +2382,26 @@
     </div>
   </Teleport>
 
+  <!-- Response Content Preview Modal -->
+  <Teleport to="body">
+    <div class="custom-modal-backdrop font-khmer" v-if="showResponseHtmlModal" @click.self="showResponseHtmlModal = false">
+      <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 850px;">
+        <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+          <div class="modal-header bg-primary text-white py-2 px-3 align-items-center">
+            <h6 class="modal-title font-weight-bold mb-0">
+              <i class="fas fa-file-alt mr-2 text-warning"></i>ខ្លឹមសារ៖ {{ responseHtmlTitle }}
+            </h6>
+            <button type="button" class="close text-white" @click="showResponseHtmlModal = false"><span>&times;</span></button>
+          </div>
+          <div class="modal-body p-4 bg-white font-khmer" style="max-height: 75vh; overflow-y: auto;" v-html="responseHtmlContent"></div>
+          <div class="modal-footer py-2 px-3 bg-light justify-content-end">
+            <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" @click="showResponseHtmlModal = false">បិទ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- Modal 9: Visual Tracking Flow Modal -->
   <DocumentTrackingFlowModal
     v-model:show="showTrackingModal"
@@ -2873,9 +2416,11 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 import { useUserStore } from '@/stores/user';
 import WordEditor from '@/components/common/WordEditor.vue';
 import DocumentTrackingFlowModal from '@/components/common/DocumentTrackingFlowModal.vue';
+import { getMovementDuration, getApprovalDuration } from '@/utils/durationHelper';
 import {
   apiGetInboundDocuments,
   apiGetInboundDocumentStats,
@@ -2892,6 +2437,8 @@ import {
   apiGetNextResponseApprovers,
   apiSubmitResponseDraft,
   apiProcessResponseAction,
+  apiMarkAssistantReviewed,
+  apiRecallInboundDocument,
   apiUpdateInboundDocument,
   apiDeleteInboundDocument,
   apiUpdateTelegramSettings,
@@ -2928,6 +2475,16 @@ const isRegularOfficer = computed(() => {
 const loading = ref(false);
 const submitting = ref(false);
 const activeTab = ref('all');
+const detailFlowTab = ref('inbound');
+const showResponseHtmlModal = ref(false);
+const responseHtmlContent = ref('');
+const responseHtmlTitle = ref('');
+
+const previewResponseHtml = (resp) => {
+  responseHtmlTitle.value = resp.title || 'ខ្លឹមសារលិខិត';
+  responseHtmlContent.value = resp.content || '<p class="text-muted text-center py-4">មិនមានខ្លឹមសារអត្ថបទ</p>';
+  showResponseHtmlModal.value = true;
+};
 
 const documents = ref({
   data: [],
@@ -3005,7 +2562,18 @@ const editForm = reactive({
 });
 const showAssistantReceiveModal = ref(false);
 const showDgAnnotateModal = ref(false);
-const showAssistantDispatchModal = ref(false);
+const selectedDgAnnotatedFile = ref(null);
+const selectedDgAnnotatedFileName = ref('');
+const handleDgAnnotatedFileChange = (e) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    selectedDgAnnotatedFile.value = file;
+    selectedDgAnnotatedFileName.value = file.name;
+  } else {
+    selectedDgAnnotatedFile.value = null;
+    selectedDgAnnotatedFileName.value = '';
+  }
+};
 const showForwardModal = ref(false);
 const forwarding = ref(false);
 const showSubmitResponseModal = ref(false);
@@ -3025,17 +2593,38 @@ const pdfModalTitle = ref('');
 const pdfModalUrl = ref('');
 const pdfModalDownloadUrl = ref('');
 const isPdfLoading = ref(true);
+const pdfError = ref(false);
 
-const openPdfPreview = (title, viewUrl, downloadUrl) => {
+const openPdfPreview = async (title, viewUrl, downloadUrl) => {
   pdfModalTitle.value = title || 'មើលឯកសារ PDF';
-  pdfModalUrl.value = viewUrl;
   pdfModalDownloadUrl.value = downloadUrl || viewUrl;
   isPdfLoading.value = true;
+  pdfError.value = false;
   showPdfModal.value = true;
+
+  if (pdfModalUrl.value && pdfModalUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(pdfModalUrl.value);
+  }
+  pdfModalUrl.value = '';
+
+  try {
+    const res = await axios.get(viewUrl, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    pdfModalUrl.value = URL.createObjectURL(blob);
+  } catch (err) {
+    console.error('PDF fetch failed:', err);
+    pdfError.value = true;
+    pdfModalUrl.value = viewUrl;
+  } finally {
+    isPdfLoading.value = false;
+  }
 };
 
 const closePdfModal = () => {
   showPdfModal.value = false;
+  if (pdfModalUrl.value && pdfModalUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(pdfModalUrl.value);
+  }
   pdfModalUrl.value = '';
 };
 
@@ -3469,10 +3058,8 @@ const forwardTargetTypeOptions = computed(() => {
   const isWgLeader = isUserLeaderOfAssignedWorkingGroup(selectedDoc.value);
 
   const opts = [];
-  if (isDeptDirector) {
+  if (isDeptLeader) {
     opts.push({ value: 'OFFICE', label: 'ការិយាល័យក្រោមឱវាទ', icon: 'fas fa-door-closed text-info' });
-    opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងនាយកដ្ឋាន', icon: 'fas fa-user-circle text-primary' });
-  } else if (isDeptLeader) {
     opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងនាយកដ្ឋាន', icon: 'fas fa-user-circle text-primary' });
   } else if (isOfficeLeader) {
     opts.push({ value: 'OFFICER', label: 'មន្ត្រីក្រោមឱវាទក្នុងការិយាល័យ', icon: 'fas fa-user-circle text-primary' });
@@ -3493,19 +3080,21 @@ const availableForwardOffices = computed(() => {
   const isSuper = isAdmin.value || (userStore.position && Number(userStore.position.level) <= 2) || canAssist.value;
   if (isSuper) return offices;
 
+  const userLevel = userStore.position ? Number(userStore.position.level) : 999;
+  const isDeptLeader = userLevel <= 5;
+
   if (myWfConfig.value) {
     if (myWfConfig.value.send_type === 'ALL') return offices;
     if (myWfConfig.value.send_type === 'CUSTOM') {
       const allowed = (myWfConfig.value.send_office_ids || []).map(Number);
       return offices.filter(o => allowed.includes(Number(o.id)));
     }
-    if (myWfConfig.value.send_type === 'DEPARTMENT' && userStore.department_id) {
+    if ((myWfConfig.value.send_type === 'DEPARTMENT' || (myWfConfig.value.send_type === 'SUBORDINATES' && isDeptLeader)) && userStore.department_id) {
       return offices.filter(o => Number(o.department_id) === Number(userStore.department_id));
     }
-    return [];
   }
 
-  if (userStore.department_id) {
+  if (isDeptLeader && userStore.department_id) {
     return offices.filter(o => Number(o.department_id) === Number(userStore.department_id));
   }
   return [];
@@ -3636,23 +3225,45 @@ const canAcknowledge = (doc) => {
   return false;
 };
 
-const canDraftResponse = (doc) => {
+const canCreateReport = (doc) => {
   if (!doc) return false;
+  // If not yet dispatched or already completed/cancelled, cannot create report
   if (!['DISPATCHED', 'IN_RESPONSE_PROGRESS'].includes(doc.status)) return false;
 
-  const latest = doc.latest_response;
-  if (latest) {
-    if (['DRAFT', 'RETURNED'].includes(latest.status) && (latest.drafted_by === userStore.id || isAdmin.value)) {
-      return true;
-    }
-    return false;
+  if (isAdmin.value) return true;
+  if (isDg.value) return false; // DG does not draft/create reports; DG is the approver
+
+  const userId = Number(userStore.id);
+  const userDeptId = userStore.department_id ? Number(userStore.department_id) : null;
+  const userOfficeId = userStore.office_id ? Number(userStore.office_id) : null;
+
+  // 1. Direct assignment to this user
+  const docUserId = Number(doc.target_user_id || doc.target_user?.id);
+  if (docUserId === userId || doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId)) {
+    return true;
   }
 
-  // គ្រប់គ្នាដែលស្ថិតនៅក្រោមអគ្គនាយក សុទ្ធតែមានសិទ្ធិបង្កើតរបាយការណ៍ (Everyone below DG has the right to create report)
-  if (isAdmin.value) return true;
-  if (isDg.value) return false; // DG is the final approver, not the drafter
-  return true;
+  // 2. Direct assignment to this user's office
+  const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
+  if (userOfficeId && (docOfficeId === userOfficeId || doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId))) {
+    return true;
+  }
+
+  // 3. Direct assignment to this user's department
+  const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
+  if (userDeptId && (docDeptId === userDeptId || doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId))) {
+    return true;
+  }
+
+  // 4. Assigned working group
+  if (isUserAssignedViaWorkingGroup(doc) || isUserLeaderOfAssignedWorkingGroup(doc)) {
+    return true;
+  }
+
+  return false;
 };
+
+const canDraftResponse = (doc) => canCreateReport(doc);
 
 const canReviewResponse = (doc) => {
   const latest = doc.latest_response;
@@ -3660,25 +3271,83 @@ const canReviewResponse = (doc) => {
   return isAdmin.value || latest.current_approver_id === userStore.id;
 };
 
+const canRecallInbound = (doc) => {
+  if (!doc || doc.status === 'COMPLETED' || doc.status === 'CANCELLED') return false;
+  const userId = Number(userStore.id);
+  if (isDg.value && doc.dispatched_by === userId) return true;
+  return doc.assignments?.some(a => Number(a.assigned_by || a.assigned_by_user_id) === userId && a.status === 'PENDING');
+};
+
+const markAssistantReviewedAction = async (doc) => {
+  const result = await Swal.fire({
+    title: 'បានពិនិត្យរួចរាល់?',
+    text: `តើលោកអ្នកបានពិនិត្យឯកសារលេខ ${doc.general_inbound_number || doc.id} រួចរាល់ហើយមែនទេ?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'យល់ព្រម',
+    cancelButtonText: 'បោះបង់',
+  });
+  if (result.isConfirmed) {
+    try {
+      await apiMarkAssistantReviewed(doc.id);
+      Swal.fire('ជោគជ័យ', 'បានកត់ត្រាការពិនិត្យរួចរាល់!', 'success');
+      loadDocuments();
+      loadStats();
+    } catch (err) {
+      Swal.fire('បរាជ័យ', err.response?.data?.message || 'មានបញ្ហា!', 'error');
+    }
+  }
+};
+
+const recallInboundAction = async (doc) => {
+  const result = await Swal.fire({
+    title: 'ទាញយកមកវិញ (Recall)?',
+    text: `តើលោកអ្នកចង់ទាញយកការចាត់ចែងលើឯកសារលេខ ${doc.general_inbound_number || doc.id} មកវិញមែនទេ?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'យល់ព្រមទាញយក',
+    cancelButtonText: 'បោះបង់',
+    confirmButtonColor: '#d33',
+  });
+  if (result.isConfirmed) {
+    try {
+      await apiRecallInboundDocument(doc.id);
+      Swal.fire('ជោគជ័យ', 'បានទាញយកមកវិញដោយជោគជ័យ!', 'success');
+      loadDocuments();
+      loadStats();
+    } catch (err) {
+      Swal.fire('បរាជ័យ', err.response?.data?.message || 'មិនអាចទាញយកមកវិញបានទេ!', 'error');
+    }
+  }
+};
+
 const canForward = (doc) => {
   if (!doc) return false;
-  if (['COMPLETED', 'CANCELLED', 'RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(doc.status)) return false;
-  if (isAdmin.value) return true;
-  // DG, Deputy DG, Assistant
-  if (userStore.position && Number(userStore.position.level) <= 2) return true;
-  if (canAssist.value) return true;
+  if (['COMPLETED', 'CANCELLED'].includes(doc.status)) return false;
 
-  const userLevel = userStore.position ? Number(userStore.position.level) : 999;
-  const userDeptId = userStore.department_id ? Number(userStore.department_id) : null;
-  const userOfficeId = userStore.office_id ? Number(userStore.office_id) : null;
+  // DG dispatches via DG Annotation modal, so DG does not use cascading forward button
+  if (isDg.value) return false;
+
+  const isSuper = isAdmin.value;
+  if (isSuper) {
+    return true;
+  }
+
+  // Non-super cannot forward before document is dispatched
+  if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'].includes(doc.status)) return false;
+
+  const userPos = userStore.position;
+  const userLevel = (userPos && userPos.level != null) ? Number(userPos.level) : (userStore.level ? Number(userStore.level) : 999);
+  const userDeptId = (userStore.department_id || userStore.department?.id) ? Number(userStore.department_id || userStore.department?.id) : null;
+  const userOfficeId = (userStore.office_id || userStore.office?.id) ? Number(userStore.office_id || userStore.office?.id) : null;
   const userId = Number(userStore.id);
 
   const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
   const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
   const docUserId = Number(doc.target_user_id || doc.target_user?.id);
 
-  // 1. Department Director / Acting (Level <= 4): can forward if doc is in their department
-  if (userLevel <= 4 && userDeptId) {
+  // 1. Department Leadership (Level <= 5): can forward if doc is in their department
+  if (userLevel <= 5 && userDeptId) {
     if (docDeptId === userDeptId) return true;
     if (doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId)) return true;
   }
@@ -3689,7 +3358,7 @@ const canForward = (doc) => {
     if (doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId)) return true;
   }
 
-  // 3. User specifically assigned / forwarded this document (Deputy Director Level 5, or assigned officer with subordinates)
+  // 3. User specifically assigned / forwarded this document
   if (docUserId === userId) return true;
   if (doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId)) return true;
 
@@ -3747,7 +3416,7 @@ const getCurrentCustodian = (doc) => {
         label: 'តុជំនួយការអគ្គនាយក',
         badgeClass: 'badge-indigo text-white',
         icon: 'fas fa-user-shield',
-        subText: 'រង់ចាំចុះលេខ អ.ន. & ដាក់ជូន ឯ.ឧ.'
+        subText: 'រង់ចាំជំនួយការពិនិត្យ & ឯ.ឧ. ចាត់ចែង'
       };
 
     case 'SUBMITTED_TO_DG':
@@ -3768,34 +3437,26 @@ const getCurrentCustodian = (doc) => {
 
     case 'DISPATCHED':
       if (doc.assignments && doc.assignments.length > 0) {
-        const primary = doc.assignments[0];
-        if (primary.target_type === 'USER' && primary.user) {
+        const names = doc.assignments.map(a => {
+          if (a.target_type === 'USER') {
+            return a.user?.name_kh || a.user?.name || a.target_label_kh;
+          } else if (a.target_type === 'WORKING_GROUP') {
+            return (a.working_group || a.workingGroup)?.name_kh || a.target_label_kh;
+          } else if (a.target_type === 'OFFICE') {
+            return (a.office)?.name_kh || a.target_label_kh;
+          } else if (a.target_type === 'DEPARTMENT') {
+            return (a.department)?.name_kh || a.target_label_kh;
+          }
+          return a.target_label_kh || null;
+        }).filter(Boolean);
+
+        if (names.length > 0) {
+          const uniqueNames = [...new Set(names)];
           return {
-            label: primary.user.name_kh || primary.user.name,
+            label: uniqueNames.join('、 '),
             badgeClass: 'badge-primary',
-            icon: 'fas fa-user',
-            subText: primary.office?.name_kh || primary.department?.name_kh || 'មន្ត្រីទទួលបន្ទុក'
-          };
-        } else if (primary.target_type === 'WORKING_GROUP' && primary.working_group) {
-          return {
-            label: primary.working_group.name_kh,
-            badgeClass: 'badge-teal text-white',
-            icon: 'fas fa-users-cog',
-            subText: 'ក្រុមការងារចាត់តាំង'
-          };
-        } else if (primary.target_type === 'OFFICE' && primary.office) {
-          return {
-            label: primary.office.name_kh,
-            badgeClass: 'badge-primary',
-            icon: 'fas fa-door-closed',
-            subText: primary.department?.name_kh || 'ការិយាល័យទទួលបន្ទុក'
-          };
-        } else if (primary.target_type === 'DEPARTMENT' && primary.department) {
-          return {
-            label: primary.department.name_kh,
-            badgeClass: 'badge-primary',
-            icon: 'fas fa-building',
-            subText: 'នាយកដ្ឋានទទួលបន្ទុក'
+            icon: 'fas fa-users',
+            subText: 'ភាគីទទួលបន្ទុកចាត់ចែង'
           };
         }
       }
@@ -3873,42 +3534,10 @@ const getSimplifiedStatus = (doc) => {
   if (!doc) return { label: 'Pending', khLabel: 'ចូលដំបូង / រង់ចាំ', key: 'PENDING', badgeClass: 'badge-warning text-dark font-weight-bold', icon: 'fas fa-clock', subText: '' };
 
   const status = doc.status;
-  if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(status)) {
-    let sub = 'ចូលមកដំបូង';
-    if (status === 'RECEPTION_DRAFT') sub = 'នៅតុចុះបញ្ជីទទួល';
-    else if (status === 'SUBMITTED_TO_ASSISTANT') sub = 'នៅតុជំនួយការ';
-    else if (status === 'SUBMITTED_TO_DG') sub = 'នៅតុអគ្គនាយក';
-
-    return {
-      label: 'Pending',
-      khLabel: 'ករណីចូលមកដំបូង',
-      key: 'PENDING',
-      badgeClass: 'badge-warning text-dark font-weight-bold',
-      icon: 'fas fa-clock',
-      subText: sub
-    };
-  }
-
-  if (['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'].includes(status)) {
-    let sub = 'កំពុងដំណើរការ';
-    if (status === 'DG_ANNOTATED') sub = 'អគ្គនាយកចាររួច (រង់ចាំចែកចាយ)';
-    else if (status === 'DISPATCHED') sub = 'បានបញ្ជូនចេញ / ចាត់ចែង';
-    else if (status === 'IN_RESPONSE_PROGRESS') sub = 'កំពុងរៀបចំឆ្លើយតប/ឆ្លង';
-
-    return {
-      label: 'Doing',
-      khLabel: 'បានបញ្ជូនចេញ ឬកំពុងធ្វើ',
-      key: 'DOING',
-      badgeClass: 'badge-primary font-weight-bold',
-      icon: 'fas fa-tasks',
-      subText: sub
-    };
-  }
-
   if (status === 'COMPLETED') {
     return {
       label: 'Complete',
-      khLabel: 'ករណីអគ្គនាយកឯកភាព',
+      khLabel: 'បានបញ្ចប់សព្វគ្រប់',
       key: 'COMPLETE',
       badgeClass: 'badge-success font-weight-bold',
       icon: 'fas fa-check-circle',
@@ -3916,13 +3545,117 @@ const getSimplifiedStatus = (doc) => {
     };
   }
 
+  // ១. ករណីអ្នកមើលជាអគ្គនាយក (DG)
+  if (isDg.value) {
+    if (status === 'SUBMITTED_TO_DG') {
+      return {
+        label: 'Pending',
+        khLabel: 'រង់ចាំចំណារអគ្គនាយក',
+        key: 'PENDING',
+        badgeClass: 'badge-warning text-dark font-weight-bold',
+        icon: 'fas fa-pen-nib',
+        subText: 'នៅតុឯកឧត្តមអគ្គនាយក'
+      };
+    }
+    return {
+      label: 'Doing',
+      khLabel: 'បានចាត់ចែង / កំពុងដំណើរការ',
+      key: 'DOING',
+      badgeClass: 'badge-primary font-weight-bold',
+      icon: 'fas fa-tasks',
+      subText: doc.dispatched_at ? 'បានចាត់ចែងរួច' : 'កំពុងដំណើរការ'
+    };
+  }
+
+  // ២. ករណីអ្នកមើលជាជំនួយការអគ្គនាយក
+  if (canAssist.value && !isAdmin.value) {
+    if (!doc.assistant_reviewed_at && !doc.dispatched_at) {
+      return {
+        label: 'Pending',
+        khLabel: 'រង់ចាំពិនិត្យ',
+        key: 'PENDING',
+        badgeClass: 'badge-warning text-dark font-weight-bold',
+        icon: 'fas fa-clock',
+        subText: 'ជំនួយការមិនទាន់បានពិនិត្យ'
+      };
+    }
+    return {
+      label: 'Doing',
+      khLabel: 'បានពិនិត្យ / កំពុងតាមដាន',
+      key: 'DOING',
+      badgeClass: 'badge-primary font-weight-bold',
+      icon: 'fas fa-tasks',
+      subText: 'បានពិនិត្យរួចរាល់'
+    };
+  }
+
+  // ៣. ករណីអ្នកទទួលឯកសារ (Receptionist)
+  if (canRegister.value && !isAdmin.value) {
+    if (status === 'RECEPTION_DRAFT') {
+      return {
+        label: 'Pending',
+        khLabel: 'រង់ចាំបញ្ជូន',
+        key: 'PENDING',
+        badgeClass: 'badge-warning text-dark font-weight-bold',
+        icon: 'fas fa-clock',
+        subText: 'នៅតុចុះបញ្ជីទទួល'
+      };
+    }
+    return {
+      label: 'Doing',
+      khLabel: 'បានបញ្ជូនបន្ត',
+      key: 'DOING',
+      badgeClass: 'badge-primary font-weight-bold',
+      icon: 'fas fa-tasks',
+      subText: 'បានបញ្ជូនទៅថ្នាក់ដឹកនាំ'
+    };
+  }
+
+  // ៤. ករណី Admin
+  if (isAdmin.value) {
+    if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(status)) {
+      return {
+        label: 'Pending',
+        khLabel: 'ករណីចូលមកដំបូង',
+        key: 'PENDING',
+        badgeClass: 'badge-warning text-dark font-weight-bold',
+        icon: 'fas fa-clock',
+        subText: status === 'RECEPTION_DRAFT' ? 'នៅតុចុះបញ្ជី' : 'នៅតុថ្នាក់ដឹកនាំ'
+      };
+    }
+    return {
+      label: 'Doing',
+      khLabel: 'កំពុងដំណើរការ',
+      key: 'DOING',
+      badgeClass: 'badge-primary font-weight-bold',
+      icon: 'fas fa-tasks',
+      subText: status === 'IN_RESPONSE_PROGRESS' ? 'កំពុងរៀបចំឆ្លើយតប' : 'បានចាត់ចែង'
+    };
+  }
+
+  // ៥. សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី (Department Director, Office Chief, Officer)
+  const userId = Number(userStore.id);
+  const hasUserForwarded = doc.assignments?.some(a => Number(a.assigned_by || a.assigned_by_user_id) === userId);
+  const hasUserDrafted = doc.responses?.some(r => Number(r.drafted_by) === userId);
+
+  if (!hasUserForwarded && !hasUserDrafted) {
+    return {
+      label: 'Pending',
+      khLabel: 'រង់ចាំចំណាត់ការ',
+      key: 'PENDING',
+      badgeClass: 'badge-warning text-dark font-weight-bold',
+      icon: 'fas fa-clock',
+      subText: 'រង់ចាំលោកអ្នកចាត់ចែងបន្ត'
+    };
+  }
+
   return {
-    label: doc.status || 'Pending',
-    khLabel: doc.status_kh || 'ចូលដំបូង',
-    key: 'PENDING',
-    badgeClass: 'badge-secondary',
-    icon: 'fas fa-info-circle',
-    subText: ''
+    label: 'Doing',
+    khLabel: 'បានចាត់ចែងបន្ត ឬកំពុងធ្វើ',
+    key: 'DOING',
+    badgeClass: 'badge-primary font-weight-bold',
+    icon: 'fas fa-tasks',
+    subText: hasUserDrafted ? 'បានរៀបចំសេចក្តីព្រាងឆ្លើយតប' : 'បានចាត់ចែងបន្តរួចរាល់'
   };
 };
 
@@ -3971,7 +3704,9 @@ const loadRecipientsOptions = async () => {
 
 const syncTabFromRoute = () => {
   const t = route.query.tab;
-  if (t && ['all', 'pending', 'doing', 'completed', 'my_unit', 'reception', 'assistant_inbox', 'dg_inbox', 'my_todo', 'my_done', 'assigned_to_me', 'response_workflow'].includes(t)) {
+  if (['reception', 'assistant_inbox', 'dg_inbox'].includes(t)) {
+    activeTab.value = 'pending';
+  } else if (t && ['all', 'pending', 'doing', 'completed', 'my_unit'].includes(t)) {
     activeTab.value = t;
   } else {
     activeTab.value = 'all';
@@ -4321,8 +4056,37 @@ const submitAssistantReceive = async () => {
   }
 };
 
+const syncDgTargetsToAnnotation = () => {
+  const names = [];
+  (dgAnnotateForm.department_ids || []).forEach(id => {
+    const d = (recipientOptions.departments || []).find(item => item.id === id);
+    if (d) names.push(d.name_kh || d.name);
+  });
+  (dgAnnotateForm.office_ids || []).forEach(id => {
+    const o = (recipientOptions.offices || []).find(item => item.id === id);
+    if (o) names.push(o.name_kh || o.name);
+  });
+  (dgAnnotateForm.user_ids || []).forEach(id => {
+    const u = (recipientOptions.officers || []).find(item => item.id === id);
+    if (u) names.push(u.name_kh || u.name);
+  });
+  (dgAnnotateForm.working_group_ids || []).forEach(id => {
+    const wg = (recipientOptions.working_groups || []).find(item => item.id === id);
+    if (wg) names.push(wg.name_kh || wg.name);
+  });
+
+  if (names.length > 0) {
+    const uniqueNames = [...new Set(names)];
+    dgAnnotateForm.dg_annotation = `ជូន ${uniqueNames.join('、 ')} ចាត់ចែង`;
+  } else {
+    dgAnnotateForm.dg_annotation = '';
+  }
+};
+
 const openDgAnnotateModal = (doc) => {
   selectedDoc.value = doc;
+  selectedDgAnnotatedFile.value = null;
+  selectedDgAnnotatedFileName.value = '';
   dgAnnotateForm.dg_annotation = doc.dg_annotation || '';
   dgAnnotateForm.is_response_required = !!doc.is_response_required;
   dgAnnotateForm.deadline = doc.deadline ? String(doc.deadline).substring(0, 10) : '';
@@ -4336,13 +4100,32 @@ const openDgAnnotateModal = (doc) => {
 };
 
 const submitDgAnnotate = async () => {
+  if (!dgAnnotateForm.dg_annotation?.trim()) {
+    Swal.fire({ icon: 'warning', title: 'សូមបំពេញ', text: 'សូមបញ្ចូលខ្លឹមសារចំណាររបស់ឯកឧត្តមអគ្គនាយក!' });
+    return;
+  }
   submitting.value = true;
   try {
-    const res = await apiDgAnnotate(selectedDoc.value.id, dgAnnotateForm);
+    const formData = new FormData();
+    formData.append('dg_annotation', dgAnnotateForm.dg_annotation);
+    formData.append('is_response_required', dgAnnotateForm.is_response_required ? '1' : '0');
+    if (dgAnnotateForm.deadline) formData.append('deadline', dgAnnotateForm.deadline);
+    if (dgAnnotateForm.dispatch_notes) formData.append('dispatch_notes', dgAnnotateForm.dispatch_notes);
+
+    dgAnnotateForm.department_ids.forEach(id => formData.append('department_ids[]', id));
+    dgAnnotateForm.office_ids.forEach(id => formData.append('office_ids[]', id));
+    dgAnnotateForm.user_ids.forEach(id => formData.append('user_ids[]', id));
+    dgAnnotateForm.working_group_ids.forEach(id => formData.append('working_group_ids[]', id));
+
+    if (selectedDgAnnotatedFile.value) {
+      formData.append('annotated_file', selectedDgAnnotatedFile.value);
+    }
+
+    const res = await apiDgAnnotate(selectedDoc.value.id, formData);
     Swal.fire({
       icon: 'success',
       title: 'ជោគជ័យ!',
-      text: res.data?.message || 'បានកត់ត្រាចំណារឯកឧត្តមអគ្គនាយករួចរាល់!',
+      text: res.data?.message || 'បានកត់ត្រាចំណារ និងចាត់ចែងរួចរាល់!',
       confirmButtonText: 'យល់ព្រម',
     });
     showDgAnnotateModal.value = false;
@@ -4350,60 +4133,6 @@ const submitDgAnnotate = async () => {
     loadStats();
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចកត់ត្រាចំណារបានឡើយ!' });
-  } finally {
-    submitting.value = false;
-  }
-};
-
-const openAssistantDispatchModal = (doc) => {
-  selectedDoc.value = doc;
-  selectedAnnotatedFile.value = null;
-  selectedAnnotatedFileName.value = '';
-  dispatchForm.target_type = 'MULTIPLE';
-  dispatchForm.target_department_id = '';
-  dispatchForm.target_office_id = '';
-  dispatchForm.target_user_id = '';
-  dispatchForm.department_ids = doc.target_department_id ? [doc.target_department_id] : [];
-  dispatchForm.office_ids = doc.target_office_id ? [doc.target_office_id] : [];
-  dispatchForm.user_ids = doc.target_user_id ? [doc.target_user_id] : [];
-  dispatchForm.working_group_ids = (doc.assignments || [])
-    .filter(a => a.target_type === 'WORKING_GROUP' && a.working_group_id)
-    .map(a => a.working_group_id);
-  dispatchForm.dispatch_notes = doc.dispatch_notes || '';
-  showAssistantDispatchModal.value = true;
-};
-
-const submitAssistantDispatch = async () => {
-  if (dispatchForm.department_ids.length === 0 && dispatchForm.office_ids.length === 0 && dispatchForm.user_ids.length === 0 && dispatchForm.working_group_ids.length === 0 && !dispatchForm.target_department_id && !dispatchForm.target_office_id && !dispatchForm.target_user_id) {
-    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសយ៉ាងហោចណាស់មួយនាយកដ្ឋាន ការិយាល័យ មន្ត្រី ឬក្រុមការងារគោលដៅ!' });
-    return;
-  }
-  submitting.value = true;
-  try {
-    const formData = new FormData();
-    formData.append('target_type', dispatchForm.target_type);
-    dispatchForm.department_ids.forEach(id => formData.append('department_ids[]', id));
-    dispatchForm.office_ids.forEach(id => formData.append('office_ids[]', id));
-    dispatchForm.user_ids.forEach(id => formData.append('user_ids[]', id));
-    dispatchForm.working_group_ids.forEach(id => formData.append('working_group_ids[]', id));
-    if (dispatchForm.target_department_id) formData.append('target_department_id', dispatchForm.target_department_id);
-    if (dispatchForm.target_office_id) formData.append('target_office_id', dispatchForm.target_office_id);
-    if (dispatchForm.target_user_id) formData.append('target_user_id', dispatchForm.target_user_id);
-    if (dispatchForm.dispatch_notes) formData.append('dispatch_notes', dispatchForm.dispatch_notes);
-    if (selectedAnnotatedFile.value) formData.append('annotated_file', selectedAnnotatedFile.value);
-
-    await apiAssistantDispatch(selectedDoc.value.id, formData);
-    Swal.fire({
-      icon: 'success',
-      title: 'ជោគជ័យ!',
-      text: 'បាន Scan និងចែកចាយឯកសារទៅកាន់ភាគីពាក់ព័ន្ធរួចរាល់!',
-      confirmButtonText: 'យល់ព្រម',
-    });
-    showAssistantDispatchModal.value = false;
-    loadDocuments();
-    loadStats();
-  } catch (err) {
-    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចចែកចាយឯកសារបានឡើយ!' });
   } finally {
     submitting.value = false;
   }
@@ -4417,9 +4146,9 @@ const openForwardModal = (doc) => {
   const isOfficeLeader = userStore.position && Number(userStore.position.level) <= 8;
   const isWgLeader = isUserLeaderOfAssignedWorkingGroup(doc);
 
-  if (isDeptDirector) {
+  if (isDeptLeader) {
     forwardForm.target_type = 'OFFICE';
-  } else if (isOfficeLeader || isDeptLeader) {
+  } else if (isOfficeLeader) {
     forwardForm.target_type = 'OFFICER';
   } else if (isWgLeader) {
     forwardForm.target_type = 'WG_MEMBER';
@@ -4494,7 +4223,7 @@ const handleForwardSubmit = async () => {
 const acknowledgeAction = async (doc) => {
   const confirm = await Swal.fire({
     title: 'ទទួលជ្រាបឯកសារ?',
-    text: `តើលោកអ្នកបានជ្រាប និងបញ្ចប់ដំណើរការឯកសារ ${doc.dg_inbound_number || doc.general_inbound_number} មែនទេ?`,
+    text: `តើលោកអ្នកបានជ្រាប និងបញ្ចប់ដំណើរការឯកសារ ${doc.general_inbound_number} មែនទេ?`,
     icon: 'info',
     showCancelButton: true,
     confirmButtonText: 'ទទួលជ្រាប & បញ្ចប់',
@@ -4529,7 +4258,7 @@ const openSubmitResponseModal = async (doc) => {
     responseForm.title = `របាយការណ៍ស្តីពី៖ ${doc.title}`;
     responseForm.response_type = 'REPORT';
     responseForm.header_organization = userStore.department?.name_kh || '';
-    responseForm.reference_note = `យោង៖ ចំណារលើឯកសារលេខ ${doc.dg_inbound_number || doc.general_inbound_number} ចុះថ្ងៃទី ${doc.received_date}`;
+    responseForm.reference_note = `យោង៖ ចំណារលើឯកសារលេខ ${doc.general_inbound_number} ចុះថ្ងៃទី ${doc.received_date}`;
     responseForm.content = '';
     responseForm.sign_title = userStore.position?.title_kh || 'មន្ត្រី';
     responseForm.sign_name = userStore.name_kh || userStore.name || '';
@@ -4667,6 +4396,7 @@ const submitReviewAction = async () => {
 };
 
 const openDetailModal = async (doc) => {
+  detailFlowTab.value = 'inbound';
   try {
     const res = await apiGetInboundDocument(doc.id);
     selectedDoc.value = res.data;
@@ -4776,12 +4506,12 @@ const saveTelegramSettings = async () => {
 
 // --- PDF Preview & Download Helpers ---
 const previewOriginalDoc = (doc) => {
-  const title = `ឯកសារដើម៖ ${doc.dg_inbound_number || doc.general_inbound_number || ''} - ${doc.title || ''}`;
+  const title = `ឯកសារដើម៖ ${doc.general_inbound_number || ''} - ${doc.title || ''}`;
   openPdfPreview(title, getViewOriginalUrl(doc.id), getOriginalDownloadUrl(doc.id));
 };
 
 const previewAnnotatedDoc = (doc) => {
-  const title = `ឯកសារមានចំណារ៖ ${doc.dg_inbound_number || doc.general_inbound_number || ''} - ${doc.title || ''}`;
+  const title = `ឯកសារមានចំណារ៖ ${doc.general_inbound_number || ''} - ${doc.title || ''}`;
   openPdfPreview(title, getViewAnnotatedUrl(doc.id), getAnnotatedDownloadUrl(doc.id));
 };
 

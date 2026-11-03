@@ -76,9 +76,14 @@ class UnicodeCorrection
     {
         $text = trim($text);
 
-        // ✅ បង្រួម Space ច្រើនជាន់ឱ្យនៅត្រឹម Space ' ' មួយធម្មតា (លែងចេញ \s)
+        // ✅ លុប literal string '\x{200B}' ឬ '\u200b' ដែលធ្លាប់ច្រឡំបង្កើតពីមុន
+        $text = str_ireplace(['\x{200b}', '\x{200B}', '\u200b', '\u200B'], '', $text);
+
+        // ✅ លុប Zero-Width Space (U+200B) និង Zero-Width No-Break Space (U+FEFF) ដែលបង្កបញ្ហាក្នុងអក្សរខ្មែរ
+        $text = preg_replace('/[\x{200B}\x{FEFF}]+/u', '', $text);
+
+        // ✅ បង្រួម Space ច្រើនជាន់ឱ្យនៅត្រឹម Space ' ' មួយធម្មតា
         $text = preg_replace('/\s+/u', ' ', $text);
-        $text = preg_replace('/\x{200B}+/u', "\x{200B}", $text);
 
         $salabpi = ['ង', 'ញ', 'ប', 'ម', 'យ', 'រ', 'វ'];
         $treysab = ['ស', 'ហ', 'អ'];

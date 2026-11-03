@@ -141,19 +141,11 @@
                 </router-link>
               </li>
 
-              <!-- អ្នកទទួលឯកសារ (ចុះបញ្ជី & ទទួលឯកសារ) -->
-              <li class="nav-item" v-if="userStore.can('inbound-documents-receptionist')">
-                <router-link :to="{ name: 'inbound-documents', query: { tab: 'reception' } }" class="nav-link sub-link" :class="{ active: isReceptionActive }">
-                  <i class="far fa-circle nav-icon text-info"></i>
-                  <p>អ្នកទទួលឯកសារ</p>
-                </router-link>
-              </li>
-
-              <!-- ជំនួយការអគ្គនាយក -->
-              <li class="nav-item" v-if="userStore.can('inbound-documents-assistant')">
-                <router-link :to="{ name: 'inbound-documents', query: { tab: 'assistant_inbox' } }" class="nav-link sub-link" :class="{ active: isAssistantActive }">
-                  <i class="far fa-circle nav-icon text-danger"></i>
-                  <p>ជំនួយការអគ្គនាយក</p>
+              <!-- ឯកសារចេញ / របាយការណ៍ / កំណត់បង្ហាញ -->
+              <li class="nav-item">
+                <router-link :to="{ name: 'outbound-documents' }" active-class="active" class="nav-link sub-link">
+                  <i class="far fa-circle nav-icon text-success"></i>
+                  <p>ឯកសារចេញ</p>
                 </router-link>
               </li>
 
@@ -349,6 +341,7 @@ const isDocumentGroupActive = computed(() => {
   return [
     'inbound-documents',
     'inbound-documents.routing-slip',
+    'outbound-documents',
     'document-templates',
     'manage-document-templates'
   ].includes(route.name);

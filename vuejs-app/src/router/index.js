@@ -29,6 +29,7 @@ import WeeklyReport from "@/components/pages/WeeklyReport.vue";
 import LeaveRequest from "@/components/pages/LeaveRequest.vue";
 import InboundDocument from "@/components/pages/InboundDocument.vue";
 import InboundDocumentRoutingSlip from "@/components/pages/InboundDocumentRoutingSlip.vue";
+import OutboundDocument from "@/components/pages/OutboundDocument.vue";
 import WorkingGroup from "@/components/pages/WorkingGroup.vue";
 import WorkflowSetup from "@/components/pages/WorkflowSetup.vue";
 
@@ -315,6 +316,17 @@ const router = createRouter({
         right_sidebar: RightSidebar,
       },
       meta: { guarded: true, permission: "inbound-documents" },
+    },
+    {
+      path: "/outbound-documents",
+      name: "outbound-documents",
+      components: {
+        default: OutboundDocument,
+        navbar: Navbar,
+        left_sidebar: LeftSidebar,
+        right_sidebar: RightSidebar,
+      },
+      meta: { guarded: true },
     },
     {
       path: "/working-groups",

@@ -280,20 +280,24 @@ class TelegramService
      */
     public function notifyResponseSubmitted(InboundDocumentResponse $response, User $drafter, User $targetApprover): void
     {
-        $response->loadMissing(['document']);
-        $doc = $response->document;
-        $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'N/A';
-        $drafterName = $drafter->name_kh ?? $drafter->name;
+        try {
+            $response->loadMissing(['inboundDocument']);
+            $doc = $response->inboundDocument ?? $response->document;
+            $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'គ្មាន';
+            $drafterName = $drafter->name_kh ?? $drafter->name;
 
-        $msg = "📑 <b>លិខិតឆ្លើយតបថ្មី - ដាក់ស្នើពិនិត្យ</b>\n\n"
-            . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
-            . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "👤 <b>អ្នករៀបចំ៖</b> {$drafterName}\n"
-            . "🎯 <b>ដាក់ជូនលោក/លោកស្រីពិនិត្យ៖</b> " . ($targetApprover->name_kh ?? $targetApprover->name) . "\n"
-            . "📊 <b>ដំណាក់កាល៖</b> {$response->current_stage}";
+            $msg = "📑 <b>លិខិតឆ្លើយតបថ្មី - ដាក់ស្នើពិនិត្យ</b>\n\n"
+                . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
+                . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
+                . "👤 <b>អ្នករៀបចំ៖</b> {$drafterName}\n"
+                . "🎯 <b>ដាក់ជូនលោក/លោកស្រីពិនិត្យ៖</b> " . ($targetApprover->name_kh ?? $targetApprover->name) . "\n"
+                . "📊 <b>ដំណាក់កាល៖</b> {$response->current_stage}";
 
-        if (!empty($targetApprover->telegram_chat_id)) {
-            $this->sendMessage($targetApprover->telegram_chat_id, $msg);
+            if (!empty($targetApprover->telegram_chat_id)) {
+                $this->sendMessage($targetApprover->telegram_chat_id, $msg);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('TelegramService notifyResponseSubmitted failed: ' . $e->getMessage());
         }
     }
 
@@ -302,22 +306,26 @@ class TelegramService
      */
     public function notifyResponseForwarded(InboundDocumentResponse $response, User $sender, User $nextApprover, ?string $comment = null): void
     {
-        $response->loadMissing(['document']);
-        $doc = $response->document;
-        $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'N/A';
-        $senderName = $sender->name_kh ?? $sender->name;
-        $commentText = $comment ? htmlspecialchars($comment, ENT_QUOTES, 'UTF-8') : 'គ្មាន';
+        try {
+            $response->loadMissing(['inboundDocument']);
+            $doc = $response->inboundDocument ?? $response->document;
+            $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'គ្មាន';
+            $senderName = $sender->name_kh ?? $sender->name;
+            $commentText = $comment ? htmlspecialchars($comment, ENT_QUOTES, 'UTF-8') : 'គ្មាន';
 
-        $msg = "📑 <b>លិខិតឆ្លើយតប - បញ្ជូនបន្តពិនិត្យ</b>\n\n"
-            . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
-            . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "👤 <b>បញ្ជូនបន្តដោយ៖</b> {$senderName}\n"
-            . "🎯 <b>ដាក់ជូនលោក/លោកស្រីពិនិត្យ៖</b> " . ($nextApprover->name_kh ?? $nextApprover->name) . "\n"
-            . "💬 <b>មតិយោបល់៖</b> <i>«{$commentText}»</i>\n"
-            . "📊 <b>ដំណាក់កាល៖</b> {$response->current_stage}";
+            $msg = "📑 <b>លិខិតឆ្លើយតប - បញ្ជូនបន្តពិនិត្យ</b>\n\n"
+                . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
+                . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
+                . "👤 <b>បញ្ជូនបន្តដោយ៖</b> {$senderName}\n"
+                . "🎯 <b>ដាក់ជូនលោក/លោកស្រីពិនិត្យ៖</b> " . ($nextApprover->name_kh ?? $nextApprover->name) . "\n"
+                . "💬 <b>មតិយោបល់៖</b> <i>«{$commentText}»</i>\n"
+                . "📊 <b>ដំណាក់កាល៖</b> {$response->current_stage}";
 
-        if (!empty($nextApprover->telegram_chat_id)) {
-            $this->sendMessage($nextApprover->telegram_chat_id, $msg);
+            if (!empty($nextApprover->telegram_chat_id)) {
+                $this->sendMessage($nextApprover->telegram_chat_id, $msg);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('TelegramService notifyResponseForwarded failed: ' . $e->getMessage());
         }
     }
 
@@ -326,46 +334,55 @@ class TelegramService
      */
     public function notifyResponseReturned(InboundDocumentResponse $response, User $reviewer, User $drafter, ?string $comment = null): void
     {
-        $response->loadMissing(['document']);
-        $doc = $response->document;
-        $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'N/A';
-        $reviewerName = $reviewer->name_kh ?? $reviewer->name;
-        $commentText = $comment ? htmlspecialchars($comment, ENT_QUOTES, 'UTF-8') : 'ត្រូវកែសម្រួលបន្ថែម';
+        try {
+            $response->loadMissing(['inboundDocument']);
+            $doc = $response->inboundDocument ?? $response->document;
+            $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'គ្មាន';
+            $reviewerName = $reviewer->name_kh ?? $reviewer->name;
+            $commentText = $comment ? htmlspecialchars($comment, ENT_QUOTES, 'UTF-8') : 'ត្រូវកែសម្រួលបន្ថែម';
 
-        $msg = "⚠️ <b>លិខិតឆ្លើយតបត្រូវបានបញ្ជូនត្រឡប់ដើម្បីកែសម្រួល</b>\n\n"
-            . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
-            . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "👤 <b>ពិនិត្យដោយ៖</b> {$reviewerName}\n"
-            . "💬 <b>មូលហេតុ/ចំណុចកែសម្រួល៖</b> <i>«{$commentText}»</i>\n"
-            . "📌 <b>សូមចូលទៅកែសម្រួល និងដាក់ស្នើឡើងវិញ។</b>";
+            $msg = "⚠️ <b>លិខិតឆ្លើយតបត្រូវបានបញ្ជូនត្រឡប់ដើម្បីកែសម្រួល</b>\n\n"
+                . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
+                . "📝 <b>ចំណងជើងព្រាង៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
+                . "👤 <b>ពិនិត្យដោយ៖</b> {$reviewerName}\n"
+                . "💬 <b>មូលហេតុ/ចំណុចកែសម្រួល៖</b> <i>«{$commentText}»</i>\n"
+                . "📌 <b>សូមចូលទៅកែសម្រួល និងដាក់ស្នើឡើងវិញ។</b>";
 
-        if (!empty($drafter->telegram_chat_id)) {
-            $this->sendMessage($drafter->telegram_chat_id, $msg);
+            if (!empty($drafter->telegram_chat_id)) {
+                $this->sendMessage($drafter->telegram_chat_id, $msg);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('TelegramService notifyResponseReturned failed: ' . $e->getMessage());
         }
     }
 
     /**
      * 8. អគ្គនាយកឯកភាពលើលិខិតឆ្លើយតប (DG Approved Response)
      */
-    public function notifyResponseApproved(InboundDocumentResponse $response, User $approver, InboundDocument $doc): void
+    public function notifyResponseApproved(InboundDocumentResponse $response, User $approver, ?InboundDocument $doc = null): void
     {
-        $response->loadMissing(['draftedByUser']);
-        $drafter = $response->draftedByUser;
-        $docNumber = $doc->dg_inbound_number ?: $doc->general_inbound_number;
-        $respNum = $response->response_number ? " (លេខ៖ {$response->response_number})" : "";
+        try {
+            $response->loadMissing(['draftedByUser']);
+            $drafter = $response->draftedByUser;
+            $docNumber = $doc ? ($doc->dg_inbound_number ?: $doc->general_inbound_number) : 'គ្មាន';
+            $docTitle = $doc ? htmlspecialchars($doc->title, ENT_QUOTES, 'UTF-8') : 'គ្មាន (លិខិតចេញផ្ទាល់)';
+            $respNum = $response->response_number ? " (លេខ៖ {$response->response_number})" : "";
 
-        $msg = "🎉 <b>ឯកឧត្តមអគ្គនាយកបានឯកភាពលើលិខិតឆ្លើយតប{$respNum}</b>\n\n"
-            . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
-            . "📄 <b>កម្មវត្ថុ៖</b> " . htmlspecialchars($doc->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "📝 <b>លិខិតឆ្លើយតប៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "✅ <b>ស្ថានភាព៖</b> បានបញ្ចប់ដំណើរការពេញលេញ (COMPLETED)\n"
-            . "📅 <b>កាលបរិច្ឆេទឯកភាព៖</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d/m/Y H:i');
+            $msg = "🎉 <b>ឯកឧត្តមអគ្គនាយកបានឯកភាពលើលិខិតឆ្លើយតប{$respNum}</b>\n\n"
+                . "🔢 <b>ឯកសារយោង៖</b> <code>{$docNumber}</code>\n"
+                . "📄 <b>កម្មវត្ថុ៖</b> {$docTitle}\n"
+                . "📝 <b>លិខិតឆ្លើយតប៖</b> " . htmlspecialchars($response->title, ENT_QUOTES, 'UTF-8') . "\n"
+                . "✅ <b>ស្ថានភាព៖</b> បានបញ្ចប់ដំណើរការពេញលេញ (COMPLETED)\n"
+                . "📅 <b>កាលបរិច្ឆេទឯកភាព៖</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d/m/Y H:i');
 
-        if ($drafter && !empty($drafter->telegram_chat_id)) {
-            $this->sendMessage($drafter->telegram_chat_id, $msg);
+            if ($drafter && !empty($drafter->telegram_chat_id)) {
+                $this->sendMessage($drafter->telegram_chat_id, $msg);
+            }
+
+            $this->sendMessage($this->defaultChatId, $msg);
+        } catch (\Throwable $e) {
+            Log::warning('TelegramService notifyResponseApproved failed: ' . $e->getMessage());
         }
-
-        $this->sendMessage($this->defaultChatId, $msg);
     }
 
     /**

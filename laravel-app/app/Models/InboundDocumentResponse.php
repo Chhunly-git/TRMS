@@ -52,6 +52,11 @@ class InboundDocumentResponse extends Model
         return $this->belongsTo(InboundDocument::class, 'inbound_document_id');
     }
 
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(InboundDocument::class, 'inbound_document_id');
+    }
+
     public function draftedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'drafted_by');
@@ -80,6 +85,11 @@ class InboundDocumentResponse extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(InboundDocumentResponseApproval::class, 'response_id')->orderBy('created_at', 'asc');
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(InboundDocumentResponseRevision::class, 'response_id')->orderBy('revision_number', 'asc');
     }
 
     protected function statusKh(): Attribute

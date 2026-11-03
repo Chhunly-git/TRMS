@@ -51,8 +51,13 @@ export function apiAssistantReceiveAndSubmitToDg(id, data) {
   return axios.post(`${APP_API_URL}/inbound-documents/${id}/assistant-receive`, data);
 }
 
-// 9. ឯកឧត្តមអគ្គនាយកធ្វើចំណារលើឯកសារ
+// 9. ឯកឧត្តមអគ្គនាយកធ្វើចំណារ និងចាត់ចែងលើឯកសារ
 export function apiDgAnnotate(id, data) {
+  if (data instanceof FormData) {
+    return axios.post(`${APP_API_URL}/inbound-documents/${id}/dg-annotate`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
   return axios.post(`${APP_API_URL}/inbound-documents/${id}/dg-annotate`, data);
 }
 
@@ -94,7 +99,7 @@ export function apiProcessResponseAction(id, formData) {
 
 // Helper: Get sanctum auth token for query string
 function getAuthTokenQuery() {
-  const token = localStorage.getItem('SANCTUM-TOKEN');
+  const token = localStorage.getItem('SANCTUM-TOKEN') || sessionStorage.getItem('SANCTUM-TOKEN');
   return token ? `?token=${encodeURIComponent(token)}` : '';
 }
 
@@ -179,5 +184,16 @@ export function apiUpdateResponseDraft(responseId, formData) {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 }
+
+// 28. ជំនួយការអគ្គនាយកចុច «បានពិនិត្យរួចរាល់»
+export function apiMarkAssistantReviewed(id, notes = '') {
+  return axios.post(`${APP_API_URL}/inbound-documents/${id}/assistant-review`, { notes });
+}
+
+// 29. ទាញយកការចាត់ចែងមកវិញ (Recall)
+export function apiRecallInboundDocument(id) {
+  return axios.post(`${APP_API_URL}/inbound-documents/${id}/recall`);
+}
+
 
 

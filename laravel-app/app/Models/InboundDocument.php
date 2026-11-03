@@ -56,6 +56,10 @@ class InboundDocument extends Model
         'target_user_id',
         'dispatch_notes',
         'status',
+        'assistant_reviewed_at',
+        'assistant_reviewed_by',
+        'recalled_at',
+        'recalled_by',
         'acknowledged_at',
         'acknowledged_by',
         'completed_at',
@@ -132,6 +136,26 @@ class InboundDocument extends Model
         return $this->hasMany(InboundDocumentAssignment::class, 'inbound_document_id')
             ->with(['department', 'office', 'user', 'assignedByUser'])
             ->orderBy('id', 'asc');
+    }
+
+    public function assistantReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assistant_reviewed_by');
+    }
+
+    public function recalledByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recalled_by');
+    }
+
+    public function outboundDocuments()
+    {
+        return $this->belongsToMany(
+            OutboundDocument::class,
+            'outbound_document_inbound_links',
+            'inbound_document_id',
+            'outbound_document_id'
+        )->withTimestamps();
     }
 
     public function responses(): HasMany

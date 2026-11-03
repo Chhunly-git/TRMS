@@ -160,6 +160,10 @@ class StorageService
         $mergedHeaders = array_merge([
             'Content-Type' => $mime,
             'Content-Disposition' => 'inline; filename="' . addslashes($filename) . '"',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => '*',
+            'X-Frame-Options' => 'ALLOWALL',
         ], $headers);
 
         return $disk->response($path, $filename, $mergedHeaders, 'inline');

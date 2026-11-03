@@ -20,6 +20,7 @@ use App\Http\Controllers\API\InboundDocumentController;
 use App\Http\Controllers\API\WorkingGroupController;
 use App\Http\Controllers\API\HikvisionAttendanceController;
 use App\Http\Controllers\API\WorkflowConfigController;
+use App\Http\Controllers\API\OutboundDocumentController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -143,6 +144,8 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/{id}/routing-slip-data', [InboundDocumentController::class, 'routingSlipData']);
         Route::patch('/{id}/send-to-assistant', [InboundDocumentController::class, 'sendToAssistant']);
         Route::post('/{id}/assistant-receive', [InboundDocumentController::class, 'assistantReceiveAndSubmitToDg']);
+        Route::post('/{id}/assistant-review', [InboundDocumentController::class, 'markAssistantReviewed']);
+        Route::post('/{id}/recall', [InboundDocumentController::class, 'recall']);
         Route::post('/{id}/dg-annotate', [InboundDocumentController::class, 'dgAnnotate']);
         Route::post('/{id}/assistant-dispatch', [InboundDocumentController::class, 'assistantDispatch']);
         Route::post('/{id}/forward', [InboundDocumentController::class, 'forward']);
@@ -155,6 +158,20 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/{id}/view-original', [InboundDocumentController::class, 'viewOriginalFile']);
         Route::get('/{id}/view-annotated', [InboundDocumentController::class, 'viewAnnotatedFile']);
         Route::delete('/{id}', [InboundDocumentController::class, 'destroy']);
+    });
+
+    // គ្រប់គ្រងឯកសារចេញ / របាយការណ៍ / កំណត់បង្ហាញ (Outbound Documents / Response Letters / Reports)
+    Route::prefix('outbound-documents')->group(function () {
+        Route::get('/options', [OutboundDocumentController::class, 'options']);
+        Route::get('/', [OutboundDocumentController::class, 'index']);
+        Route::post('/', [OutboundDocumentController::class, 'store']);
+        Route::get('/{id}', [OutboundDocumentController::class, 'show']);
+        Route::match(['PUT', 'POST'], '/{id}', [OutboundDocumentController::class, 'update']);
+        Route::post('/{id}/review-action', [OutboundDocumentController::class, 'reviewAction']);
+        Route::post('/{id}/recall', [OutboundDocumentController::class, 'recall']);
+        Route::get('/{id}/download-file', [OutboundDocumentController::class, 'downloadFile']);
+        Route::get('/{id}/view-file', [OutboundDocumentController::class, 'viewFile']);
+        Route::delete('/{id}', [OutboundDocumentController::class, 'destroy']);
     });
 
     // គ្រប់គ្រងក្រុមការងារ (Working Groups)

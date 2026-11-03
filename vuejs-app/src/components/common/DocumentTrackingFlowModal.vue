@@ -36,10 +36,7 @@
                     <div class="col-lg-8">
                       <div class="d-flex align-items-center flex-wrap mb-1">
                         <span class="badge badge-dark font-13 mr-2 mb-1">
-                          <i class="fas fa-hashtag mr-1"></i>លេខទូទៅ៖ {{ doc.general_inbound_number || '---' }}
-                        </span>
-                        <span class="badge badge-primary font-13 mr-2 mb-1" v-if="doc.dg_inbound_number">
-                          <i class="fas fa-barcode mr-1"></i>លេខ អ.ន.៖ {{ doc.dg_inbound_number }}
+                          <i class="fas fa-hashtag mr-1"></i>លេខឯកសារ៖ {{ doc.general_inbound_number || '---' }}
                         </span>
                         <span class="badge mr-2 mb-1" :class="getStatusBadgeClass(doc.status)">
                           {{ doc.status_kh || doc.status }}
@@ -245,19 +242,43 @@
                           </div>
                         </div>
 
+                        <!-- Active Reviewer Highlight -->
+                        <div v-if="resp.status === 'UNDER_REVIEW' && resp.current_approver" class="alert alert-warning py-2 px-3 mb-2 font-12 d-flex justify-content-between align-items-center">
+                          <span>
+                            <i class="fas fa-user-clock text-warning mr-1"></i>
+                            កំពុងស្ថិតនៅដៃ៖ <strong>{{ resp.current_approver.name_kh || resp.current_approver.name }}</strong>
+                            <small class="text-secondary ml-1" v-if="resp.current_approver.position?.title_kh">({{ resp.current_approver.position.title_kh }})</small>
+                          </span>
+                          <span class="badge badge-warning text-dark font-11">
+                            <i class="fas fa-stopwatch mr-1"></i>
+                            {{ getApprovalDuration(resp.approvals?.[resp.approvals?.length - 1], (resp.approvals?.length || 1) - 1, resp.approvals || [], resp) }}
+                          </span>
+                        </div>
+
                         <!-- Approval Steps Ladder -->
                         <div class="border-top pt-2 mt-2" v-if="resp.approvals && resp.approvals.length > 0">
-                          <strong class="d-block mb-2 text-dark font-12"><i class="fas fa-layer-group text-primary mr-1"></i> ប្រវត្តិឆ្លង និងអនុម័តតាមឋានានុក្រម៖</strong>
+                          <strong class="d-block mb-2 text-dark font-12"><i class="fas fa-layer-group text-primary mr-1"></i> ប្រវត្តិឆ្លង និងអនុម័តតាមឋានានុក្រម (Review & Approval Flow)៖</strong>
                           <div class="timeline-approval">
                             <div v-for="(app, aIdx) in resp.approvals" :key="app.id" class="approval-item p-2 mb-2 rounded bg-light border">
-                              <div class="d-flex justify-content-between align-items-center">
+                              <div class="d-flex justify-content-between align-items-center flex-wrap">
                                 <div>
                                   <span class="badge badge-info mr-2">{{ app.stage_kh }}</span>
+                                  <span class="badge mr-2" :class="app.action === 'DG_APPROVE' ? 'badge-success' : (app.action === 'RETURN' ? 'badge-danger' : 'badge-primary')">{{ app.action_kh }}</span>
                                   <strong class="text-dark">{{ app.user?.name_kh || 'ថ្នាក់ដឹកនាំ' }}</strong>
-                                  <span class="text-muted"> ({{ app.action_kh }})</span>
-                                  <span v-if="app.forwarded_to" class="text-primary font-weight-bold"> &rarr; {{ app.forwarded_to.name_kh }}</span>
+                                  <small class="text-muted ml-1" v-if="app.user?.position?.title_kh">({{ app.user.position.title_kh }})</small>
+                                  <span v-if="app.forwarded_to" class="text-primary font-weight-bold ml-1">
+                                    &rarr; {{ app.forwarded_to.name_kh }}
+                                    <small class="text-muted" v-if="app.forwarded_to.position?.title_kh">({{ app.forwarded_to.position.title_kh }})</small>
+                                  </span>
                                 </div>
-                                <small class="text-muted">{{ formatDate(app.created_at) }}</small>
+                                <small class="text-muted"><i class="far fa-clock mr-1"></i>{{ formatDate(app.created_at) }}</small>
+                              </div>
+                              <!-- Holding / Review Duration Badge -->
+                              <div class="my-1">
+                                <span class="badge badge-light border text-dark font-11 py-1 px-2 shadow-2xs">
+                                  <i class="fas fa-stopwatch text-warning mr-1"></i>
+                                  <strong>រយៈពេលពិនិត្យ៖</strong> {{ getApprovalDuration(app, aIdx, resp.approvals, resp) }}
+                                </span>
                               </div>
                               <div class="mt-1 text-secondary font-12 pl-2 border-left" v-if="app.comment">
                                 <em>«{{ app.comment }}»</em>
@@ -272,7 +293,7 @@
                   <!-- TAB 3: All Movements Audit Trail -->
                   <div v-if="activeTab === 'movements'">
                     <div class="timeline-audit">
-                      <div v-for="m in doc.movements" :key="m.id" class="timeline-row d-flex mb-3">
+                      <div v-for="(m, mIdx) in doc.movements" :key="m.id" class="timeline-row d-flex mb-3">
                         <div class="timeline-marker mr-3 text-center">
                           <div class="marker-circle bg-primary text-white">
                             <i class="fas fa-check font-11"></i>
@@ -285,8 +306,19 @@
                             <small class="text-muted">{{ formatDate(m.created_at) }}</small>
                           </div>
                           <div class="text-muted small">
-                            <i class="fas fa-user text-secondary mr-1"></i> {{ m.user?.name_kh || m.user?.name || 'ប្រព័ន្ធ' }}
+                            <i class="fas fa-user text-secondary mr-1"></i>
+                            <strong>{{ m.user?.name_kh || m.user?.name || 'ប្រព័ន្ធ' }}</strong>
+                            <span class="text-secondary ml-1" v-if="m.user?.position?.title_kh">({{ m.user.position.title_kh }})</span>
                           </div>
+
+                          <!-- Holding duration badge: រយៈពេលដែលស្ថិតនៅក្នុងដៃ User -->
+                          <div class="my-1">
+                            <span class="badge font-11 py-1 px-2 shadow-2xs" :class="mIdx === doc.movements.length - 1 && doc.status !== 'COMPLETED' ? 'badge-warning text-dark' : 'badge-light border text-dark'">
+                              <i class="fas fa-stopwatch mr-1" :class="mIdx === doc.movements.length - 1 && doc.status !== 'COMPLETED' ? 'text-danger' : 'text-primary'"></i>
+                              <strong>រយៈពេលកាន់កាប់៖</strong> {{ getMovementDuration(m, mIdx, doc.movements, doc) }}
+                            </span>
+                          </div>
+
                           <div class="mt-1 text-dark" v-if="m.comment">
                             {{ m.comment }}
                           </div>
@@ -329,6 +361,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { apiGetInboundTrackingFlow } from '@/functions/api/inboundDocument';
+import { getMovementDuration, getApprovalDuration } from '@/utils/durationHelper';
 
 const props = defineProps({
   show: {
