@@ -35,6 +35,7 @@ class User extends Authenticatable
         'telegram_username',
         'password',
         'profile_image',
+        'signature_image',
         'level',
         'permissions',
         'status',
@@ -219,6 +220,28 @@ class User extends Authenticatable
         return Attribute::make(
             get: function () {
                 $imagePath = $this->getRawOriginal('profile_image');
+                if (empty($imagePath)) {
+                    return null;
+                }
+
+                try {
+                    $imageClass = ImageClassService::forUserModel();
+                    return $imageClass ? $imageClass->fullUrl($imagePath) : $imagePath;
+                } catch (\Throwable $e) {
+                    return $imagePath;
+                }
+            },
+        );
+    }
+
+    /**
+     * ទាញយក Full URL នៃ Signature Image (Safe Null Checking)
+     */
+    protected function signatureImage(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $imagePath = $this->getRawOriginal('signature_image');
                 if (empty($imagePath)) {
                     return null;
                 }

@@ -25,6 +25,7 @@ class UserResource extends JsonResource
             'telegram_username' => $this->telegram_username,
             'profile_image' => $this->profile_image,
             'profile_thumbnail' => $this->profile_thumbnail,
+            'signature_image' => $this->signature_image,
             'password_null' => $this->password_null,
             'level' => $this->level,
             'permissions' => (function () {

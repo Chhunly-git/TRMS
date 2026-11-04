@@ -347,17 +347,16 @@
                   <tr>
                     <th style="width: 120px;">លេខឯកសារ</th>
                     <th style="min-width: 140px;">កាលបរិច្ឆេទ</th>
-                    <th style="min-width: 160px;">ប្រភាព</th>
+                    <th style="min-width: 160px;">ប្រភព</th>
                     <th>កម្មវត្ថុ</th>
-                    <th style="width: 130px;">ស្ថានភាព</th>
-                    <th style="min-width: 175px;">អ្នកទទួលបន្ទុក</th>
+                    <th style="min-width: 175px;">ស្ថានភាព</th>
                     <th style="width: 150px;" class="text-center">សកម្មភាព</th>
                   </tr>
                 </thead>
                 <tbody class="font-khmer">
                   <!-- Loading State -->
                   <tr v-if="loading">
-                    <td colspan="7" class="text-center py-5 text-muted">
+                    <td colspan="6" class="text-center py-5 text-muted">
                       <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
                       កំពុងទាញយកទិន្នន័យឯកសារ...
                     </td>
@@ -365,7 +364,7 @@
 
                   <!-- Empty State -->
                   <tr v-else-if="!documents.data || documents.data.length === 0">
-                    <td colspan="7" class="text-center py-5 text-muted">
+                    <td colspan="6" class="text-center py-5 text-muted">
                       <i class="fas fa-folder-open fa-3x mb-2 text-secondary d-block"></i>
                       មិនមានទិន្នន័យឯកសារចូលនៅក្នុងប្រព័ន្ធឡើយ
                     </td>
@@ -449,17 +448,49 @@
                       </div>
                     </td>
 
-                    <!-- 6. ស្ថានភាព (Pending, Doing, Complete) -->
+                    <!-- 5. ស្ថានភាព & អ្នកទទួលបន្ទុក -->
                     <td>
-                      <div class="d-flex align-items-center mb-1">
-                        <span class="badge px-2 py-1 font-12 d-inline-flex align-items-center shadow-2xs" :class="getSimplifiedStatus(doc).badgeClass">
-                          <i :class="getSimplifiedStatus(doc).icon" class="mr-1"></i>
-                          <span>{{ getSimplifiedStatus(doc).label }}</span>
-                        </span>
+                      <div class="d-flex align-items-center">
+                        <!-- Profile Image of Custodian (អ្នកកាន់ឯកសារបច្ចុប្បន្ន) -->
+                        <div class="mr-2 flex-shrink-0" v-if="getCurrentCustodianProfiles(doc).length > 0">
+                          <div class="d-flex align-items-center">
+                            <div
+                              v-for="(custodian, cIdx) in getCurrentCustodianProfiles(doc)"
+                              :key="cIdx"
+                              class="custodian-avatar-wrapper position-relative"
+                              :title="custodian.title"
+                            >
+                              <img
+                                v-if="custodian.avatarUrl"
+                                :src="custodian.avatarUrl"
+                                :alt="custodian.name"
+                                class="rounded-circle shadow-xs border custodian-avatar"
+                                @error="(e) => { e.target.style.display = 'none'; if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex'; }"
+                              />
+                              <div
+                                class="rounded-circle shadow-xs text-white align-items-center justify-content-center custodian-avatar-fallback font-weight-bold"
+                                :style="{ display: custodian.avatarUrl ? 'none' : 'flex' }"
+                              >
+                                {{ custodian.initial }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Status Badge & Subtext -->
+                        <div>
+                          <div class="d-flex align-items-center mb-1">
+                            <span class="badge px-2 py-1 font-12 d-inline-flex align-items-center shadow-2xs" :class="getSimplifiedStatus(doc).badgeClass">
+                              <i :class="getSimplifiedStatus(doc).icon" class="mr-1"></i>
+                              <span>{{ getSimplifiedStatus(doc).label }}</span>
+                            </span>
+                          </div>
+                          <div class="small text-muted font-11 text-nowrap" v-if="getSimplifiedStatus(doc).subText">
+                            {{ getSimplifiedStatus(doc).subText }}
+                          </div>
+                        </div>
                       </div>
-                      <div class="small text-muted font-11" v-if="getSimplifiedStatus(doc).subText">
-                        {{ getSimplifiedStatus(doc).subText }}
-                      </div>
+
                       <!-- ជំនួយការបានពិនិត្យ / មិនទាន់ពិនិត្យ (សម្រាប់ DG / Assistant) -->
                       <div v-if="(isDg || canAssist || isAdmin) && doc.status !== 'COMPLETED'" class="mt-1">
                         <span v-if="doc.assistant_reviewed_at" class="badge badge-success px-1 py-1 font-10">
@@ -468,18 +499,6 @@
                         <span v-else-if="!doc.dispatched_at" class="badge badge-warning px-1 py-1 font-10">
                           <i class="fas fa-clock mr-1"></i>ជំនួយការមិនទាន់ពិនិត្យ
                         </span>
-                      </div>
-                    </td>
-
-                    <!-- 7. ទីតាំងឯកសារ / អ្នកកាន់បច្ចុប្បន្ន (Current Custodian & Desk) -->
-                    <td>
-                      <div class="d-flex align-items-center mb-1">
-                        <span class="badge px-2 py-1 font-12 d-inline-flex align-items-center text-wrap" :class="getCurrentCustodian(doc).badgeClass">
-                          <i :class="getCurrentCustodian(doc).icon" class="mr-1"></i>{{ getCurrentCustodian(doc).label }}
-                        </span>
-                      </div>
-                      <div class="small text-muted" v-if="getCurrentCustodian(doc).subText">
-                        {{ getCurrentCustodian(doc).subText }}
                       </div>
                     </td>
 
@@ -524,26 +543,6 @@
                           <i class="fas fa-signature"></i>
                         </button>
 
-                        <!-- Step 5A: Acknowledge (Path A) -->
-                        <button
-                          v-if="canAcknowledge(doc)"
-                          class="btn btn-outline-success"
-                          title="ទទួលជ្រាប និងបញ្ចប់ឯកសារ"
-                          @click="acknowledgeAction(doc)"
-                        >
-                          <i class="fas fa-check-double"></i>
-                        </button>
-
-                        <!-- Step 5C: Cascading Forward / Re-assign Downward -->
-                        <button
-                          v-if="canForward(doc)"
-                          class="btn btn-outline-info"
-                          title="ចាត់ចែង និងបញ្ជូនបន្តតាមឋានានុក្រម"
-                          @click="openForwardModal(doc)"
-                        >
-                          <i class="fas fa-directions"></i>
-                        </button>
-
                         <!-- ជំនួយការអគ្គនាយកចុច «បានពិនិត្យរួចរាល់» -->
                         <button
                           v-if="canAssist && !doc.dispatched_at && !doc.assistant_reviewed_at && doc.status !== 'COMPLETED'"
@@ -563,16 +562,6 @@
                         >
                           <i class="fas fa-undo"></i>
                         </button>
-
-                        <!-- បង្កើតឯកសារចេញ / របាយការណ៍ឆ្លើយតប (Report) -->
-                        <router-link
-                          v-if="canCreateReport(doc)"
-                          :to="{ name: 'outbound-documents', query: { link_inbound_id: doc.id } }"
-                          class="btn btn-outline-primary"
-                          title="បង្កើតរបាយការណ៍/កំណត់បង្ហាញឆ្លើយតប (Report)"
-                        >
-                          <i class="fas fa-file-export"></i>
-                        </router-link>
 
                         <!-- Step 6B: Process Review Action on Response -->
                         <button
@@ -1298,104 +1287,265 @@
 
 
 
-    <!-- ==================== MODAL 6: ថ្នាក់ដឹកនាំពិនិត្យ & ចារឆ្លងលិខិតឆ្លើយតប (REVIEW ACTION) ==================== -->
+    <!-- ==================== MODAL 6: ថ្នាក់ដឹកនាំពិនិត្យ និងចារឆ្លង (LEADERSHIP REVIEW & APPROVAL) ==================== -->
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showReviewResponseModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 800px;">
+        <div class="modal-dialog modal-dialog-centered my-auto" :style="responseReviewStep === 'position' ? 'width: 100%; max-width: 980px;' : 'width: 100%; max-width: 650px;'">
           <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
-            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center">
+            <div class="modal-header bg-dark-custom text-white py-3 px-4 flex-shrink-0 align-items-center d-flex justify-content-between">
               <h5 class="modal-title font-khmer font-weight-bold mb-0">
-                <i class="fas fa-clipboard-check text-warning mr-2"></i>ពិនិត្យ និងចារឆ្លងលិខិតឆ្លើយតប
+                <i class="fas fa-clipboard-check text-warning mr-2"></i>
+                <span v-if="responseReviewStep === 'form'">ពិនិត្យ និងចារឆ្លងលិខិតរដ្ឋបាល</span>
+                <span v-else>រៀបចំទីតាំងមតិយោបល់ & ហត្ថលេខាលើរបាយការណ៍</span>
               </h5>
-              <button type="button" class="close text-white" @click="showReviewResponseModal = false">
-                <span aria-hidden="true">&times;</span>
-              </button>
+              <div class="d-flex align-items-center">
+                <span v-if="responseReviewStep === 'position'" class="badge badge-light text-primary font-weight-bold mr-3 px-2 py-1">
+                  ជំហានទី ២ / ២
+                </span>
+                <button type="button" class="close text-white" @click="showReviewResponseModal = false">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
             </div>
-            <div class="modal-body p-4 font-khmer" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+
+            <!-- STEP 1: FORM -->
+            <div class="modal-body p-4 font-khmer" v-if="responseReviewStep === 'form'">
+              <!-- Document Summary -->
               <div class="alert alert-secondary py-2 font-13 mb-3">
-                ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.general_inbound_number }}</strong><br />
-                លិខិតឆ្លើយតប៖ <strong>{{ selectedResponse?.title }}</strong><br />
-                អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh }}</strong>
-                <div class="mt-2 d-flex flex-wrap" v-if="selectedResponse?.file_path">
-                  <button
-                    type="button"
-                    class="btn btn-xs btn-outline-info mr-2"
-                    @click="previewResponseDoc(selectedResponse)"
-                  >
-                    <i class="fas fa-eye mr-1"></i> មើលឯកសារព្រាង (PDF)
-                  </button>
-                  <a :href="getResponseFileUrl(selectedResponse.id)" download class="btn btn-xs btn-outline-secondary">
-                    <i class="fas fa-download mr-1"></i> ទាញយក
-                  </a>
+                <div class="font-weight-bold text-dark">{{ selectedResponse?.title }}</div>
+                <div class="small text-muted mt-1">
+                  ឯកសារដើមលេខ៖ <strong>{{ selectedDoc?.general_inbound_number || '-' }}</strong> |
+                  អ្នករៀបចំ៖ <strong>{{ selectedResponse?.drafted_by_user?.name_kh || selectedResponse?.drafted_by_user?.name || '-' }}</strong> |
+                  ប្រភេទ៖ <strong>{{ selectedResponse?.response_type_kh || (selectedResponse?.response_type === 'SUBMISSION_NOTE' ? 'កំណត់បង្ហាញ' : (selectedResponse?.response_type === 'LETTER' ? 'លិខិត' : 'របាយការណ៍')) }}</strong>
                 </div>
               </div>
 
-              <form @submit.prevent="submitReviewAction">
-                <!-- Action Selection -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">សកម្មភាពសម្រេច <span class="text-danger">*</span></label>
-                  <div class="btn-group btn-group-toggle w-100">
-                    <label class="btn btn-outline-primary font-khmer" :class="{ active: reviewActionForm.action === 'FORWARD' }" v-if="!isDg">
-                      <input type="radio" value="FORWARD" v-model="reviewActionForm.action" />
-                      <i class="fas fa-share mr-1"></i> បញ្ជូនបន្តឡើងលើ
-                    </label>
-                    <label class="btn btn-outline-danger font-khmer" :class="{ active: reviewActionForm.action === 'RETURN' }">
-                      <input type="radio" value="RETURN" v-model="reviewActionForm.action" />
-                      <i class="fas fa-undo mr-1"></i> បញ្ជូនត្រឡប់កែសម្រួល
-                    </label>
-                    <label class="btn btn-outline-success font-khmer font-weight-bold" :class="{ active: reviewActionForm.action === 'DG_APPROVE' }" v-if="isDg || isAdmin">
-                      <input type="radio" value="DG_APPROVE" v-model="reviewActionForm.action" />
-                      <i class="fas fa-signature mr-1"></i> ឯកភាព & ចុះហត្ថលេខា (អគ្គនាយក)
-                    </label>
+              <!-- Action Selection -->
+              <div class="form-group mb-3">
+                <label class="font-weight-bold text-dark">សកម្មភាពសម្រេច <span class="text-danger">*</span></label>
+                <div class="btn-group btn-group-toggle w-100">
+                  <label class="btn btn-outline-primary btn-sm font-khmer cursor-pointer" :class="{ active: reviewActionForm.action === 'FORWARD' }" v-if="!isDg">
+                    <input type="radio" value="FORWARD" v-model="reviewActionForm.action" />
+                    <i class="fas fa-share mr-1"></i> បញ្ជូនបន្តឡើងលើ
+                  </label>
+                  <label class="btn btn-outline-danger btn-sm font-khmer cursor-pointer" :class="{ active: reviewActionForm.action === 'RETURN' }">
+                    <input type="radio" value="RETURN" v-model="reviewActionForm.action" />
+                    <i class="fas fa-undo mr-1"></i> បញ្ជូនត្រឡប់កែសម្រួល
+                  </label>
+                  <label class="btn btn-outline-success btn-sm font-khmer font-weight-bold cursor-pointer" :class="{ active: reviewActionForm.action === 'DG_APPROVE' }" v-if="isDg || isAdmin">
+                    <input type="radio" value="DG_APPROVE" v-model="reviewActionForm.action" />
+                    <i class="fas fa-signature mr-1"></i> ឯកភាព & ចុះហត្ថលេខា (អគ្គនាយក)
+                  </label>
+                </div>
+              </div>
+
+              <!-- Next Approver (if FORWARD) -->
+              <div class="form-group mb-3" v-if="reviewActionForm.action === 'FORWARD'">
+                <label class="font-weight-bold text-dark">ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ <span class="text-danger">*</span></label>
+                <select class="form-control font-weight-bold" v-model="reviewActionForm.forwarded_to_id" required>
+                  <option value="" disabled>-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
+                  <option v-for="c in availableResponseCandidates" :key="'rev_' + c.id" :value="c.id">
+                    {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }} ({{ c.office?.name_kh || c.department?.name_kh || '' }})
+                  </option>
+                </select>
+              </div>
+
+              <!-- Response Number (if DG_APPROVE) -->
+              <div class="form-group mb-3" v-if="reviewActionForm.action === 'DG_APPROVE'">
+                <label class="font-weight-bold text-dark">លេខលិខិតចេញផ្លូវការ (Response Number)</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="ឧ. ១២៣ ន.ប.ធ./..."
+                  v-model="reviewActionForm.response_number"
+                />
+                <small class="text-muted">អាចកត់ត្រាលេខចេញផ្លូវការដែលបានចុះបញ្ជី ឬទុកឱ្យប្រព័ន្ធបង្កើត</small>
+              </div>
+
+              <!-- Comment -->
+              <div class="form-group mb-0">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="font-weight-bold text-dark mb-0">មតិយោបល់ / ចំណារពិនិត្យ</label>
+                  <div class="d-flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
+                      @click="reviewActionForm.comment = 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ឯ.ឧ អគ្គនាយក
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold"
+                      @click="reviewActionForm.comment = 'សូមគោរពជូនលោកប្រធាននាយកដ្ឋាន\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ប្រធាននាយកដ្ឋាន
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-success mr-1 mb-1 font-weight-bold"
+                      @click="reviewActionForm.comment = 'បានពិនិត្យ និងឯកភាព'"
+                    >
+                      + បានពិនិត្យ និងឯកភាព
+                    </button>
                   </div>
                 </div>
+                <textarea
+                  class="form-control"
+                  rows="3"
+                  placeholder="កត់ត្រាមតិយោបល់ ឬចំណារណែនាំ..."
+                  v-model="reviewActionForm.comment"
+                ></textarea>
+              </div>
 
-                <!-- If Action is FORWARD: select next reviewer -->
-                <div class="mb-3" v-if="reviewActionForm.action === 'FORWARD'">
-                  <label class="form-label font-weight-bold">ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ <span class="text-danger">*</span></label>
-                  <select class="form-control font-weight-bold" v-model="reviewActionForm.forwarded_to_id" required>
-                    <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                    <option v-for="c in responseCandidates" :key="c.id" :value="c.id">
-                      {{ c.name_kh || c.name }} - {{ c.position?.title_kh || '' }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- If Action is DG_APPROVE: optional response number -->
-                <div class="mb-3" v-if="reviewActionForm.action === 'DG_APPROVE'">
-                  <label class="form-label font-weight-bold">លេខលិខិតចេញជាផ្លូវការ (បើមាន)</label>
+              <!-- Leader's Review & Signature Placement onto Report -->
+              <div class="card border rounded-lg p-3 bg-white mt-3 shadow-xs" v-if="reviewActionForm.action !== 'RETURN'">
+                <div class="custom-control custom-checkbox mb-2">
                   <input
-                    type="text"
-                    class="form-control font-weight-bold font-monospace"
-                    placeholder="ឧ. ៤៥៦ ន.ប.ធ."
-                    v-model="reviewActionForm.response_number"
+                    type="checkbox"
+                    class="custom-control-input"
+                    id="inboundEmbedReviewCheck"
+                    v-model="reviewActionForm.embed_into_document"
                   />
+                  <label class="custom-control-label font-weight-bold text-primary cursor-pointer" for="inboundEmbedReviewCheck">
+                    <i class="fas fa-file-signature mr-1"></i> បញ្ចូលមតិយោបល់ និងហត្ថលេខាទៅក្នុងឯកសាររបាយការណ៍
+                  </label>
                 </div>
 
-                <!-- Review Comment / Annotation -->
-                <div class="mb-3">
-                  <label class="form-label font-weight-bold">ចំណារ / មតិយោបល់ណែនាំ</label>
-                  <textarea
-                    class="form-control"
-                    rows="3"
-                    placeholder="មតិយោបល់ ឬការកែសម្រួល..."
-                    v-model="reviewActionForm.comment"
-                  ></textarea>
-                </div>
+                <div v-if="reviewActionForm.embed_into_document" class="pl-3 border-left ml-2">
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="small font-weight-bold text-dark mb-1">
+                        <i class="fas fa-map-marker-alt text-danger mr-1"></i> ជ្រើសរើសទីតាំងចាប់ផ្តើមលើរបាយការណ៍៖
+                      </label>
+                      <select class="form-control form-control-sm font-weight-bold" v-model="reviewActionForm.placement">
+                        <option value="SIDE_BY_SIDE_LEFT">ទន្ទឹមហត្ថលេខាអ្នករៀបចំ (ខាងឆ្វេង) - ស្តង់ដារ</option>
+                        <option value="ABOVE_DRAFTER">ខាងលើហត្ថលេខាអ្នករៀបចំ</option>
+                        <option value="BELOW_DRAFTER">ខាងក្រោមហត្ថលេខាអ្នករៀបចំ</option>
+                        <option value="BOTTOM">ខាងក្រោមបង្អស់នៃរបាយការណ៍ (ចុងបញ្ចប់)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="small font-weight-bold text-dark mb-1">
+                        <i class="fas fa-calendar-alt text-primary mr-1"></i> កាលបរិច្ឆេទចុះហត្ថលេខា៖
+                      </label>
+                      <input type="text" class="form-control form-control-sm" v-model="reviewActionForm.sign_date" placeholder="ឧ. ៤/១១/២៦" />
+                    </div>
+                  </div>
 
-                <div class="modal-footer px-0 pb-0 pt-3 border-top">
-                  <button type="button" class="btn btn-secondary" @click="showReviewResponseModal = false">បោះបង់</button>
-                  <button type="submit" class="btn btn-primary" :disabled="submitting">
-                    <span v-if="submitting" class="spinner-border spinner-border-sm mr-1"></span>
-                    <i class="fas fa-check mr-1"></i> អនុវត្តសកម្មភាព
+                  <!-- Signature Preview & Drawing -->
+                  <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border mt-1">
+                    <div class="d-flex align-items-center">
+                      <span class="small font-weight-bold text-muted mr-2">ហត្ថលេខា៖</span>
+                      <img v-if="userStore.signature_image" :src="userStore.signature_image" alt="ហត្ថលេខា" style="height: 38px; max-width: 140px; object-fit: contain;" />
+                      <span v-else class="small text-primary font-weight-bold" style="font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 16pt;">
+                        {{ userStore.name_kh || userStore.name }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary font-weight-bold"
+                      @click="showInboundReviewSignatureModal = true"
+                    >
+                      <i class="fas fa-pen mr-1"></i> {{ userStore.signature_image ? 'កែប្រែហត្ថលេខា' : '+ គូស/បង្ហោះហត្ថលេខា' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: POSITION ON REPORT (DRAGGABLE) -->
+            <div class="modal-body p-3 bg-light" v-if="responseReviewStep === 'position'">
+              <!-- Info Alert -->
+              <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between shadow-xs">
+                <div class="small">
+                  <i class="fas fa-arrows-alt text-primary mr-2 fa-lg"></i>
+                  <span><strong>ការណែនាំ៖</strong>
+                    • <strong>រំកិល៖</strong> ចុចហើយអូសប្រអប់ទៅទីតាំងសមស្រប |
+                    • <strong>ពង្រីក-បង្រួម៖</strong> ចុចអូសចំណុច Handle ជុំវិញប្រអប់ |
+                    • <strong>កែប្រែមតិ/កាលបរិច្ឆេទ៖</strong> ចុចផ្ទាល់លើអក្សរក្នុងប្រអប់ដើម្បីកែសម្រួល
+                  </span>
+                </div>
+                <button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold" @click="resetResponseReviewPosition">
+                  <i class="fas fa-undo mr-1"></i> កំណត់ទីតាំងដើម
+                </button>
+              </div>
+
+              <!-- Document Sheet Scroll Area -->
+              <div class="review-paper-scroll" style="max-height: 62vh; overflow-y: auto; background-color: #525659; padding: 20px; border-radius: 6px; display: flex; justify-content: center;">
+                <div
+                  ref="responseReviewPositionPaperRef"
+                  class="review-position-paper bg-white shadow-lg"
+                  style="width: 210mm; min-height: 297mm; padding: 25mm 20mm 20mm 25mm; box-sizing: border-box; position: relative;"
+                  v-html="responseReviewWorkingHtml"
+                ></div>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-white py-2 px-4 justify-content-between">
+              <div v-if="responseReviewStep === 'position'">
+                <button type="button" class="btn btn-outline-secondary px-3" @click="responseReviewStep = 'form'">
+                  <i class="fas fa-arrow-left mr-1"></i> ត្រឡប់ក្រោយកែព័ត៌មាន
+                </button>
+              </div>
+              <div v-else>
+                <button type="button" class="btn btn-secondary px-3" @click="showReviewResponseModal = false">
+                  បោះបង់
+                </button>
+              </div>
+
+              <div>
+                <!-- In Step 1 -->
+                <template v-if="responseReviewStep === 'form'">
+                  <button
+                    v-if="reviewActionForm.embed_into_document && reviewActionForm.action !== 'RETURN' && selectedResponse?.content"
+                    type="button"
+                    class="btn btn-primary px-4 font-weight-bold"
+                    @click="goToResponseReviewPositionStep"
+                  >
+                    <span>រៀបចំទីតាំងលើរបាយការណ៍ <i class="fas fa-arrow-right ml-1"></i></span>
                   </button>
-                </div>
-              </form>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn px-4 font-weight-bold"
+                    :class="reviewActionForm.action === 'RETURN' ? 'btn-danger' : 'btn-success'"
+                    @click="submitReviewAction"
+                    :disabled="submittingReview"
+                  >
+                    <i class="fas fa-check mr-1"></i> {{ reviewActionForm.action === 'RETURN' ? 'បញ្ជូនត្រឡប់កែសម្រួល' : 'អនុវត្តសកម្មភាព' }}
+                  </button>
+                </template>
+
+                <!-- In Step 2 -->
+                <template v-else>
+                  <button
+                    type="button"
+                    class="btn btn-warning px-3 font-weight-bold mr-2 text-dark shadow-xs"
+                    @click="saveAndHoldResponseReview"
+                    :disabled="submittingReview"
+                    title="រក្សាទុកមតិយោបល់ និងទីតាំងក្នុងដៃសិន ដោយមិនទាន់បញ្ជូនទៅថ្នាក់លើ"
+                  >
+                    <i class="fas fa-save mr-1"></i> រក្សាទុកក្នុងដៃសិន (ចាំចារឆ្លងតាមក្រោយ)
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-success px-4 font-weight-bold"
+                    @click="submitReviewAction"
+                    :disabled="submittingReview"
+                  >
+                    <i class="fas fa-paper-plane mr-1"></i> {{ reviewActionForm.action === 'DG_APPROVE' ? 'ឯកភាព & ចុះហត្ថលេខាផ្លូវការ' : 'យល់ព្រម & ចារឆ្លងបន្ត' }}
+                  </button>
+                </template>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </Teleport>
+
+    <!-- Inbound Review Signature Modal -->
+    <SignatureModal v-model:show="showInboundReviewSignatureModal" />
 
     <!-- ==================== MODAL 7: មើលព័ត៌មានលម្អិត & ប្រវត្តិលំហូរ (DETAIL & AUDIT) ==================== -->
     <Teleport to="body">
@@ -1706,6 +1856,15 @@
                               >
                                 <i class="fas fa-download mr-1"></i> ទាញយក
                               </a>
+                              <button
+                                v-if="canDeleteResponse(resp)"
+                                type="button"
+                                class="btn btn-xs btn-outline-danger font-khmer ml-1"
+                                @click="deleteResponseAction(resp)"
+                                :title="resp.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                              >
+                                <i class="fas fa-trash mr-1"></i> លុប
+                              </button>
                             </div>
                           </div>
 
@@ -1790,21 +1949,45 @@
             </div>
           </div>
             <div class="modal-footer font-khmer justify-content-between bg-light py-2 px-4 border-top flex-shrink-0">
-              <div>
-                <!-- Action: Cascading Forward / Re-assign Downward -->
+              <!-- Left side: Main operational actions (ទទួលជ្រាប, ចាត់ចែងបន្ត, បង្កើតរបាយការណ៍) -->
+              <div class="d-flex align-items-center flex-wrap">
+                <!-- Step 5A: Acknowledge & Complete -->
+                <button
+                  v-if="selectedDoc && canAcknowledge(selectedDoc)"
+                  class="btn btn-success font-weight-bold text-white shadow-sm mr-2 mb-1"
+                  title="ទទួលជ្រាប និងបញ្ចប់ដំណើរការឯកសារ"
+                  @click="acknowledgeAction(selectedDoc)"
+                >
+                  <i class="fas fa-check-double mr-1"></i> ទទួលជ្រាប និងបញ្ចប់
+                </button>
+
+                <!-- Step 5C: Cascading Forward / Re-assign Downward -->
                 <button
                   v-if="selectedDoc && canForward(selectedDoc)"
-                  class="btn btn-info font-weight-bold text-white shadow-sm"
+                  class="btn btn-info font-weight-bold text-white shadow-sm mr-2 mb-1"
                   title="ចាត់ចែង និងបញ្ជូនបន្តការងារទៅកាន់មន្ត្រីក្រោមឱវាទ"
                   @click="showDetailModal = false; openForwardModal(selectedDoc)"
                 >
                   <i class="fas fa-directions mr-1"></i> ចាត់ចែង និងបញ្ជូនបន្ត
                 </button>
+
+                <!-- Action: Create Outbound Report / Response -->
+                <router-link
+                  v-if="selectedDoc && canCreateReport(selectedDoc)"
+                  :to="{ name: 'outbound-documents', query: { link_inbound_id: selectedDoc.id } }"
+                  class="btn btn-primary font-weight-bold shadow-sm mr-2 mb-1"
+                  @click="showDetailModal = false"
+                  title="បង្កើតរបាយការណ៍ ឬកំណត់បង្ហាញឆ្លើយតប"
+                >
+                  <i class="fas fa-file-export mr-1"></i> បង្កើតរបាយការណ៍ / លិខិតឆ្លើយតប
+                </router-link>
               </div>
+
+              <!-- Right side: Administrative and Dismiss actions -->
               <div class="d-flex align-items-center">
                 <button
                   v-if="selectedDoc && canEditDocument(selectedDoc)"
-                  class="btn btn-outline-warning text-dark font-weight-bold mr-2"
+                  class="btn btn-outline-warning text-dark font-weight-bold mr-2 mb-1"
                   title="កែប្រែព័ត៌មានឯកសារនេះ (ករណីបញ្ចូលខុស)"
                   @click="openEditModal(selectedDoc)"
                 >
@@ -1812,21 +1995,13 @@
                 </button>
                 <button
                   v-if="selectedDoc && canDeleteDocument(selectedDoc)"
-                  class="btn btn-outline-danger font-weight-bold mr-2"
+                  class="btn btn-outline-danger font-weight-bold mr-2 mb-1"
                   title="លុបឯកសារចូលនេះចេញ (ករណីបញ្ចូលខុស)"
                   @click="deleteDocumentAction(selectedDoc)"
                 >
                   <i class="fas fa-trash-alt mr-1"></i> លុបឯកសារ
                 </button>
-                <router-link
-                  v-if="selectedDoc && canCreateReport(selectedDoc)"
-                  :to="{ name: 'outbound-documents', query: { link_inbound_id: selectedDoc.id } }"
-                  class="btn btn-primary font-weight-bold mr-2"
-                  @click="showDetailModal = false"
-                >
-                  <i class="fas fa-file-export mr-1"></i> បង្កើតរបាយការណ៍ / លិខិតឆ្លើយតប
-                </router-link>
-                <button type="button" class="btn btn-secondary" @click="showDetailModal = false">បិទ</button>
+                <button type="button" class="btn btn-secondary px-3 mb-1" @click="showDetailModal = false">បិទ</button>
               </div>
             </div>
           </div>
@@ -2418,9 +2593,22 @@ import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useUserStore } from '@/stores/user';
+import SignatureModal from '@/components/common/SignatureModal.vue';
 import WordEditor from '@/components/common/WordEditor.vue';
 import DocumentTrackingFlowModal from '@/components/common/DocumentTrackingFlowModal.vue';
 import { getMovementDuration, getApprovalDuration } from '@/utils/durationHelper';
+import {
+  apiReviewOutboundAction,
+  apiGetOutboundDocument,
+  apiUpdateOutboundContent,
+  apiDeleteOutboundDocument,
+} from '@/functions/api/outboundDocument';
+import {
+  getShortKhmerDateString,
+  generateDraggableOpinionBoxHtml,
+  embedOpinionBoxIntoHtml,
+  setupDraggableOpinionBoxes,
+} from '@/utils/opinionBoxHelper';
 import {
   apiGetInboundDocuments,
   apiGetInboundDocumentStats,
@@ -2537,6 +2725,9 @@ const filters = reactive({
 const selectedDoc = ref(null);
 const selectedResponse = ref(null);
 const responseCandidates = ref([]);
+const availableResponseCandidates = computed(() => {
+  return (responseCandidates.value || []).filter(c => Number(c.id) !== Number(userStore.id));
+});
 
 // Modals display states
 const showCreateModal = ref(false);
@@ -2911,11 +3102,32 @@ const responseForm = reactive({
   comment: '',
 });
 
+const showInboundReviewSignatureModal = ref(false);
+const submittingReview = ref(false);
+const responseReviewStep = ref('form'); // 'form' | 'position'
+const responseReviewWorkingHtml = ref('');
+const responseReviewPositionPaperRef = ref(null);
+let cleanupResponseReviewDraggable = null;
+
+const khmerDigits = { '0': '០', '1': '១', '2': '២', '3': '៣', '4': '៤', '5': '៥', '6': '៦', '7': '៧', '8': '៨', '9': '៩' };
+const toKhmerNum = (num) => String(num).split('').map(d => khmerDigits[d] || d).join('');
+const getCurrentKhmerDateString = () => {
+  const d = new Date();
+  const day = toKhmerNum(d.getDate());
+  const monthNamesKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  const month = monthNamesKh[d.getMonth()];
+  const year = toKhmerNum(d.getFullYear());
+  return `រាជធានីភ្នំពេញ, ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
+};
+
 const reviewActionForm = reactive({
   action: 'FORWARD',
   forwarded_to_id: '',
   response_number: '',
   comment: '',
+  embed_into_document: true,
+  placement: 'BOTTOM',
+  sign_date: '',
 });
 
 const forwardForm = reactive({
@@ -3207,35 +3419,73 @@ const paginationPages = computed(() => {
 });
 
 // --- Actions Checkers ---
+const hasUserForwarded = (doc) => {
+  if (!doc) return false;
+  const userId = Number(userStore.id);
+  // Check if current user has an active forwarded assignment
+  const hasActiveForward = doc.assignments?.some(a => 
+    Number(a.assigned_by || a.assigned_by_user_id || a.assigned_by_user?.id) === userId && a.status !== 'RECALLED'
+  );
+  if (hasActiveForward) return true;
+
+  // Also check movements if present
+  const hasForwardMovement = doc.movements?.some(m => 
+    Number(m.user_id) === userId && m.action === 'FORWARDED'
+  );
+  return !!hasForwardMovement;
+};
+
 const canAcknowledge = (doc) => {
+  if (!doc) return false;
   if (doc.status !== 'DISPATCHED' || doc.is_response_required) return false;
+  if (['COMPLETED', 'CANCELLED'].includes(doc.status)) return false;
+  if (doc.acknowledged_at || doc.acknowledged_by) return false;
+  if (hasUserForwarded(doc)) return false; // Point 3: already forwarded!
+
+  const userId = Number(userStore.id);
+  const userDeptId = userStore.department_id ? Number(userStore.department_id) : null;
+  const userOfficeId = userStore.office_id ? Number(userStore.office_id) : null;
+  const userPosLevel = userStore.position?.level != null ? Number(userStore.position.level) : 999;
+
   if (isAdmin.value) return true;
-  // If targeted specifically to this user
-  if (doc.target_user_id) {
-    return doc.target_user_id === userStore.id;
+
+  // 1. If targeted specifically to this user
+  if (doc.target_user_id && Number(doc.target_user_id) === userId) {
+    return true;
   }
-  // If targeted to office without specific user -> only Office Chief / Deputy Chief (level <= 6)
-  if (doc.target_office_id && doc.target_office_id === userStore.office_id) {
-    return userStore.position && Number(userStore.position.level) <= 6;
+  // 2. Direct pending assignment to user
+  if (doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId && a.status === 'PENDING')) {
+    return true;
   }
-  // If targeted to department without office/user -> only Department Director / Deputy Director (level <= 4)
-  if (doc.target_department_id && doc.target_department_id === userStore.department_id) {
-    return userStore.position && Number(userStore.position.level) <= 4;
+  // 3. If targeted to office/department and not yet forwarded to specific officers
+  const hasOfficerAssignments = doc.assignments?.some(a => a.target_type === 'USER' && a.status !== 'RECALLED');
+  if (!hasOfficerAssignments) {
+    if (doc.target_office_id && userOfficeId && Number(doc.target_office_id) === userOfficeId) {
+      return userPosLevel <= 8;
+    }
+    if (doc.target_department_id && userDeptId && Number(doc.target_department_id) === userDeptId) {
+      return userPosLevel <= 5;
+    }
   }
   return false;
 };
 
 const canCreateReport = (doc) => {
   if (!doc) return false;
-  // If not yet dispatched or already completed/cancelled, cannot create report
   if (!['DISPATCHED', 'IN_RESPONSE_PROGRESS'].includes(doc.status)) return false;
+  if (['COMPLETED', 'CANCELLED'].includes(doc.status)) return false;
+  if (isDg.value) return false; // DG does not draft reports
+  if (hasUserForwarded(doc)) return false; // Point 3: already forwarded!
 
-  if (isAdmin.value) return true;
-  if (isDg.value) return false; // DG does not draft/create reports; DG is the approver
+  // If a response is already drafted/in review, cannot create another duplicate response
+  if (doc.status === 'IN_RESPONSE_PROGRESS' || doc.latest_response || (doc.responses && doc.responses.length > 0)) {
+    return false;
+  }
 
   const userId = Number(userStore.id);
   const userDeptId = userStore.department_id ? Number(userStore.department_id) : null;
   const userOfficeId = userStore.office_id ? Number(userStore.office_id) : null;
+  const userPosLevel = userStore.position?.level != null ? Number(userStore.position.level) : 999;
 
   // 1. Direct assignment to this user
   const docUserId = Number(doc.target_user_id || doc.target_user?.id);
@@ -3243,21 +3493,24 @@ const canCreateReport = (doc) => {
     return true;
   }
 
-  // 2. Direct assignment to this user's office
-  const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
-  if (userOfficeId && (docOfficeId === userOfficeId || doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId))) {
-    return true;
-  }
-
-  // 3. Direct assignment to this user's department
-  const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
-  if (userDeptId && (docDeptId === userDeptId || doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId))) {
-    return true;
-  }
-
-  // 4. Assigned working group
+  // 2. Working group assigned
   if (isUserAssignedViaWorkingGroup(doc) || isUserLeaderOfAssignedWorkingGroup(doc)) {
     return true;
+  }
+
+  // 3. If assigned to office without specific officer yet, Office Chief/officers can draft
+  const hasOfficerAssignments = doc.assignments?.some(a => a.target_type === 'USER' && a.status !== 'RECALLED');
+  if (!hasOfficerAssignments) {
+    const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
+    if (userOfficeId && (docOfficeId === userOfficeId || doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId))) {
+      return true;
+    }
+
+    // 4. If assigned to department without office yet
+    const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
+    if (userDeptId && (docDeptId === userDeptId || doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId))) {
+      return true;
+    }
   }
 
   return false;
@@ -3269,6 +3522,44 @@ const canReviewResponse = (doc) => {
   const latest = doc.latest_response;
   if (!latest || latest.status !== 'UNDER_REVIEW') return false;
   return isAdmin.value || latest.current_approver_id === userStore.id;
+};
+
+const canDeleteResponse = (resp) => {
+  if (!resp) return false;
+  const isDrafter = (resp.drafted_by === userStore.id || resp.drafted_by_user?.id === userStore.id);
+  const isAdminUser = (userStore.level && userStore.level.toUpperCase() === 'ADMIN') || isAdmin.value;
+  if (!isDrafter && !isAdminUser) return false;
+  return ['DRAFT', 'RETURNED'].includes(resp.status) || isAdminUser;
+};
+
+const deleteResponseAction = async (resp) => {
+  const isReturned = (resp.status === 'RETURNED');
+  const docTypeLabel = isReturned ? 'ឯកសារដែលថ្នាក់ដឹកនាំបានបញ្ជូនត្រឡប់មកវិញនេះ' : 'សេចក្តីព្រាងឆ្លើយតបនេះ';
+  const result = await Swal.fire({
+    title: 'តើលោកអ្នកពិតជាចង់លុបមែនទេ?',
+    text: `${docTypeLabel} នឹងត្រូវលុបចេញពីប្រព័ន្ធទាំងស្រុង!`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'យល់ព្រមលុប',
+    cancelButtonText: 'បោះបង់',
+  });
+  if (!result.isConfirmed) return;
+
+  try {
+    await apiDeleteOutboundDocument(resp.id);
+    Swal.fire({ icon: 'success', title: 'បានលុបជោគជ័យ!', timer: 1500, showConfirmButton: false });
+    if (selectedDoc.value?.id) {
+      const res = await apiGetInboundDocument(selectedDoc.value.id);
+      if (res.data?.data) {
+        selectedDoc.value = res.data.data;
+      }
+    }
+    loadDocuments();
+    loadStats();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចលុបបានឡើយ!' });
+  }
 };
 
 const canRecallInbound = (doc) => {
@@ -3324,47 +3615,42 @@ const recallInboundAction = async (doc) => {
 const canForward = (doc) => {
   if (!doc) return false;
   if (['COMPLETED', 'CANCELLED'].includes(doc.status)) return false;
-
-  // DG dispatches via DG Annotation modal, so DG does not use cascading forward button
-  if (isDg.value) return false;
-
-  const isSuper = isAdmin.value;
-  if (isSuper) {
-    return true;
-  }
-
-  // Non-super cannot forward before document is dispatched
   if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'].includes(doc.status)) return false;
+  if (isDg.value) return false; // DG dispatches via DG Annotation modal, so DG does not use cascading forward button
+  if (hasUserForwarded(doc)) return false; // Point 3: already forwarded!
 
+  const userId = Number(userStore.id);
   const userPos = userStore.position;
   const userLevel = (userPos && userPos.level != null) ? Number(userPos.level) : (userStore.level ? Number(userStore.level) : 999);
   const userDeptId = (userStore.department_id || userStore.department?.id) ? Number(userStore.department_id || userStore.department?.id) : null;
   const userOfficeId = (userStore.office_id || userStore.office?.id) ? Number(userStore.office_id || userStore.office?.id) : null;
-  const userId = Number(userStore.id);
 
-  const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
-  const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
+  // 1. User specifically assigned with PENDING status
   const docUserId = Number(doc.target_user_id || doc.target_user?.id);
-
-  // 1. Department Leadership (Level <= 5): can forward if doc is in their department
-  if (userLevel <= 5 && userDeptId) {
-    if (docDeptId === userDeptId) return true;
-    if (doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId)) return true;
-  }
-
-  // 2. Office leadership (Level <= 8): can forward if doc is in their office
-  if (userLevel <= 8 && userOfficeId) {
-    if (docOfficeId === userOfficeId) return true;
-    if (doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId)) return true;
-  }
-
-  // 3. User specifically assigned / forwarded this document
   if (docUserId === userId) return true;
-  if (doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId)) return true;
+  if (doc.assignments?.some(a => Number(a.user_id || a.user?.id) === userId && a.status === 'PENDING')) return true;
 
-  // 4. Working Group leader / deputy leader
+  // 2. Working Group leader / deputy leader
   if (isUserLeaderOfAssignedWorkingGroup(doc)) {
     return true;
+  }
+
+  // 3. Office leadership (Level <= 8): can forward if doc is targeted to this office and not yet forwarded to officers
+  const hasOfficerAssignments = doc.assignments?.some(a => a.target_type === 'USER' && a.status !== 'RECALLED');
+  if (userLevel <= 8 && userOfficeId && !hasOfficerAssignments) {
+    const docOfficeId = Number(doc.target_office_id || doc.target_office?.id);
+    if (docOfficeId === userOfficeId || doc.assignments?.some(a => Number(a.office_id || a.office?.id) === userOfficeId)) {
+      return true;
+    }
+  }
+
+  // 4. Department Leadership (Level <= 5): can forward if doc is in their department and not yet forwarded downwards
+  const hasSubAssignments = doc.assignments?.some(a => (a.target_type === 'OFFICE' || a.target_type === 'USER') && a.status !== 'RECALLED');
+  if (userLevel <= 5 && userDeptId && !hasSubAssignments) {
+    const docDeptId = Number(doc.target_department_id || doc.target_department?.id);
+    if (docDeptId === userDeptId || doc.assignments?.some(a => Number(a.department_id || a.department?.id) === userDeptId)) {
+      return true;
+    }
   }
 
   return false;
@@ -3529,11 +3815,314 @@ const getCurrentCustodian = (doc) => {
   }
 };
 
+const getFullImageUrl = (path) => {
+  if (!path) return '';
+
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
+
+  const backendBase = (import.meta.env.VITE_APP_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000')
+    .replace(/\/api\/?$/, '');
+
+  let cleanPath = path.replace(/^\//, '');
+
+  if (cleanPath.includes('users/profile-images/') && !cleanPath.includes('thumbnails/')) {
+    cleanPath = cleanPath.replace('users/profile-images/', 'users/profile-images/thumbnails/');
+  }
+
+  if (!cleanPath.startsWith('storage/') && !cleanPath.startsWith('uploads/')) {
+    cleanPath = `storage/${cleanPath}`;
+  }
+
+  return `${backendBase}/${cleanPath}`;
+};
+
+const getDepartmentDirector = (deptId) => {
+  if (!deptId || !recipientOptions.value?.users) return null;
+  const deptUsers = recipientOptions.value.users.filter(u => Number(u.department_id) === Number(deptId));
+  if (deptUsers.length === 0) return null;
+  return [...deptUsers].sort((a, b) => (Number(a.position?.level || 999) - Number(b.position?.level || 999)))[0];
+};
+
+const getOfficeChief = (officeId) => {
+  if (!officeId || !recipientOptions.value?.users) return null;
+  const offUsers = recipientOptions.value.users.filter(u => Number(u.office_id) === Number(officeId));
+  if (offUsers.length === 0) return null;
+  return [...offUsers].sort((a, b) => (Number(a.position?.level || 999) - Number(b.position?.level || 999)))[0];
+};
+
+const getWorkingGroupLeader = (wgId, wgObj) => {
+  if (wgObj?.members) {
+    const leader = wgObj.members.find(m => m.role === 'LEADER' && m.status === 'ACTIVE');
+    if (leader?.user) return leader.user;
+  }
+  if (!wgId || !recipientOptions.value?.working_groups) return null;
+  const wg = recipientOptions.value.working_groups.find(g => Number(g.id) === Number(wgId));
+  const leader = wg?.members?.find(m => m.role === 'LEADER' && m.status === 'ACTIVE');
+  return leader?.user || null;
+};
+
+// បង្ហាញតែរូបភាព Profile អ្នកដែលឯកសារកំពុងនៅក្នុងដៃអ្នកនោះ (ករណីនាយកដ្ឋាន ការិយាល័យ និងក្រុមការងារ បង្ហាញរូបប្រធាន)
+const getCurrentCustodianProfiles = (doc) => {
+  if (!doc) return [];
+
+  // 1. ករណីមានឯកសារចេញ (Outbound Response)៖ កន្លែងស្ថានភាពឯកសារចូលគឺត្រូវមានរូបដូចគ្នា (អ្នកកាន់ឯកសារក្នុងដៃ)
+  const resp = doc.latest_response || doc.latestResponse;
+  if (resp && doc.status !== 'COMPLETED') {
+    if (resp.status === 'UNDER_REVIEW') {
+      const approver = resp.current_approver || resp.currentApprover;
+      if (approver) {
+        const name = approver.name_kh || approver.name || 'ថ្នាក់ដឹកនាំ';
+        const avatar = approver.profile_image || '';
+        return [{
+          name,
+          title: `កំពុងស្ថិតលើដៃ៖ ${name} (${approver.position?.title_kh || 'ថ្នាក់ដឹកនាំកំពុងពិនិត្យរបាយការណ៍'})`,
+          role: approver.position?.title_kh || 'ថ្នាក់ដឹកនាំ',
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ថ',
+        }];
+      }
+    } else if (resp.status === 'APPROVED_BY_DG') {
+      const dg = resp.approved_by_user || resp.approvedByUser || resp.current_approver || resp.currentApprover;
+      if (dg) {
+        const name = dg.name_kh || dg.name || 'ឯ.ឧ អគ្គនាយក';
+        const avatar = dg.profile_image || '';
+        return [{
+          name,
+          title: `បានឯកភាពដោយ៖ ${name} (ឯ.ឧ អគ្គនាយក)`,
+          role: 'ឯ.ឧ អគ្គនាយក',
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'អ',
+        }];
+      }
+    } else {
+      // DRAFT or RETURNED
+      const drafter = resp.drafted_by_user || resp.draftedByUser;
+      if (drafter) {
+        const name = drafter.name_kh || drafter.name || 'មន្ត្រីរៀបចំ';
+        const avatar = drafter.profile_image || '';
+        const isReturned = resp.status === 'RETURNED';
+        return [{
+          name,
+          title: isReturned
+            ? `បានបញ្ជូនត្រឡប់មក៖ ${name} (${drafter.position?.title_kh || 'មន្ត្រីរៀបចំ'})`
+            : `កំពុងស្ថិតលើដៃ៖ ${name} (${drafter.position?.title_kh || 'កំពុងរៀបចំរបាយការណ៍'})`,
+          role: 'មន្ត្រីរៀបចំ',
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ម',
+        }];
+      }
+    }
+  }
+
+  // 2. RECEPTION_DRAFT
+  if (doc.status === 'RECEPTION_DRAFT') {
+    const u = doc.registered_by_user || doc.registeredByUser;
+    const name = u?.name_kh || u?.name || 'មន្ត្រីចុះបញ្ជី';
+    const avatar = u?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ច្រកចូល / មន្ត្រីចុះបញ្ជី)`,
+      role: 'មន្ត្រីចុះបញ្ជី',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ម',
+    }];
+  }
+
+  // 3. SUBMITTED_TO_ASSISTANT
+  if (doc.status === 'SUBMITTED_TO_ASSISTANT') {
+    const u = doc.assistant || recipientOptions.value?.users?.find(usr => usr.permissions?.includes('inbound-documents-assistant'));
+    const name = u?.name_kh || u?.name || 'ជំនួយការអគ្គនាយក';
+    const avatar = u?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ជំនួយការអគ្គនាយក)`,
+      role: 'ជំនួយការ',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ជ',
+    }];
+  }
+
+  // 4. SUBMITTED_TO_DG
+  if (doc.status === 'SUBMITTED_TO_DG') {
+    const dg = recipientOptions.value?.users?.find(usr => Number(usr.position?.level) === 1);
+    const name = dg?.name_kh || dg?.name || 'ឯកឧត្តមអគ្គនាយក';
+    const avatar = dg?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ឯកឧត្តមអគ្គនាយក)`,
+      role: 'អគ្គនាយក',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'អ',
+    }];
+  }
+
+  // 5. DG_ANNOTATED
+  if (doc.status === 'DG_ANNOTATED') {
+    const u = doc.assistant || recipientOptions.value?.users?.find(usr => usr.permissions?.includes('inbound-documents-assistant'));
+    const name = u?.name_kh || u?.name || 'ជំនួយការអគ្គនាយក';
+    const avatar = u?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ជំនួយការអគ្គនាយក - រង់ចាំចែកចាយ)`,
+      role: 'ជំនួយការ',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ជ',
+    }];
+  }
+
+  // 6. COMPLETED
+  if (doc.status === 'COMPLETED') {
+    const u = doc.acknowledged_by_user || doc.acknowledgedByUser;
+    const name = u?.name_kh || u?.name || 'បានបញ្ចប់';
+    const avatar = u?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (បានបញ្ចប់ដំណើរការ)`,
+      role: 'បានបញ្ចប់',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ប',
+    }];
+  }
+
+  // 7. DISPATCHED (or other active status)
+  const assignments = doc.assignments || [];
+  const pendingAssignments = assignments.filter(a => a.status === 'PENDING');
+  const targetAssignments = pendingAssignments.length > 0 ? pendingAssignments : assignments.filter(a => a.status !== 'RECALLED');
+
+  if (targetAssignments.length > 0) {
+    const profiles = [];
+    const seenNames = new Set();
+
+    targetAssignments.forEach(a => {
+      // Case A: Officer
+      if (a.target_type === 'USER' || a.user || a.user_id) {
+        let u = a.user;
+        if (!u && a.user_id && recipientOptions.value?.users) {
+          u = recipientOptions.value.users.find(usr => Number(usr.id) === Number(a.user_id));
+        }
+        const name = u?.name_kh || u?.name || a.target_label_kh || 'មន្ត្រីទទួលបន្ទុក';
+        if (seenNames.has(name)) return;
+        seenNames.add(name);
+        const avatar = u?.profile_image || '';
+        profiles.push({
+          name,
+          title: `${name} (${u?.position?.title_kh || 'មន្ត្រីទទួលបន្ទុក'})`,
+          role: u?.position?.title_kh || 'មន្ត្រីទទួលបន្ទុក',
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ម',
+        });
+      }
+      // Case B: Office -> Show Office Chief profile!
+      else if (a.target_type === 'OFFICE' || a.office_id) {
+        const chief = getOfficeChief(a.office_id || a.office?.id);
+        const officeName = a.office?.name_kh || 'ការិយាល័យ';
+        const name = chief ? (chief.name_kh || chief.name) : `ប្រធាន${officeName}`;
+        if (seenNames.has(name)) return;
+        seenNames.add(name);
+        const avatar = chief?.profile_image || '';
+        profiles.push({
+          name,
+          title: `${name} (ប្រធាន${officeName})`,
+          role: `ប្រធាន${officeName}`,
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ប',
+        });
+      }
+      // Case C: Department -> Show Department Director profile!
+      else if (a.target_type === 'DEPARTMENT' || a.department_id) {
+        const director = getDepartmentDirector(a.department_id || a.department?.id);
+        const deptName = a.department?.name_kh || 'នាយកដ្ឋាន';
+        const name = director ? (director.name_kh || director.name) : `ប្រធាន${deptName}`;
+        if (seenNames.has(name)) return;
+        seenNames.add(name);
+        const avatar = director?.profile_image || '';
+        profiles.push({
+          name,
+          title: `${name} (ប្រធាន${deptName})`,
+          role: `ប្រធាន${deptName}`,
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ប',
+        });
+      }
+      // Case D: Working Group -> Show Working Group Leader profile!
+      else if (a.target_type === 'WORKING_GROUP' || a.working_group_id) {
+        const leader = getWorkingGroupLeader(a.working_group_id || a.workingGroup?.id, a.workingGroup);
+        const wgName = (a.workingGroup || a.working_group)?.name_kh || 'ក្រុមការងារ';
+        const name = leader ? (leader.name_kh || leader.name) : `ប្រធាន${wgName}`;
+        if (seenNames.has(name)) return;
+        seenNames.add(name);
+        const avatar = leader?.profile_image || '';
+        profiles.push({
+          name,
+          title: `${name} (ប្រធាន${wgName})`,
+          role: `ប្រធាន${wgName}`,
+          avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+          initial: name.charAt(0) || 'ប',
+        });
+      }
+    });
+
+    if (profiles.length > 0) return [profiles[0]];
+  }
+
+  // Direct targets on doc
+  if (doc.target_user) {
+    const name = doc.target_user.name_kh || doc.target_user.name;
+    const avatar = doc.target_user.profile_image || '';
+    return [{
+      name,
+      title: `${name} (${doc.target_user.position?.title_kh || 'មន្ត្រីទទួលបន្ទុក'})`,
+      role: doc.target_user.position?.title_kh || 'មន្ត្រីទទួលបន្ទុក',
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ម',
+    }];
+  }
+
+  if (doc.target_office) {
+    const chief = getOfficeChief(doc.target_office_id || doc.target_office.id);
+    const officeName = doc.target_office.name_kh;
+    const name = chief ? (chief.name_kh || chief.name) : `ប្រធាន${officeName}`;
+    const avatar = chief?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ប្រធាន${officeName})`,
+      role: `ប្រធាន${officeName}`,
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ប',
+    }];
+  }
+
+  if (doc.target_department) {
+    const director = getDepartmentDirector(doc.target_department_id || doc.target_department.id);
+    const deptName = doc.target_department.name_kh;
+    const name = director ? (director.name_kh || director.name) : `ប្រធាន${deptName}`;
+    const avatar = director?.profile_image || '';
+    return [{
+      name,
+      title: `${name} (ប្រធាន${deptName})`,
+      role: `ប្រធាន${deptName}`,
+      avatarUrl: avatar ? getFullImageUrl(avatar) : '',
+      initial: name.charAt(0) || 'ប',
+    }];
+  }
+
+  return [];
+};
+
 // កំណត់ស្ថានភាពសាមញ្ញ ៣ ដំណាក់កាល (Pending, Doing, Complete)
 const getSimplifiedStatus = (doc) => {
   if (!doc) return { label: 'Pending', khLabel: 'ចូលដំបូង / រង់ចាំ', key: 'PENDING', badgeClass: 'badge-warning text-dark font-weight-bold', icon: 'fas fa-clock', subText: '' };
 
   const status = doc.status;
+
+  // ១. ករណីបញ្ចប់ (Complete)
   if (status === 'COMPLETED') {
     return {
       label: 'Complete',
@@ -3541,121 +4130,60 @@ const getSimplifiedStatus = (doc) => {
       key: 'COMPLETE',
       badgeClass: 'badge-success font-weight-bold',
       icon: 'fas fa-check-circle',
-      subText: 'អគ្គនាយកបានឯកភាព'
+      subText: doc.acknowledged_at ? 'បានទទួលជ្រាប និងបញ្ចប់' : 'អគ្គនាយកបានឯកភាព'
     };
   }
 
-  // ១. ករណីអ្នកមើលជាអគ្គនាយក (DG)
-  if (isDg.value) {
-    if (status === 'SUBMITTED_TO_DG') {
-      return {
-        label: 'Pending',
-        khLabel: 'រង់ចាំចំណារអគ្គនាយក',
-        key: 'PENDING',
-        badgeClass: 'badge-warning text-dark font-weight-bold',
-        icon: 'fas fa-pen-nib',
-        subText: 'នៅតុឯកឧត្តមអគ្គនាយក'
-      };
-    }
-    return {
-      label: 'Doing',
-      khLabel: 'បានចាត់ចែង / កំពុងដំណើរការ',
-      key: 'DOING',
-      badgeClass: 'badge-primary font-weight-bold',
-      icon: 'fas fa-tasks',
-      subText: doc.dispatched_at ? 'បានចាត់ចែងរួច' : 'កំពុងដំណើរការ'
-    };
-  }
+  // ២. ករណីកំពុងដំណើរការ (Doing) - ឯកសារបានចាត់ចែងចេញ, កំពុងរៀបចំឆ្លើយតប, ឬមានចំណារអគ្គនាយក
+  if (['DISPATCHED', 'IN_RESPONSE_PROGRESS', 'DG_ANNOTATED'].includes(status) || doc.dispatched_at) {
+    const userId = Number(userStore.id);
+    const hasUserForwarded = doc.assignments?.some(a => Number(a.assigned_by || a.assigned_by_user_id) === userId);
+    const hasUserDrafted = doc.responses?.some(r => Number(r.drafted_by) === userId);
 
-  // ២. ករណីអ្នកមើលជាជំនួយការអគ្គនាយក
-  if (canAssist.value && !isAdmin.value) {
-    if (!doc.assistant_reviewed_at && !doc.dispatched_at) {
-      return {
-        label: 'Pending',
-        khLabel: 'រង់ចាំពិនិត្យ',
-        key: 'PENDING',
-        badgeClass: 'badge-warning text-dark font-weight-bold',
-        icon: 'fas fa-clock',
-        subText: 'ជំនួយការមិនទាន់បានពិនិត្យ'
-      };
+    let sub = 'កំពុងដំណើរការ';
+    if (hasUserDrafted) {
+      sub = 'បានរៀបចំសេចក្តីព្រាង';
+    } else if (hasUserForwarded) {
+      sub = 'បានចាត់ចែងបន្ត';
+    } else if (status === 'IN_RESPONSE_PROGRESS') {
+      sub = 'កំពុងរៀបចំ';
+    } else if (status === 'DG_ANNOTATED' && !doc.dispatched_at) {
+      sub = 'មានចំណារអគ្គនាយក';
+    } else {
+      sub = 'កំពុងដំណើរការ';
     }
-    return {
-      label: 'Doing',
-      khLabel: 'បានពិនិត្យ / កំពុងតាមដាន',
-      key: 'DOING',
-      badgeClass: 'badge-primary font-weight-bold',
-      icon: 'fas fa-tasks',
-      subText: 'បានពិនិត្យរួចរាល់'
-    };
-  }
 
-  // ៣. ករណីអ្នកទទួលឯកសារ (Receptionist)
-  if (canRegister.value && !isAdmin.value) {
-    if (status === 'RECEPTION_DRAFT') {
-      return {
-        label: 'Pending',
-        khLabel: 'រង់ចាំបញ្ជូន',
-        key: 'PENDING',
-        badgeClass: 'badge-warning text-dark font-weight-bold',
-        icon: 'fas fa-clock',
-        subText: 'នៅតុចុះបញ្ជីទទួល'
-      };
-    }
-    return {
-      label: 'Doing',
-      khLabel: 'បានបញ្ជូនបន្ត',
-      key: 'DOING',
-      badgeClass: 'badge-primary font-weight-bold',
-      icon: 'fas fa-tasks',
-      subText: 'បានបញ្ជូនទៅថ្នាក់ដឹកនាំ'
-    };
-  }
-
-  // ៤. ករណី Admin
-  if (isAdmin.value) {
-    if (['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'].includes(status)) {
-      return {
-        label: 'Pending',
-        khLabel: 'ករណីចូលមកដំបូង',
-        key: 'PENDING',
-        badgeClass: 'badge-warning text-dark font-weight-bold',
-        icon: 'fas fa-clock',
-        subText: status === 'RECEPTION_DRAFT' ? 'នៅតុចុះបញ្ជី' : 'នៅតុថ្នាក់ដឹកនាំ'
-      };
-    }
     return {
       label: 'Doing',
       khLabel: 'កំពុងដំណើរការ',
       key: 'DOING',
       badgeClass: 'badge-primary font-weight-bold',
       icon: 'fas fa-tasks',
-      subText: status === 'IN_RESPONSE_PROGRESS' ? 'កំពុងរៀបចំឆ្លើយតប' : 'បានចាត់ចែង'
+      subText: sub
     };
   }
 
-  // ៥. សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី (Department Director, Office Chief, Officer)
-  const userId = Number(userStore.id);
-  const hasUserForwarded = doc.assignments?.some(a => Number(a.assigned_by || a.assigned_by_user_id) === userId);
-  const hasUserDrafted = doc.responses?.some(r => Number(r.drafted_by) === userId);
-
-  if (!hasUserForwarded && !hasUserDrafted) {
-    return {
-      label: 'Pending',
-      khLabel: 'រង់ចាំចំណាត់ការ',
-      key: 'PENDING',
-      badgeClass: 'badge-warning text-dark font-weight-bold',
-      icon: 'fas fa-clock',
-      subText: 'រង់ចាំលោកអ្នកចាត់ចែងបន្ត'
-    };
+  // ៣. ករណីចូលដំបូង / រង់ចាំចំណារពីថ្នាក់ដឹកនាំ (Pending)
+  let sub = 'រង់ចាំ';
+  let kh = 'រង់ចាំ';
+  if (status === 'RECEPTION_DRAFT') {
+    sub = 'នៅតុចុះបញ្ជីទទួល';
+    kh = 'នៅតុចុះបញ្ជី';
+  } else if (status === 'SUBMITTED_TO_ASSISTANT') {
+    sub = 'នៅតុជំនួយការ';
+    kh = 'រង់ចាំជំនួយការពិនិត្យ';
+  } else if (status === 'SUBMITTED_TO_DG') {
+    sub = 'នៅតុឯកឧត្តមអគ្គនាយក';
+    kh = 'រង់ចាំចំណារអគ្គនាយក';
   }
 
   return {
-    label: 'Doing',
-    khLabel: 'បានចាត់ចែងបន្ត ឬកំពុងធ្វើ',
-    key: 'DOING',
-    badgeClass: 'badge-primary font-weight-bold',
-    icon: 'fas fa-tasks',
-    subText: hasUserDrafted ? 'បានរៀបចំសេចក្តីព្រាងឆ្លើយតប' : 'បានចាត់ចែងបន្តរួចរាល់'
+    label: 'Pending',
+    khLabel: kh,
+    key: 'PENDING',
+    badgeClass: 'badge-warning text-dark font-weight-bold',
+    icon: 'fas fa-clock',
+    subText: sub
   };
 };
 
@@ -4234,6 +4762,7 @@ const acknowledgeAction = async (doc) => {
   try {
     await apiAcknowledgeInboundDocument(doc.id);
     Swal.fire({ icon: 'success', title: 'ជោគជ័យ!', text: 'បានទទួលជ្រាប និងបញ្ចប់ឯកសារដោយជោគជ័យ!', timer: 1500 });
+    if (showDetailModal.value) showDetailModal.value = false;
     loadDocuments();
     loadStats();
   } catch (err) {
@@ -4354,10 +4883,32 @@ const submitResponseDraftAction = async () => {
 const openReviewResponseModal = async (doc) => {
   selectedDoc.value = doc;
   selectedResponse.value = doc.latest_response;
+  responseReviewStep.value = 'form';
+  responseReviewWorkingHtml.value = '';
+  if (cleanupResponseReviewDraggable) {
+    cleanupResponseReviewDraggable();
+    cleanupResponseReviewDraggable = null;
+  }
   reviewActionForm.action = isDg.value ? 'DG_APPROVE' : 'FORWARD';
   reviewActionForm.forwarded_to_id = '';
-  reviewActionForm.response_number = '';
-  reviewActionForm.comment = '';
+  reviewActionForm.response_number = doc.latest_response?.response_number || '';
+  reviewActionForm.comment = isDg.value
+    ? 'បានពិនិត្យ និងសម្រេចឯកភាព'
+    : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច';
+  reviewActionForm.embed_into_document = (doc.latest_response?.response_type !== 'LETTER');
+  reviewActionForm.placement = 'SIDE_BY_SIDE_LEFT';
+  reviewActionForm.sign_date = getShortKhmerDateString(new Date());
+
+  if (doc.latest_response?.id) {
+    try {
+      const respRes = await apiGetOutboundDocument(doc.latest_response.id);
+      if (respRes.data?.data) {
+        selectedResponse.value = respRes.data.data;
+      }
+    } catch (e) {
+      console.warn('Could not fetch full outbound doc:', e);
+    }
+  }
 
   try {
     const res = await apiGetNextResponseApprovers(doc.id);
@@ -4368,30 +4919,249 @@ const openReviewResponseModal = async (doc) => {
   }
 };
 
-const submitReviewAction = async () => {
-  submitting.value = true;
-  try {
-    const formData = new FormData();
-    formData.append('action', reviewActionForm.action);
-    if (reviewActionForm.comment) formData.append('comment', reviewActionForm.comment);
-    if (reviewActionForm.forwarded_to_id) formData.append('forwarded_to_id', reviewActionForm.forwarded_to_id);
-    if (reviewActionForm.response_number) formData.append('response_number', reviewActionForm.response_number);
+const setupResponseReviewPositionDraggable = () => {
+  if (cleanupResponseReviewDraggable) {
+    cleanupResponseReviewDraggable();
+    cleanupResponseReviewDraggable = null;
+  }
+  if (!responseReviewPositionPaperRef.value) return;
 
-    await apiProcessResponseAction(selectedDoc.value.id, formData);
+  cleanupResponseReviewDraggable = setupDraggableOpinionBoxes(
+    responseReviewPositionPaperRef.value,
+    () => {},
+    { currentUserId: userStore.id, isAdmin: isDg.value, canEdit: true }
+  );
+
+  // Auto-select the newly added box so handles are visible immediately
+  nextTick(() => {
+    if (!responseReviewPositionPaperRef.value) return;
+    const boxes = responseReviewPositionPaperRef.value.querySelectorAll('.draggable-opinion-box');
+    boxes.forEach(b => {
+      const bOwnerId = b.getAttribute('data-owner-id');
+      if (bOwnerId && Number(bOwnerId) === Number(userStore.id)) {
+        b.classList.add('is-selected');
+      }
+    });
+  });
+};
+
+const goToResponseReviewPositionStep = () => {
+  if (reviewActionForm.action === 'FORWARD' && !reviewActionForm.forwarded_to_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីចារឆ្លងបន្ត!' });
+    return;
+  }
+
+  const isDgLeader = isDg.value || reviewActionForm.action === 'DG_APPROVE';
+  const reviewerName = userStore.name_kh || userStore.name || '';
+  const reviewerSig = userStore.signature_image || '';
+  const shortDateKh = reviewActionForm.sign_date || getShortKhmerDateString(new Date());
+  const comment = reviewActionForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+  const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+    comment,
+    reviewerName,
+    signatureUrl: reviewerSig,
+    shortDateKh,
+    ownerId: userStore.id,
+  });
+
+  const baseContent = selectedResponse.value?.content || '';
+  responseReviewWorkingHtml.value = embedOpinionBoxIntoHtml(baseContent, leaderBoxHtml, reviewActionForm.placement);
+  responseReviewStep.value = 'position';
+
+  nextTick(() => {
+    setupResponseReviewPositionDraggable();
+  });
+};
+
+const resetResponseReviewPosition = () => {
+  const isDgLeader = isDg.value || reviewActionForm.action === 'DG_APPROVE';
+  const reviewerName = userStore.name_kh || userStore.name || '';
+  const reviewerSig = userStore.signature_image || '';
+  const shortDateKh = reviewActionForm.sign_date || getShortKhmerDateString(new Date());
+  const comment = reviewActionForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+  const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+    comment,
+    reviewerName,
+    signatureUrl: reviewerSig,
+    shortDateKh,
+    ownerId: userStore.id,
+  });
+
+  const baseContent = selectedResponse.value?.content || '';
+  responseReviewWorkingHtml.value = embedOpinionBoxIntoHtml(baseContent, leaderBoxHtml, reviewActionForm.placement);
+
+  nextTick(() => {
+    setupResponseReviewPositionDraggable();
+  });
+};
+
+const submitReviewAction = async () => {
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  if (reviewActionForm.action === 'FORWARD' && !reviewActionForm.forwarded_to_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីចារឆ្លងបន្ត!' });
+    return;
+  }
+
+  // If in step 1 and embed is selected, transition to position step first
+  if (responseReviewStep.value === 'form' && reviewActionForm.embed_into_document && selectedResponse.value?.content && reviewActionForm.action !== 'RETURN') {
+    goToResponseReviewPositionStep();
+    return;
+  }
+
+  submittingReview.value = true;
+  try {
+    let finalContent = undefined;
+    if (reviewActionForm.embed_into_document && selectedResponse.value && selectedResponse.value.content && reviewActionForm.action !== 'RETURN') {
+      if (responseReviewPositionPaperRef.value) {
+        const clone = responseReviewPositionPaperRef.value.cloneNode(true);
+        clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
+          b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
+          b.removeAttribute('title');
+          b.querySelectorAll('div').forEach(d => {
+            if (d.textContent.trim() === '(ហត្ថលេខា)') {
+              d.remove();
+            }
+          });
+          b.querySelectorAll('[contenteditable]').forEach(el => {
+            el.removeAttribute('contenteditable');
+            el.removeAttribute('title');
+          });
+        });
+        finalContent = clone.innerHTML;
+      } else {
+        const isDgLeader = isDg.value || reviewActionForm.action === 'DG_APPROVE';
+        const reviewerName = userStore.name_kh || userStore.name || '';
+        const reviewerSig = userStore.signature_image || '';
+        const shortDateKh = reviewActionForm.sign_date || getShortKhmerDateString(new Date());
+        const comment = reviewActionForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+        const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+          comment,
+          reviewerName,
+          signatureUrl: reviewerSig,
+          shortDateKh,
+          ownerId: userStore.id,
+        });
+
+        finalContent = embedOpinionBoxIntoHtml(selectedResponse.value.content, leaderBoxHtml, reviewActionForm.placement);
+      }
+    }
+
+    if (selectedResponse.value?.id) {
+      await apiReviewOutboundAction(selectedResponse.value.id, {
+        action: reviewActionForm.action,
+        forwarded_to_id: reviewActionForm.forwarded_to_id || undefined,
+        response_number: reviewActionForm.response_number || undefined,
+        comment: reviewActionForm.comment || undefined,
+        content: finalContent || undefined,
+      });
+    } else {
+      const formData = new FormData();
+      formData.append('action', reviewActionForm.action);
+      if (reviewActionForm.comment) formData.append('comment', reviewActionForm.comment);
+      if (reviewActionForm.forwarded_to_id) formData.append('forwarded_to_id', reviewActionForm.forwarded_to_id);
+      if (reviewActionForm.response_number) formData.append('response_number', reviewActionForm.response_number);
+      await apiProcessResponseAction(selectedDoc.value.id, formData);
+    }
+
     Swal.fire({
       icon: 'success',
       title: 'ជោគជ័យ!',
-      text: 'បានអនុវត្តសកម្មភាពពិនិត្យលិខិតឆ្លើយតបដោយជោគជ័យ!',
-      confirmButtonText: 'យល់ព្រម',
+      text: 'បានអនុវត្តសកម្មភាពពិនិត្យឆ្លងដោយជោគជ័យ!',
+      timer: 1800,
+      showConfirmButton: false,
     });
+
+    if (cleanupResponseReviewDraggable) {
+      cleanupResponseReviewDraggable();
+      cleanupResponseReviewDraggable = null;
+    }
     showReviewResponseModal.value = false;
+    responseReviewStep.value = 'form';
     loadDocuments();
     loadStats();
   } catch (err) {
     const errorMsg = err.response?.data?.message || Object.values(err.response?.data?.errors || {})[0]?.[0] || 'មិនអាចដំណើរការសកម្មភាពបានឡើយ!';
     Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
   } finally {
-    submitting.value = false;
+    submittingReview.value = false;
+  }
+};
+
+const saveAndHoldResponseReview = async () => {
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  submittingReview.value = true;
+  try {
+    let finalContent = undefined;
+    if (responseReviewPositionPaperRef.value) {
+      const clone = responseReviewPositionPaperRef.value.cloneNode(true);
+      clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
+        b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
+        b.removeAttribute('title');
+        b.querySelectorAll('*').forEach(d => {
+          if (d.textContent.trim() === '(ហត្ថលេខា)') {
+            d.remove();
+          }
+        });
+        b.querySelectorAll('[contenteditable]').forEach(el => {
+          el.removeAttribute('contenteditable');
+          el.removeAttribute('title');
+        });
+      });
+      finalContent = clone.innerHTML;
+    } else if (reviewActionForm.embed_into_document && selectedResponse.value && selectedResponse.value.content) {
+      const isDgLeader = isDg.value || reviewActionForm.action === 'DG_APPROVE';
+      const reviewerName = userStore.name_kh || userStore.name || '';
+      const reviewerSig = userStore.signature_image || '';
+      const shortDateKh = reviewActionForm.sign_date || getShortKhmerDateString(new Date());
+      const comment = reviewActionForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+      const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+        comment,
+        reviewerName,
+        signatureUrl: reviewerSig,
+        shortDateKh,
+        ownerId: userStore.id,
+      });
+
+      finalContent = embedOpinionBoxIntoHtml(selectedResponse.value.content, leaderBoxHtml, reviewActionForm.placement);
+    }
+
+    if (selectedResponse.value?.id) {
+      await apiReviewOutboundAction(selectedResponse.value.id, {
+        action: 'HOLD',
+        comment: reviewActionForm.comment || undefined,
+        content: finalContent || undefined,
+      });
+    }
+
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: 'បានរក្សាទុកមតិយោបល់ និងខ្លឹមសារក្នុងដៃដោយជោគជ័យ! លោកអ្នកអាចចារឆ្លងទៅថ្នាក់លើនៅពេលក្រោយ។',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+
+    if (cleanupResponseReviewDraggable) {
+      cleanupResponseReviewDraggable();
+      cleanupResponseReviewDraggable = null;
+    }
+    showReviewResponseModal.value = false;
+    responseReviewStep.value = 'form';
+    loadDocuments();
+    loadStats();
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'មិនអាចរក្សាទុកក្នុងដៃបានឡើយ!';
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
+  } finally {
+    submittingReview.value = false;
   }
 };
 
@@ -4916,5 +5686,147 @@ onMounted(() => {
 }
 .text-teal {
   color: #0d9488 !important;
+}
+
+/* Custodian Avatar Styles */
+.custodian-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  object-fit: cover;
+  border: 2px solid #0056b3 !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.custodian-avatar:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22) !important;
+  z-index: 10;
+}
+.custodian-avatar-fallback {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  background: linear-gradient(135deg, #0056b3, #17a2b8);
+  font-size: 14px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.custodian-avatar-fallback:hover {
+  transform: scale(1.15);
+}
+
+/* Draggable Leadership Opinion Box & Handles */
+:deep(.draggable-opinion-box) {
+  position: relative;
+  border: 1px dashed transparent !important;
+  background: transparent !important;
+  vertical-align: top !important;
+  transition: box-shadow 0.15s ease;
+}
+
+:deep(.draggable-opinion-box:hover),
+:deep(.draggable-opinion-box.is-selected) {
+  outline: 1.5px dashed #2563eb !important;
+  outline-offset: 2px;
+}
+
+:deep(.draggable-opinion-box:hover .box-handle),
+:deep(.draggable-opinion-box.is-selected .box-handle) {
+  display: block !important;
+}
+
+:deep(.draggable-opinion-box.is-dragging) {
+  opacity: 0.92;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25) !important;
+  cursor: grabbing !important;
+  z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-resizing) {
+  opacity: 0.95;
+  outline: 1.5px dashed #2563eb !important;
+  user-select: none !important;
+  z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-locked-box) {
+  cursor: default !important;
+  outline: none !important;
+  border: 1px dashed transparent !important;
+}
+:deep(.draggable-opinion-box.is-locked-box:hover) {
+  outline: none !important;
+}
+:deep(.draggable-opinion-box.is-locked-box .box-handle) {
+  display: none !important;
+}
+
+/* Ensure report signature table always aligns cells to the top row */
+:deep(.drafter-signature-table) {
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+:deep(.drafter-signature-table tr) {
+  vertical-align: top !important;
+}
+:deep(.drafter-signature-table td) {
+  vertical-align: top !important;
+}
+:deep(.drafter-signature-table .opinion-left-col) {
+  width: 50% !important;
+  vertical-align: top !important;
+  text-align: center !important;
+}
+
+:deep(.box-handle) {
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #2563eb;
+  border: 1px solid #ffffff;
+  box-sizing: border-box;
+  z-index: 30;
+  border-radius: 1px;
+}
+:deep(.box-handle.handle-tl) { top: -4.5px; left: -4.5px; cursor: nwse-resize; }
+:deep(.box-handle.handle-tc) { top: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-tr) { top: -4.5px; right: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-ml) { top: calc(50% - 4px); left: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-mr) { top: calc(50% - 4px); right: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-bl) { bottom: -4.5px; left: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-bc) { bottom: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-br) { bottom: -4.5px; right: -4.5px; cursor: nwse-resize; }
+
+:deep(.opinion-box-comment[contenteditable="true"]:hover),
+:deep(.opinion-box-date[contenteditable="true"]:hover) {
+  background-color: #f1f5f9;
+  border-radius: 2px;
+  cursor: text;
+}
+
+:deep(.opinion-box-comment[contenteditable="true"]:focus),
+:deep(.opinion-box-date[contenteditable="true"]:focus) {
+  outline: 1.5px dashed #2563eb !important;
+  background-color: #ffffff !important;
+  border-radius: 2px;
+  padding: 1px 3px;
+  cursor: text;
+}
+
+@media print {
+  :deep(.box-handle),
+  :deep(.draggable-opinion-box .box-handle) {
+    display: none !important;
+  }
+  :deep(.draggable-opinion-box) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 </style>

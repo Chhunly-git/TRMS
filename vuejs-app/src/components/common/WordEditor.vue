@@ -58,14 +58,25 @@
             >
               <i class="fas fa-plus-circle mr-1"></i> + ទំព័រថ្មី (Page Break)
             </button>
-            <button
-              type="button"
-              class="btn btn-xs btn-outline-warning mr-1 mb-1 font-weight-bold text-dark shadow-xs"
-              @click="insertReviewerBlocks"
-              title="បញ្ចូលកំណត់ត្រាមតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំដែលបានដាក់រួច"
-            >
-              <i class="fas fa-clipboard-check mr-1 text-warning"></i> + យោបល់ថ្នាក់ដឹកនាំ
-            </button>
+            <template v-if="isApprover">
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-warning mr-1 mb-1 font-weight-bold text-dark shadow-xs"
+                @click="openSuperiorReviewModal"
+                title="បញ្ចូលកំណត់ត្រាមតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំ"
+              >
+                <i class="fas fa-clipboard-check mr-1 text-warning"></i> + យោបល់ថ្នាក់ដឹកនាំ
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold shadow-xs"
+                @click="syncWorkflowApprovals"
+                v-if="approvals && approvals.length > 0"
+                title="ធ្វើបច្ចុប្បន្នភាពមតិយោបល់ថ្នាក់ដឹកនាំពី Workflow ចូលក្នុងតារាង"
+              >
+                <i class="fas fa-sync-alt mr-1"></i> 🔄 Sync យោបល់ Workflow
+              </button>
+            </template>
             <button
               type="button"
               class="btn btn-xs btn-outline-dark mr-1 mb-1 font-weight-bold shadow-xs"
@@ -76,12 +87,13 @@
             </button>
             <button
               type="button"
-              class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold shadow-xs"
-              @click="syncWorkflowApprovals"
-              v-if="approvals && approvals.length > 0"
-              title="ធ្វើបច្ចុប្បន្នភាពមតិយោបល់ថ្នាក់ដឹកនាំពី Workflow ចូលក្នុងតារាង"
+              class="btn btn-xs mr-1 mb-1 font-weight-bold shadow-xs"
+              :class="officerSignature ? 'btn-outline-success' : 'btn-outline-primary'"
+              @click="showSignatureModal = true"
+              :title="officerSignature ? 'ហត្ថលេខារបស់អ្នកត្រូវបានភ្ជាប់រួចរាល់ (ចុចដើម្បីកែប្រែ)' : 'គូស ឬបង្ហោះហត្ថលេខារបស់អ្នក'"
             >
-              <i class="fas fa-sync-alt mr-1"></i> 🔄 Sync យោបល់ Workflow
+              <i class="fas fa-file-signature mr-1"></i>
+              <span>{{ officerSignature ? 'ហត្ថលេខារបស់ខ្ញុំ ✓' : '+ គូស/ដាក់ហត្ថលេខា' }}</span>
             </button>
           </div>
         </div>
@@ -248,13 +260,179 @@
         <span v-else class="text-success"><i class="fas fa-check-circle mr-1"></i> អាចកែសម្រួលបាន</span>
       </div>
     </div>
+
+    <!-- Superior Review & Signature Modal -->
+    <Teleport to="body">
+      <div class="custom-modal-backdrop" v-if="showSuperiorReviewModal">
+        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 720px;">
+          <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
+            <div class="modal-header bg-warning text-dark py-3 px-4 d-flex justify-content-between align-items-center">
+              <h5 class="modal-title font-weight-bold mb-0">
+                <i class="fas fa-file-signature mr-2 text-dark"></i>
+                បញ្ចូលមតិយោបល់ និងហត្ថលេខាថ្នាក់ដឹកនាំ
+              </h5>
+              <button type="button" class="close text-dark" @click="showSuperiorReviewModal = false" style="font-size: 1.5rem; border: none; background: transparent; cursor: pointer;">
+                <span>&times;</span>
+              </button>
+            </div>
+
+            <div class="modal-body p-4 bg-light">
+              <!-- 1. Header Title -->
+              <div class="form-group mb-3">
+                <label class="font-weight-bold text-dark small mb-1">
+                  ចំណងជើងផ្នែកយោបល់ / ចំណារ <span class="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-control font-weight-bold"
+                  v-model="superiorForm.title"
+                  placeholder="ឧ. ចំណារ និងការសម្រេចរបស់ឯកឧត្តមអគ្គនាយក ឬ យោបល់របស់ប្រធាននាយកដ្ឋាន..."
+                />
+              </div>
+
+              <!-- 2. Comment / Opinion -->
+              <div class="form-group mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="font-weight-bold text-dark small mb-0">
+                    ខ្លឹមសារមតិយោបល់ / ចំណារណែនាំ <span class="text-danger">*</span>
+                  </label>
+                  <!-- Quick comment chips -->
+                  <div class="d-flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
+                      @click="superiorForm.comment = 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ឯ.ឧ អគ្គនាយក
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold"
+                      @click="superiorForm.comment = 'សូមគោរពជូនលោកប្រធាននាយកដ្ឋាន\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ប្រធាននាយកដ្ឋាន
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-success mr-1 mb-1 font-weight-bold"
+                      @click="superiorForm.comment = 'បានពិនិត្យ និងឯកភាព'"
+                    >
+                      + បានពិនិត្យ និងឯកភាព
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-secondary mb-1"
+                      @click="superiorForm.comment = 'សូមឯកភាព និងចាត់ចែងអនុវត្តបន្តតាមនីតិវិធី'"
+                    >
+                      + សូមឯកភាព និងចាត់ចែងបន្ត
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  class="form-control"
+                  rows="3"
+                  v-model="superiorForm.comment"
+                  placeholder="កត់ត្រាខ្លឹមសារយោបល់ ឬការណែនាំនៅទីនេះ..."
+                ></textarea>
+              </div>
+
+              <!-- 3. Date & Placement Row -->
+              <div class="row mb-3">
+                <div class="col-md-6 mb-2 mb-md-0">
+                  <label class="font-weight-bold text-dark small mb-1">
+                    <i class="fas fa-calendar-alt text-primary mr-1"></i> កាលបរិច្ឆេទចុះហត្ថលេខា
+                  </label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="superiorForm.dateStr"
+                    placeholder="ឧ. ៤/១១/២៦ ឬ រាជធានីភ្នំពេញ ថ្ងៃទី... ខែ... ឆ្នាំ..."
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="font-weight-bold text-dark small mb-1">
+                    <i class="fas fa-map-marker-alt text-danger mr-1"></i> ជ្រើសរើសទីតាំងដាក់លើរបាយការណ៍ <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-control font-weight-bold" v-model="superiorForm.placement">
+                    <option value="SIDE_BY_SIDE_LEFT">ទន្ទឹមហត្ថលេខាអ្នករៀបចំ (ខាងឆ្វេង) - ស្តង់ដារ</option>
+                    <option value="ABOVE_DRAFTER">ខាងលើហត្ថលេខាអ្នករៀបចំ</option>
+                    <option value="BELOW_DRAFTER">ខាងក្រោមហត្ថលេខាអ្នករៀបចំ</option>
+                    <option value="BOTTOM">ខាងក្រោមបង្អស់នៃរបាយការណ៍ (ចុងបញ្ចប់)</option>
+                    <option value="CURSOR">ត្រង់ទីតាំង Cursor ក្នុងអត្ថបទ</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 4. Signature Preview & Management -->
+              <div class="card border rounded p-3 bg-white mb-2 shadow-xs">
+                <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                  <span class="font-weight-bold text-dark small">
+                    <i class="fas fa-signature text-success mr-1"></i> ហត្ថលេខា និងឈ្មោះថ្នាក់ដឹកនាំ
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-outline-primary font-weight-bold"
+                    @click="showSignatureModal = true"
+                  >
+                    <i class="fas fa-pen mr-1"></i> {{ (userStore.signature_image || superiorForm.signatureUrl) ? 'ផ្លាស់ប្តូរ ឬគូសហត្ថលេខា' : '+ គូស/បង្ហោះហត្ថលេខា' }}
+                  </button>
+                </div>
+                <div class="row align-items-center">
+                  <div class="col-sm-6 text-center border-right">
+                    <div class="small text-muted mb-1">គំរូហត្ថលេខាឌីជីថល៖</div>
+                    <div v-if="userStore.signature_image || superiorForm.signatureUrl" class="p-2 border rounded bg-light d-inline-block">
+                      <img :src="userStore.signature_image || superiorForm.signatureUrl" alt="ហត្ថលេខា" style="height: 55px; max-width: 180px; object-fit: contain;" />
+                    </div>
+                    <div v-else class="p-2 border rounded bg-light d-inline-block">
+                      <span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 18pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 0 15px;">
+                        {{ superiorForm.name }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 pt-2 pt-sm-0">
+                    <div class="small text-muted">ឈ្មោះ៖</div>
+                    <div class="font-weight-bold text-dark font-14">{{ superiorForm.name }}</div>
+                    <div class="small text-muted mt-1">តួនាទី៖</div>
+                    <div class="text-dark small">{{ superiorForm.position }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-white py-2 px-4 d-flex justify-content-between">
+              <button type="button" class="btn btn-secondary px-3" @click="showSuperiorReviewModal = false">
+                បោះបង់
+              </button>
+              <button
+                type="button"
+                class="btn btn-warning px-4 font-weight-bold text-dark shadow-sm"
+                @click="applySuperiorReview"
+              >
+                <i class="fas fa-check-circle mr-1"></i> បញ្ចូលទៅក្នុងរបាយការណ៍
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Signature Modal -->
+    <SignatureModal v-model:show="showSignatureModal" @saved="onSignatureSaved" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import Swal from 'sweetalert2';
+import { useUserStore } from '@/stores/user';
+import SignatureModal from '@/components/common/SignatureModal.vue';
+import {
+  getShortKhmerDateString,
+  generateDraggableOpinionBoxHtml,
+  setupDraggableOpinionBoxes,
+} from '@/utils/opinionBoxHelper';
 
+const userStore = useUserStore();
 
 const props = defineProps({
   modelValue: {
@@ -266,6 +444,10 @@ const props = defineProps({
     default: 'REPORT' // 'REPORT', 'SUBMISSION_NOTE', 'BLANK'
   },
   readonly: {
+    type: Boolean,
+    default: false
+  },
+  isApprover: {
     type: Boolean,
     default: false
   },
@@ -289,17 +471,22 @@ const props = defineProps({
     type: String,
     default: 'អ្នកធ្វើរបាយការណ៍'
   },
+  officerSignature: {
+    type: String,
+    default: ''
+  },
   approvals: {
     type: Array,
     default: () => []
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'save-draft', 'change']);
+const emit = defineEmits(['update:modelValue', 'save-draft', 'change', 'signature-updated']);
 
 const paperEditor = ref(null);
 const canvasContainer = ref(null);
 const isFullscreen = ref(false);
+const showSignatureModal = ref(false);
 
 const selectedFont = ref("'Khmer OS Battambang', sans-serif");
 const selectedSize = ref("12pt");
@@ -458,21 +645,33 @@ const getDrafterSignatureHtml = () => {
   const office = props.officeName ? props.officeName : '';
   const officer = props.officerName || '.....................................';
   const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
+  const signatureUrl = props.officerSignature || '';
   const dateStr = getCurrentKhmerDateString();
 
+  const signatureImgHtml = signatureUrl
+    ? `<div style="text-align: center; margin: 4px 0 2px 0;">
+         <img src="${signatureUrl}" alt="ហត្ថលេខា" style="height: 60px; max-width: 190px; object-fit: contain; display: inline-block;" />
+       </div>`
+    : `<div class="digital-signature-placeholder" style="text-align: center; margin: 4px 0 2px 0; min-height: 52px; display: flex; align-items: center; justify-content: center;">
+         <span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 20pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 2px 20px; letter-spacing: 1px; display: inline-block;">
+           ${officer}
+         </span>
+       </div>`;
+
   return `
-    <table style="width: 100%; border: none; border-collapse: collapse; margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid; line-height: 2.1;">
+    <table class="drafter-signature-table" style="width: 100%; border: none; border-collapse: collapse; margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid; line-height: 2.1;">
       <tr>
-        <td style="width: 45%; border: none;"></td>
-        <td style="width: 55%; border: none; text-align: center; font-size: 11pt; line-height: 2.1;">
+        <td class="opinion-left-col" style="width: 50%; border: none; vertical-align: top; text-align: center; padding-right: 15px;"></td>
+        <td style="width: 50%; border: none; vertical-align: top; text-align: center; font-size: 11pt; line-height: 2.1; padding-left: 15px;">
           <div style="font-size: 11pt; color: #333;">${dateStr}</div>
           <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 2px;">
             ${dept}
           </div>
           ${office ? `<div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000;">${office}</div>` : ''}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px; margin-bottom: 60px;">
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px;">
             ${pos}
           </div>
+          ${signatureImgHtml}
           <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; font-weight: bold;">
             ${officer}
           </div>
@@ -480,6 +679,110 @@ const getDrafterSignatureHtml = () => {
       </tr>
     </table>
   `;
+};
+
+// Superior Review & Opinion Modal State & Logic
+const showSuperiorReviewModal = ref(false);
+const savedRange = ref(null);
+
+const superiorForm = reactive({
+  title: '',
+  comment: '',
+  dateStr: '',
+  placement: 'SIDE_BY_SIDE_LEFT', // 'SIDE_BY_SIDE_LEFT', 'ABOVE_DRAFTER', 'BELOW_DRAFTER', 'BOTTOM', 'CURSOR'
+  name: '',
+  position: '',
+  signatureUrl: '',
+});
+
+const isDgUser = computed(() => {
+  const level = userStore.position?.level ? Number(userStore.position.level) : 99;
+  return level <= 1 || (userStore.level && userStore.level.toUpperCase() === 'ADMIN');
+});
+
+const openSuperiorReviewModal = () => {
+  if (props.readonly) return;
+
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0 && paperEditor.value && paperEditor.value.contains(selection.getRangeAt(0).commonAncestorContainer)) {
+    savedRange.value = selection.getRangeAt(0).cloneRange();
+  } else {
+    savedRange.value = null;
+  }
+
+  const posTitle = userStore.position?.title_kh || 'ថ្នាក់ដឹកនាំ';
+  superiorForm.title = isDgUser.value
+    ? 'ចំណារ និងការសម្រេចរបស់ឯកឧត្តមអគ្គនាយក'
+    : `យោបល់របស់${posTitle}`;
+  superiorForm.comment = isDgUser.value
+    ? 'បានពិនិត្យ និងសម្រេចឯកភាព'
+    : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច';
+  superiorForm.dateStr = getShortKhmerDateString(new Date());
+  superiorForm.placement = 'SIDE_BY_SIDE_LEFT';
+  superiorForm.name = userStore.name_kh || userStore.name || '';
+  superiorForm.position = isDgUser.value ? 'អគ្គនាយក' : posTitle;
+  superiorForm.signatureUrl = userStore.signature_image || '';
+
+  showSuperiorReviewModal.value = true;
+};
+
+const applySuperiorReview = () => {
+  if (!paperEditor.value) return;
+
+  const shortDateKh = superiorForm.dateStr || getShortKhmerDateString(new Date());
+  const boxHtml = generateDraggableOpinionBoxHtml({
+    comment: superiorForm.comment || (isDgUser.value ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច'),
+    signatureUrl: userStore.signature_image || superiorForm.signatureUrl,
+    reviewerName: superiorForm.name || userStore.name_kh || userStore.name,
+    shortDateKh,
+    ownerId: userStore.id,
+  });
+
+  const drafterTable = paperEditor.value.querySelector('.drafter-signature-table');
+
+  if (superiorForm.placement === 'SIDE_BY_SIDE_LEFT' && drafterTable) {
+    let leftCol = drafterTable.querySelector('.opinion-left-col') || drafterTable.querySelector('td:first-child');
+    if (leftCol) {
+      if (!leftCol.innerHTML.trim()) {
+        leftCol.innerHTML = boxHtml;
+      } else {
+        leftCol.insertAdjacentHTML('beforeend', boxHtml);
+      }
+    } else {
+      drafterTable.insertAdjacentHTML('beforebegin', boxHtml);
+    }
+  } else if (superiorForm.placement === 'CURSOR' && savedRange.value) {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange.value);
+    document.execCommand('insertHTML', false, boxHtml);
+  } else if (superiorForm.placement === 'ABOVE_DRAFTER') {
+    if (drafterTable) {
+      drafterTable.insertAdjacentHTML('beforebegin', boxHtml);
+    } else {
+      paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
+    }
+  } else if (superiorForm.placement === 'BELOW_DRAFTER') {
+    if (drafterTable) {
+      drafterTable.insertAdjacentHTML('afterend', boxHtml);
+    } else {
+      paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
+    }
+  } else {
+    // Default 'BOTTOM'
+    paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
+  }
+
+  emitUpdate();
+  showSuperiorReviewModal.value = false;
+
+  Swal.fire({
+    icon: 'success',
+    title: 'បានបញ្ចូលយោបល់ និងហត្ថលេខា!',
+    text: 'មតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំត្រូវបានបញ្ចូលទៅក្នុងរបាយការណ៍ដោយជោគជ័យ។ លោកអ្នកអាចចុចអូសរំកិលទីតាំងបានតាមតម្រូវការ!',
+    timer: 2000,
+    showConfirmButton: false
+  });
 };
 
 // Superiors' Review Block: ONLY renders reviews that have ALREADY been submitted!
@@ -512,6 +815,12 @@ const getReviewBlockHtml = (approvalsList = []) => {
     const reviewerName = app.user?.name_kh || app.user?.name || '';
     const reviewerPos = app.user?.position?.title_kh || app.stage_kh || 'ថ្នាក់ដឹកនាំ';
     const isDg = (app.action === 'DG_APPROVE' || app.stage === 'DG');
+    const reviewerSig = app.user?.signature_image || '';
+    const reviewerSigHtml = reviewerSig
+      ? `<div style="text-align: right; margin: 4px 0 2px auto;">
+           <img src="${reviewerSig}" alt="ហត្ថលេខា" style="height: 55px; max-width: 160px; object-fit: contain; display: inline-block;" />
+         </div>`
+      : `<div style="height: 35px;"></div>`;
 
     const title = isDg
       ? `${numKh}. ចំណារ និងការសម្រេចរបស់ឯកឧត្តមអគ្គនាយក`
@@ -541,7 +850,8 @@ const getReviewBlockHtml = (approvalsList = []) => {
         </div>
         <div style="text-align: right; padding-right: 10px;">
           <div style="font-style: italic; font-size: 9pt; color: #64748b;">${isDg ? '(ហត្ថលេខា និងត្រា)' : '(ហត្ថលេខា និងឈ្មោះ)'}</div>
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: ${isDg ? '#002060' : '#000'}; margin-top: 25px;">
+          ${reviewerSigHtml}
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: ${isDg ? '#002060' : '#000'}; margin-top: 2px;">
             ${reviewerName}
           </div>
           <div style="font-size: 9.5pt; color: #475569;">
@@ -560,6 +870,18 @@ const getReviewBlockHtml = (approvalsList = []) => {
       ${reviewCardsHtml}
     </div>
   `;
+};
+
+const onSignatureSaved = (newSigUrl) => {
+  emit('signature-updated', newSigUrl);
+  superiorForm.signatureUrl = newSigUrl;
+  if (paperEditor.value) {
+    const drafterTable = paperEditor.value.querySelector('.drafter-signature-table');
+    if (drafterTable) {
+      drafterTable.outerHTML = getDrafterSignatureHtml();
+      emitUpdate();
+    }
+  }
 };
 
 const insertReviewerBlocks = () => {
@@ -674,7 +996,7 @@ const getOfficialTemplates = () => {
             </td>
           </tr>
           <tr>
-            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0; font-family: 'Khmer OS Muol Light', serif; white-space: nowrap;">យោង៖</td>
             <td style="vertical-align: top; border: none; padding: 2px 0;">
               <div>- លិខិតលេខ...</div>
               <div>- ចំណារឯកឧត្តមអគ្គនាយក...</div>
@@ -684,7 +1006,7 @@ const getOfficialTemplates = () => {
 
         <!-- Body Paragraph 1 -->
         <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។
+          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong >ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។
         </div>
 
         <!-- Body Paragraph 2 -->
@@ -699,9 +1021,6 @@ const getOfficialTemplates = () => {
 
         <!-- 1. Drafter Signature Block -->
         ${getDrafterSignatureHtml()}
-
-        <!-- 2. Superiors' Review & Opinion Block (Only displays reviews that have already been placed!) -->
-        ${getReviewBlockHtml()}
       </div>
     `,
     REPORT_2_PAGES: `
@@ -769,9 +1088,6 @@ const getOfficialTemplates = () => {
 
         <!-- 1. Drafter Signature Block at end of content -->
         ${getDrafterSignatureHtml()}
-
-        <!-- 2. Superiors' Review & Opinion Block (Only displays reviews that have already been placed!) -->
-        ${getReviewBlockHtml()}
       </div>
     `,
     SUBMISSION_NOTE: `
@@ -830,9 +1146,6 @@ const getOfficialTemplates = () => {
 
         <!-- 1. Drafter Signature Block -->
         ${getDrafterSignatureHtml()}
-
-        <!-- 2. Superiors' Review & Opinion Block -->
-        ${getReviewBlockHtml()}
       </div>
     `,
     LETTER: `
@@ -1080,6 +1393,8 @@ watch(
   }
 );
 
+let cleanupDraggable = null;
+
 onMounted(() => {
   nextTick(() => {
     if (paperEditor.value) {
@@ -1088,13 +1403,115 @@ onMounted(() => {
       } else {
         insertTemplate(props.docType || 'REPORT');
       }
+      cleanupDraggable = setupDraggableOpinionBoxes(
+        paperEditor.value,
+        () => {
+          emitUpdate();
+        },
+        { currentUserId: userStore.id, isAdmin: isDgUser.value }
+      );
     }
   });
+});
+
+onUnmounted(() => {
+  if (cleanupDraggable) cleanupDraggable();
 });
 </script>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@300;400;700&display=swap');
+
+/* Draggable Leadership Opinion Box & Handles */
+:deep(.draggable-opinion-box) {
+  position: relative;
+  transition: box-shadow 0.15s ease;
+}
+
+:deep(.draggable-opinion-box.is-locked-box) {
+  cursor: default !important;
+}
+
+:deep(.draggable-opinion-box.is-locked-box:hover) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.draggable-opinion-box.is-locked-box .box-handle) {
+  display: none !important;
+}
+
+:deep(.draggable-opinion-box:hover),
+:deep(.draggable-opinion-box.is-selected) {
+  outline: 1.5px solid #2563eb !important;
+  outline-offset: 1px;
+}
+
+:deep(.draggable-opinion-box:hover .box-handle),
+:deep(.draggable-opinion-box.is-selected .box-handle) {
+  display: block !important;
+}
+
+:deep(.draggable-opinion-box.is-dragging) {
+  opacity: 0.92;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25) !important;
+  cursor: grabbing !important;
+  z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-resizing) {
+  opacity: 0.95;
+  outline: 1.5px dashed #2563eb !important;
+  user-select: none !important;
+  z-index: 100 !important;
+}
+
+:deep(.box-handle) {
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #2563eb;
+  border: 1px solid #ffffff;
+  box-sizing: border-box;
+  z-index: 30;
+  border-radius: 1px;
+}
+:deep(.box-handle.handle-tl) { top: -4.5px; left: -4.5px; cursor: nwse-resize; }
+:deep(.box-handle.handle-tc) { top: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-tr) { top: -4.5px; right: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-ml) { top: calc(50% - 4px); left: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-mr) { top: calc(50% - 4px); right: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-bl) { bottom: -4.5px; left: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-bc) { bottom: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-br) { bottom: -4.5px; right: -4.5px; cursor: nwse-resize; }
+
+:deep(.opinion-box-comment[contenteditable="true"]:hover),
+:deep(.opinion-box-date[contenteditable="true"]:hover) {
+  background-color: #f1f5f9;
+  border-radius: 2px;
+  cursor: text;
+}
+
+:deep(.opinion-box-comment[contenteditable="true"]:focus),
+:deep(.opinion-box-date[contenteditable="true"]:focus) {
+  outline: 1.5px dashed #2563eb !important;
+  background-color: #ffffff !important;
+  border-radius: 2px;
+  padding: 1px 3px;
+  cursor: text;
+}
+
+@media print {
+  :deep(.box-handle),
+  :deep(.draggable-opinion-box .box-handle) {
+    display: none !important;
+  }
+  :deep(.draggable-opinion-box) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
 
 .word-editor-wrapper {
   display: flex;

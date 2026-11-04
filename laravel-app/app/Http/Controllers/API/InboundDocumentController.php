@@ -153,18 +153,22 @@ class InboundDocumentController extends Controller
         }
 
         $query = InboundDocument::with([
-            'registeredByUser:id,name,name_kh,email',
-            'assistant:id,name,name_kh,email',
+            'registeredByUser:id,name,name_kh,email,profile_image',
+            'assistant:id,name,name_kh,email,profile_image',
             'targetDepartment:id,name_kh',
             'targetOffice:id,name_kh',
-            'targetUser:id,name,name_kh,email',
-            'acknowledgedByUser:id,name,name_kh',
-            'latestResponse.currentApprover:id,name,name_kh',
+            'targetUser:id,name,name_kh,email,profile_image',
+            'acknowledgedByUser:id,name,name_kh,profile_image',
+            'latestResponse.currentApprover:id,name,name_kh,profile_image',
+            'latestResponse.draftedByUser:id,name,name_kh,profile_image',
+            'latestResponse.approvedByUser:id,name,name_kh,profile_image',
             'assignments:id,inbound_document_id,target_type,department_id,office_id,user_id,working_group_id,status,instruction,assigned_by',
             'assignments.department:id,name_kh',
             'assignments.office:id,name_kh',
-            'assignments.user:id,name,name_kh',
-            'assignments.workingGroup:id,name_kh',
+            'assignments.user:id,name,name_kh,profile_image',
+            'assignments.workingGroup:id,name_kh,name_en,code',
+            'assignments.workingGroup.members:id,working_group_id,user_id,role,status',
+            'assignments.workingGroup.members.user:id,name,name_kh,profile_image',
         ]);
 
         // 3-Status Unified Tabs (Doing, In Progress, Complete)
@@ -313,78 +317,58 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isLeadership = ($viewer->position && (int) $viewer->position->level <= 2);
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel === 1);
         $isAssistant = $viewer->hasPermission('inbound-documents-assistant');
         $isReceptionist = $viewer->hasPermission('inbound-documents-receptionist');
 
-        $isPrivileged = $isAdmin || $isLeadership || $isAssistant;
-
-        // Base accessible query for viewer
+        // Base accessible query for viewer - strictly enforces DocumentWorkflowConfig and permission boundaries!
         $baseAccessibleQuery = $this->scopeAccessibleByViewer(InboundDocument::query(), $viewer);
 
-        $total = $isPrivileged
-            ? InboundDocument::count()
-            : (clone $baseAccessibleQuery)->count();
+        $total = (clone $baseAccessibleQuery)->count();
 
         $receptionPending = ($isAdmin || $isReceptionist)
-            ? InboundDocument::where('status', 'RECEPTION_DRAFT')->count()
+            ? (clone $baseAccessibleQuery)->where('status', 'RECEPTION_DRAFT')->count()
             : 0;
 
         $assistantPending = ($isAdmin || $isAssistant)
-            ? InboundDocument::whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'])->count()
+            ? (clone $baseAccessibleQuery)->whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG', 'DG_ANNOTATED'])->count()
             : 0;
 
-        $dgPending = ($isAdmin || $isLeadership)
-            ? InboundDocument::where('status', 'SUBMITTED_TO_DG')->count()
+        $dgPending = ($isAdmin || $isDg)
+            ? (clone $baseAccessibleQuery)->where('status', 'SUBMITTED_TO_DG')->count()
             : 0;
 
-        $dispatched = $isPrivileged
-            ? InboundDocument::whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count()
-            : (clone $baseAccessibleQuery)->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
+        $dispatched = (clone $baseAccessibleQuery)->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])->count();
 
-        $inResponse = $isPrivileged
-            ? InboundDocument::where('status', 'IN_RESPONSE_PROGRESS')->count()
-            : (clone $baseAccessibleQuery)->where('status', 'IN_RESPONSE_PROGRESS')->count();
+        $inResponse = (clone $baseAccessibleQuery)->where('status', 'IN_RESPONSE_PROGRESS')->count();
 
-        $completed = $isPrivileged
-            ? InboundDocument::where('status', 'COMPLETED')->count()
-            : (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
+        $completed = (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
         // 3-State Unified Counters (Pending, Doing, Complete)
-        $pendingBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
-        $pendingCount = $this->applyPendingScope($pendingBase, $viewer)->count();
+        $pendingCount = $this->applyPendingScope(clone $baseAccessibleQuery, $viewer)->count();
+        $doingCount = $this->applyDoingScope(clone $baseAccessibleQuery, $viewer)->count();
 
-        $doingBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
-        $doingCount = $this->applyDoingScope($doingBase, $viewer)->count();
-
-        $myTodoQuery = $this->scopeMyTodo(InboundDocument::query(), $viewer);
-        $myTodo = $isPrivileged ? $myTodoQuery->count() : $this->scopeAccessibleByViewer($myTodoQuery, $viewer)->count();
-
-        $myDoneQuery = $this->scopeMyDone(InboundDocument::query(), $viewer);
-        $myDone = $isPrivileged ? $myDoneQuery->count() : $this->scopeAccessibleByViewer($myDoneQuery, $viewer)->count();
-
-        $myUnitQuery = $this->scopeMyUnit(InboundDocument::query(), $viewer);
-        $myUnit = $isPrivileged ? $myUnitQuery->count() : $this->scopeAccessibleByViewer($myUnitQuery, $viewer)->count();
+        $myTodo = $this->scopeMyTodo(clone $baseAccessibleQuery, $viewer)->count();
+        $myDone = $this->scopeMyDone(clone $baseAccessibleQuery, $viewer)->count();
+        $myUnit = $this->scopeMyUnit(clone $baseAccessibleQuery, $viewer)->count();
 
         $today = Carbon::today();
-        $deadlineBase = $isPrivileged ? InboundDocument::query() : (clone $baseAccessibleQuery);
-
-        $overdueCount = (clone $deadlineBase)
+        $overdueCount = (clone $baseAccessibleQuery)
             ->whereNotNull('deadline')
             ->whereDate('deadline', '<', $today)
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
             ->count();
 
-        $dueSoonCount = (clone $deadlineBase)
+        $dueSoonCount = (clone $baseAccessibleQuery)
             ->whereNotNull('deadline')
             ->whereDate('deadline', '>=', $today)
             ->whereDate('deadline', '<=', $today->copy()->addDays(3))
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
             ->count();
 
-        $isDg = ($viewer->position && (int) $viewer->position->level === 1);
-
-        $tabDoingCount = InboundDocument::where('status', '!=', 'COMPLETED')
+        $tabDoingCount = (clone $baseAccessibleQuery)
+            ->where('status', '!=', 'COMPLETED')
             ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
                 if ($isDg) {
                     $q->whereNull('dispatched_at');
@@ -403,7 +387,8 @@ class InboundDocumentController extends Controller
                 }
             })->count();
 
-        $tabInProgressCount = InboundDocument::where('status', '!=', 'COMPLETED')
+        $tabInProgressCount = (clone $baseAccessibleQuery)
+            ->where('status', '!=', 'COMPLETED')
             ->where(function ($q) use ($viewer, $isDg, $isAssistant) {
                 if ($isDg) {
                     $q->whereNotNull('dispatched_at');
@@ -415,7 +400,7 @@ class InboundDocumentController extends Controller
                 }
             })->count();
 
-        $tabCompleteCount = InboundDocument::where('status', 'COMPLETED')->count();
+        $tabCompleteCount = (clone $baseAccessibleQuery)->where('status', 'COMPLETED')->count();
 
         return response()->json([
             'total' => $total,
@@ -430,7 +415,6 @@ class InboundDocumentController extends Controller
             'dg_pending' => $dgPending,
             'dispatched' => $dispatched,
             'in_response' => $inResponse,
-            'completed' => $completed,
             'assigned_to_me' => $myTodo,
             'my_todo' => $myTodo,
             'my_done' => $myDone,
@@ -454,24 +438,20 @@ class InboundDocumentController extends Controller
         $query->whereNotIn('status', ['COMPLETED', 'CANCELLED']);
 
         if ($isAdmin) {
-            $query->where(function ($q) {
-                $q->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])
-                  ->orWhereHas('assignments', fn($aq) => $aq->where('status', 'PENDING'));
-            });
+            $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
         } elseif ($isDg) {
             $query->where('status', 'SUBMITTED_TO_DG');
         } elseif ($isAssistant) {
-            $query->where('status', 'SUBMITTED_TO_DG')
+            $query->where(function ($q) {
+                $q->whereIn('status', ['SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG'])
                   ->whereNull('assistant_reviewed_at')
                   ->whereNull('dispatched_at');
+            });
         } elseif ($isReceptionist && !$isDg && $viewerPosLevel > 5) {
             $query->where('status', 'RECEPTION_DRAFT');
         } else {
-            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី៖
-            // ឯកសារដែលបានចាត់ចែងមកកាន់អង្គភាព/ខ្លួន ហើយខ្លួនមិនទាន់បានចាត់ចែងបន្ត (មិនទាន់ Forward) និងមិនទាន់បានព្រាងឆ្លើយតប
-            $query->whereIn('status', ['DISPATCHED', 'IN_RESPONSE_PROGRESS'])
-                  ->whereDoesntHave('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id))
-                  ->whereDoesntHave('responses', fn($rq) => $rq->where('drafted_by', $viewer->id));
+            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី (ឯកសារចូលដំបូង មិនទាន់ចាត់ចែង)
+            $query->whereIn('status', ['RECEPTION_DRAFT', 'SUBMITTED_TO_ASSISTANT', 'SUBMITTED_TO_DG']);
         }
         return $query;
     }
@@ -490,19 +470,28 @@ class InboundDocumentController extends Controller
         $query->whereNotIn('status', ['COMPLETED', 'CANCELLED']);
 
         if ($isAdmin) {
-            $query->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+            $query->where(function ($q) {
+                $q->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])
+                  ->orWhereNotNull('dispatched_at');
+            });
         } elseif ($isDg) {
-            $query->whereNotNull('dispatched_at');
+            $query->where(function ($q) {
+                $q->whereNotNull('dispatched_at')
+                  ->orWhereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+            });
         } elseif ($isAssistant) {
-            $query->where(fn($q) => $q->whereNotNull('assistant_reviewed_at')->orWhereNotNull('dispatched_at'));
+            $query->where(function ($q) {
+                $q->whereNotNull('assistant_reviewed_at')
+                  ->orWhereNotNull('dispatched_at')
+                  ->orWhereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS']);
+            });
         } elseif ($isReceptionist && !$isDg && $viewerPosLevel > 5) {
             $query->where('status', '!=', 'RECEPTION_DRAFT');
         } else {
-            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី៖
-            // ឯកសារដែលខ្លួនបានចាត់ចែងបន្តរួចហើយ (Has Forwarded) ឬកំពុងព្រាង/ដំណើរការលិខិតឆ្លើយតប
-            $query->where(function ($q) use ($viewer) {
-                $q->whereHas('assignments', fn($aq) => $aq->where('assigned_by', $viewer->id))
-                  ->orWhereHas('responses', fn($rq) => $rq->where('drafted_by', $viewer->id)->orWhere('current_approver_id', $viewer->id));
+            // សម្រាប់ប្រធាននាយកដ្ឋាន, ប្រធានការិយាល័យ និងមន្ត្រី (ឯកសារបានចាត់ចែងចេញមក ឬកំពុងដំណើរការឆ្លើយតប)
+            $query->where(function ($q) {
+                $q->whereIn('status', ['DG_ANNOTATED', 'DISPATCHED', 'IN_RESPONSE_PROGRESS'])
+                  ->orWhereNotNull('dispatched_at');
             });
         }
         return $query;
@@ -952,14 +941,16 @@ class InboundDocumentController extends Controller
             'dispatchedByUser:id,name,name_kh',
             'targetDepartment:id,name_kh',
             'targetOffice:id,name_kh',
-            'targetUser:id,name,name_kh,email',
-            'acknowledgedByUser:id,name,name_kh',
+            'targetUser:id,name,name_kh,email,profile_image',
+            'acknowledgedByUser:id,name,name_kh,profile_image',
             'assignments.department:id,name_kh,name_en',
             'assignments.office:id,name_kh,name_en',
-            'assignments.user:id,name,name_kh,email,position_id',
+            'assignments.user:id,name,name_kh,email,position_id,profile_image',
             'assignments.user.position:id,title_kh',
             'assignments.workingGroup:id,name_kh,name_en,code',
-            'assignments.assignedByUser:id,name,name_kh',
+            'assignments.workingGroup.members:id,working_group_id,user_id,role,status',
+            'assignments.workingGroup.members.user:id,name,name_kh,profile_image',
+            'assignments.assignedByUser:id,name,name_kh,profile_image',
             'assignments.childAssignments.user:id,name,name_kh',
             'assignments.childAssignments.office:id,name_kh',
             'assignments.childAssignments.department:id,name_kh',
@@ -1825,6 +1816,16 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចាត់ចែងបន្តលើឯកសារនេះឡើយ!'], 403);
         }
 
+        if (!$isAdmin) {
+            $hasAlreadyForwarded = InboundDocumentAssignment::where('inbound_document_id', $doc->id)
+                ->where('assigned_by', $viewer->id)
+                ->where('status', '!=', 'RECALLED')
+                ->exists();
+            if ($hasAlreadyForwarded) {
+                return response()->json(['message' => 'លោកអ្នកបានចាត់ចែង និងបញ្ជូនបន្តឯកសារនេះរួចហើយ! (ករណីចង់ចាត់ចែងឡើងវិញ សូមទាញយកការចាត់ចែងមកវិញជាមុនសិន)'], 400);
+            }
+        }
+
         $validator = Validator::make($request->all(), [
             'target_type' => 'nullable|in:DEPARTMENT,OFFICE,OFFICER,WORKING_GROUP,WG_MEMBER',
             'target_department_id' => 'nullable|exists:departments,id',
@@ -2200,6 +2201,16 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'ឯកសារនេះតម្រូវឱ្យមានលិខិតឆ្លើយតប មិនអាចចុចត្រឹមទទួលជ្រាបបានទេ!'], 400);
         }
 
+        if (!$isAdmin) {
+            $hasAlreadyForwarded = InboundDocumentAssignment::where('inbound_document_id', $doc->id)
+                ->where('assigned_by', $viewer->id)
+                ->where('status', '!=', 'RECALLED')
+                ->exists();
+            if ($hasAlreadyForwarded) {
+                return response()->json(['message' => 'លោកអ្នកបានចាត់ចែង និងបញ្ជូនបន្តឯកសារនេះរួចហើយ ពុំអាចទទួលជ្រាបបញ្ចប់ឯកសារបានឡើយ!'], 400);
+            }
+        }
+
         $doc->update([
             'status' => 'COMPLETED',
             'acknowledged_at' => Carbon::now(),
@@ -2237,6 +2248,45 @@ class InboundDocumentController extends Controller
         $targetOfficeId = $viewer->office_id;
 
         $candidates = collect();
+
+        // 0. Check explicit DocumentWorkflowConfig for Sending Type Group (DEPARTMENT / OFFICE)
+        $wfConfig = \App\Models\DocumentWorkflowConfig::where('user_id', $viewer->id)->first();
+        if ($wfConfig) {
+            $sendType = $wfConfig->send_type ?? 'SUBORDINATES';
+            if ($sendType === 'DEPARTMENT' && $viewer->department_id) {
+                $candidates = User::where('department_id', $viewer->department_id)
+                    ->where('id', '!=', $viewer->id)
+                    ->whereNotIn('status', ['DISABLED', 'SUSPENDED'])
+                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                    ->get()
+                    ->sortBy([
+                        fn($a, $b) => ($a->position?->level ?? 999) <=> ($b->position?->level ?? 999),
+                        fn($a, $b) => strcmp($a->name_kh ?? $a->name, $b->name_kh ?? $b->name),
+                    ])
+                    ->values();
+                return response()->json([
+                    'candidates' => $candidates,
+                    'viewer_level' => $viewerPosLevel,
+                    'is_dg' => false,
+                ]);
+            } elseif ($sendType === 'OFFICE' && $viewer->office_id) {
+                $candidates = User::where('office_id', $viewer->office_id)
+                    ->where('id', '!=', $viewer->id)
+                    ->whereNotIn('status', ['DISABLED', 'SUSPENDED'])
+                    ->with('position:id,title_kh,title_en,level', 'office:id,name_kh', 'department:id,name_kh')
+                    ->get()
+                    ->sortBy([
+                        fn($a, $b) => ($a->position?->level ?? 999) <=> ($b->position?->level ?? 999),
+                        fn($a, $b) => strcmp($a->name_kh ?? $a->name, $b->name_kh ?? $b->name),
+                    ])
+                    ->values();
+                return response()->json([
+                    'candidates' => $candidates,
+                    'viewer_level' => $viewerPosLevel,
+                    'is_dg' => false,
+                ]);
+            }
+        }
 
         // 1. Check if doc has an assigned working group and user is an active member
         $assignedWgIds = $doc->assignments->pluck('working_group_id')->filter()->unique()->toArray();
@@ -2352,11 +2402,13 @@ class InboundDocumentController extends Controller
             }
         }
 
-        // Deduplicate and sort by level ASC, name_kh ASC
-        $uniqueCandidates = $candidates->unique('id')->sortBy([
-            fn($a, $b) => ($a->position?->level ?? 999) <=> ($b->position?->level ?? 999),
-            fn($a, $b) => strcmp($a->name_kh ?? $a->name, $b->name_kh ?? $b->name),
-        ])->values();
+        // Deduplicate and filter out viewer, sort by level ASC, name_kh ASC
+        $uniqueCandidates = $candidates->filter(fn($u) => (int) $u->id !== (int) $viewer->id)
+            ->unique('id')
+            ->sortBy([
+                fn($a, $b) => ($a->position?->level ?? 999) <=> ($b->position?->level ?? 999),
+                fn($a, $b) => strcmp($a->name_kh ?? $a->name, $b->name_kh ?? $b->name),
+            ])->values();
 
         return response()->json([
             'candidates' => $uniqueCandidates,

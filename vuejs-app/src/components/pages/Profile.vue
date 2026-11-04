@@ -41,6 +41,29 @@
                     {{ userStore.position?.title_kh || userStore.position?.name || 'មន្ត្រីរាជការ' }}
                   </span>
                 </div>
+
+                <!-- ផ្នែកហត្ថលេខាឌីជីថល (Digital Signature) -->
+                <div class="digital-signature-box my-3 p-2 bg-light rounded border text-left">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small font-weight-bold text-dark">
+                      <i class="fas fa-file-signature text-primary mr-1"></i> ហត្ថលេខាឌីជីថល
+                    </span>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary"
+                      @click="showSignatureModal = true"
+                    >
+                      <i class="fas" :class="userStore.signature_image ? 'fa-edit' : 'fa-plus'"></i>
+                      {{ userStore.signature_image ? 'កែប្រែ' : 'បញ្ចូលហត្ថលេខា' }}
+                    </button>
+                  </div>
+                  <div v-if="userStore.signature_image" class="bg-white p-2 rounded border text-center">
+                    <img :src="userStore.signature_image" alt="ហត្ថលេខា" style="max-height: 55px; max-width: 100%; object-fit: contain;" />
+                  </div>
+                  <div v-else class="text-muted small py-2 text-center font-italic bg-white rounded border">
+                    ពុំទាន់មានហត្ថលេខានៅឡើយទេ
+                  </div>
+                </div>
               </div>
 
               <!-- ផ្នែកខាងក្រោមនៃកាតខាងឆ្វេង -->
@@ -944,16 +967,21 @@
 
       </div>
     </section>
+
+    <!-- Digital Signature Modal -->
+    <SignatureModal v-model:show="showSignatureModal" />
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useUserStore } from "@/stores/user";
 import { apiGetMyProfile } from "@/functions/api/user";
 import emptyImage from "@/assets/images/emptyImage.png";
+import SignatureModal from "@/components/common/SignatureModal.vue";
 
 const userStore = useUserStore();
+const showSignatureModal = ref(false);
 
 onMounted(async () => {
   try {

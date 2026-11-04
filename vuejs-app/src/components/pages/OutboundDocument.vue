@@ -27,19 +27,39 @@
     <!-- Main content -->
     <section class="content py-3">
       <div class="container-fluid">
-        <!-- Stats & 3 Tabs Bar -->
+        <!-- Stats & Tabs Bar (All, Doing, In Progress, Complete) -->
         <div class="row mb-3">
-          <!-- Tab 1: Doing (ត្រូវធ្វើ / កំពុងរៀបចំ / ត្រូវពិនិត្យ) -->
-          <div class="col-md-4 mb-2">
+          <!-- Tab 0: All (ឯកសារទាំងអស់ដែលខ្លួនមានសិទ្ធិ) -->
+          <div class="col-xl-3 col-md-6 mb-2">
             <div
-              class="card stat-card shadow-sm cursor-pointer border-0"
+              class="card stat-card shadow-sm cursor-pointer border-0 h-100"
+              :class="{ 'active-tab border-primary shadow': activeTab === 'all' }"
+              @click="switchTab('all')"
+            >
+              <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="text-uppercase small font-weight-bold text-muted">ឯកសារទាំងអស់ (All)</div>
+                  <div class="h3 font-weight-bold m-0 text-primary">{{ stats.all || 0 }}</div>
+                  <small class="text-muted">ឯកសារទាំងអស់ដែលខ្លួនមានសិទ្ធិ</small>
+                </div>
+                <div class="stat-icon bg-primary-subtle text-primary rounded-circle p-3">
+                  <i class="fas fa-layer-group fa-2x"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 1: Doing (ត្រូវធ្វើ / កំពុងរៀបចំ / ត្រូវពិនិត្យ) -->
+          <div class="col-xl-3 col-md-6 mb-2">
+            <div
+              class="card stat-card shadow-sm cursor-pointer border-0 h-100"
               :class="{ 'active-tab border-warning shadow': activeTab === 'doing' }"
               @click="switchTab('doing')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <div class="text-uppercase small font-weight-bold text-muted">១. ត្រូវរៀបចំ (Pending)</div>
-                  <div class="h3 font-weight-bold m-0 text-warning">{{ stats.doing }}</div>
+                  <div class="h3 font-weight-bold m-0 text-warning">{{ stats.doing || 0 }}</div>
                   <small class="text-muted">លិខិតរង់ចាំលោកអ្នកពិនិត្យ ឬកំពុងព្រាង</small>
                 </div>
                 <div class="stat-icon bg-warning-subtle text-warning rounded-circle p-3">
@@ -50,36 +70,36 @@
           </div>
 
           <!-- Tab 2: In Progress (កំពុងដំណើរការ / បានឆ្លងបន្ត) -->
-          <div class="col-md-4 mb-2">
+          <div class="col-xl-3 col-md-6 mb-2">
             <div
-              class="card stat-card shadow-sm cursor-pointer border-0"
+              class="card stat-card shadow-sm cursor-pointer border-0 h-100"
               :class="{ 'active-tab border-info shadow': activeTab === 'in_progress' }"
               @click="switchTab('in_progress')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <div class="text-uppercase small font-weight-bold text-muted">២. កំពុងដំណើរការ (In Progress)</div>
-                  <div class="h3 font-weight-bold m-0 text-info">{{ stats.in_progress }}</div>
+                  <div class="h3 font-weight-bold m-0 text-info">{{ stats.in_progress || 0 }}</div>
                   <small class="text-muted">បានដាក់ឆ្លង និងកំពុងរង់ចាំថ្នាក់ដឹកនាំពិនិត្យ</small>
                 </div>
                 <div class="stat-icon bg-info-subtle text-info rounded-circle p-3">
-                  <i class="fas fa-spinner fa-pulse fa-2x"></i>
+                  <i class="fas fa-tasks fa-2x"></i>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Tab 3: Complete (បានអនុម័ត / រួចរាល់) -->
-          <div class="col-md-4 mb-2">
+          <div class="col-xl-3 col-md-6 mb-2">
             <div
-              class="card stat-card shadow-sm cursor-pointer border-0"
+              class="card stat-card shadow-sm cursor-pointer border-0 h-100"
               :class="{ 'active-tab border-success shadow': activeTab === 'complete' }"
               @click="switchTab('complete')"
             >
               <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <div class="text-uppercase small font-weight-bold text-muted">៣. បានអនុម័តស្ថាពរ (Complete)</div>
-                  <div class="h3 font-weight-bold m-0 text-success">{{ stats.complete }}</div>
+                  <div class="h3 font-weight-bold m-0 text-success">{{ stats.complete || 0 }}</div>
                   <small class="text-muted">បានឯកភាពដោយឯកឧត្តមអគ្គនាយក</small>
                 </div>
                 <div class="stat-icon bg-success-subtle text-success rounded-circle p-3">
@@ -144,24 +164,22 @@
               <thead class="bg-light text-dark">
                 <tr>
                   <th style="width: 60px;" class="text-center">ល.រ</th>
-                  <th style="width: 140px;">លេខលិខិតចេញ</th>
+                  <th style="width: 150px;">លេខលិខិតចេញ</th>
                   <th style="width: 130px;">ប្រភេទ</th>
                   <th>កម្មវត្ថុ & យោង</th>
-                  <th style="width: 180px;">អ្នករៀបចំ & អង្គភាព</th>
-                  <th style="width: 180px;">ថ្នាក់ដឹកនាំកំពុងពិនិត្យ</th>
-                  <th style="width: 140px;" class="text-center">ស្ថានភាព</th>
+                  <th style="width: 200px;" class="text-center">ស្ថានភាព</th>
                   <th style="width: 160px;" class="text-center">សកម្មភាព</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loading">
-                  <td colspan="8" class="text-center py-5 text-muted">
+                  <td colspan="6" class="text-center py-5 text-muted">
                     <i class="fas fa-spinner fa-spin fa-2x mb-2 d-block"></i>
                     កំពុងទាញយកទិន្នន័យ...
                   </td>
                 </tr>
                 <tr v-else-if="documents.length === 0">
-                  <td colspan="8" class="text-center py-5 text-muted">
+                  <td colspan="6" class="text-center py-5 text-muted">
                     <i class="fas fa-folder-open fa-3x text-black-50 mb-2 d-block"></i>
                     ពុំមានឯកសារចេញក្នុងផ្នែកនេះឡើយ
                   </td>
@@ -175,6 +193,9 @@
                       {{ doc.response_number }}
                     </span>
                     <span v-else class="text-muted font-italic small">មិនទាន់ចុះលេខ</span>
+                    <div class="small text-muted mt-1" v-if="doc.created_at">
+                      <i class="far fa-calendar-alt mr-1"></i>{{ formatDateShort(doc.created_at) }}
+                    </div>
                   </td>
                   <td>
                     <span
@@ -199,57 +220,67 @@
                   <td>
                     <div class="font-weight-bold text-dark font-14">{{ doc.title }}</div>
                     <div v-if="doc.reference_note" class="text-muted small">
-                      <i class="fas fa-quote-left mr-1 text-black-50"></i>{{ doc.reference_note }}
+                      <i class="fas fa-quote-left mr-1 text-black-50"></i>{{ formatReferenceText(doc.reference_note) }}
                     </div>
                     <!-- Linked Inbound Document -->
-                    <div v-if="doc.inbound_document" class="mt-1">
+                    <div v-if="doc.inbound_document" class="mt-1 d-flex flex-wrap align-items-center gap-1">
                       <span class="badge badge-light border text-primary small">
                         <i class="fas fa-link mr-1"></i>ឯកសារចូលលេខ៖
                         {{ doc.inbound_document.general_inbound_number }}
                       </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="font-weight-bold text-dark">{{ doc.drafted_by_user?.name_kh || doc.drafted_by_user?.name }}</div>
-                    <small class="text-muted d-block">
-                      {{ doc.department?.name_kh || doc.drafted_by_user?.department?.name_kh || 'និយ័តករបរធនបាលកិច្ច' }}
-                    </small>
-                  </td>
-                  <td>
-                    <div v-if="doc.current_approver">
-                      <div class="font-weight-bold text-primary">
-                        <i class="fas fa-user-clock mr-1"></i>{{ doc.current_approver.name_kh || doc.current_approver.name }}
-                      </div>
-                      <small class="text-muted">{{ doc.current_approver.position?.title_kh || doc.current_stage }}</small>
-                    </div>
-                    <div v-else-if="doc.status === 'APPROVED_BY_DG'">
-                      <span class="badge badge-success px-2 py-1">
-                        <i class="fas fa-check mr-1"></i>ឯកភាពដោយអគ្គនាយក
+                      <span v-if="doc.inbound_document.received_date" class="small text-muted ml-1">
+                        ({{ formatDateShort(doc.inbound_document.received_date) }})
                       </span>
                     </div>
-                    <div v-else class="text-muted small">--</div>
                   </td>
-                  <td class="text-center">
-                    <span
-                      class="badge px-2 py-1 font-12"
-                      :class="{
-                        'badge-secondary': doc.status === 'DRAFT',
-                        'badge-warning text-dark': doc.status === 'UNDER_REVIEW',
-                        'badge-danger': doc.status === 'RETURNED',
-                        'badge-success': doc.status === 'APPROVED_BY_DG',
-                      }"
-                    >
-                      <i
-                        class="fas mr-1"
+                  <td class="text-center align-middle" style="min-width: 180px;">
+                    <!-- Status Badge -->
+                    <div class="mb-1">
+                      <span
+                        class="badge px-2 py-1 font-12"
                         :class="{
-                          'fa-pencil-alt': doc.status === 'DRAFT',
-                          'fa-clock': doc.status === 'UNDER_REVIEW',
-                          'fa-undo': doc.status === 'RETURNED',
-                          'fa-check-circle': doc.status === 'APPROVED_BY_DG',
+                          'badge-secondary': doc.status === 'DRAFT',
+                          'badge-warning text-dark': doc.status === 'UNDER_REVIEW',
+                          'badge-danger': doc.status === 'RETURNED',
+                          'badge-success': doc.status === 'APPROVED_BY_DG',
                         }"
-                      ></i>
-                      {{ doc.status_kh || (doc.status === 'APPROVED_BY_DG' ? 'ឯកភាពដោយអគ្គនាយក' : (doc.status === 'UNDER_REVIEW' ? 'កំពុងឆ្លង' : (doc.status === 'RETURNED' ? 'បញ្ជូនត្រឡប់' : 'ព្រាង'))) }}
-                    </span>
+                      >
+                        <i
+                          class="fas mr-1"
+                          :class="{
+                            'fa-pencil-alt': doc.status === 'DRAFT',
+                            'fa-clock': doc.status === 'UNDER_REVIEW',
+                            'fa-undo': doc.status === 'RETURNED',
+                            'fa-check-circle': doc.status === 'APPROVED_BY_DG',
+                          }"
+                        ></i>
+                        {{ doc.status_kh || (doc.status === 'APPROVED_BY_DG' ? 'ឯកភាពដោយអគ្គនាយក' : (doc.status === 'UNDER_REVIEW' ? 'កំពុងឆ្លង' : (doc.status === 'RETURNED' ? 'បញ្ជូនត្រឡប់' : 'ព្រាង'))) }}
+                      </span>
+                    </div>
+
+                    <!-- Single Avatar: Person who currently holds the document in hand -->
+                    <div class="d-flex align-items-center justify-content-center mt-1" v-if="getOutboundCurrentHolder(doc)">
+                      <div
+                        class="workflow-avatar-wrapper position-relative"
+                        :title="getOutboundCurrentHolder(doc).title"
+                      >
+                        <img
+                          v-if="getOutboundCurrentHolder(doc).avatarUrl"
+                          :src="getOutboundCurrentHolder(doc).avatarUrl"
+                          :alt="getOutboundCurrentHolder(doc).name"
+                          class="workflow-avatar"
+                          :class="getOutboundCurrentHolder(doc).borderClass"
+                          @error="(e) => { e.target.style.display = 'none'; if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex'; }"
+                        />
+                        <div
+                          class="workflow-avatar-fallback font-weight-bold"
+                          :class="getOutboundCurrentHolder(doc).fallbackClass"
+                          :style="{ display: getOutboundCurrentHolder(doc).avatarUrl ? 'none' : 'flex' }"
+                        >
+                          {{ getOutboundCurrentHolder(doc).initial }}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td class="text-center">
                     <div class="btn-group btn-group-sm">
@@ -296,12 +327,12 @@
                         <i class="fas fa-undo"></i>
                       </button>
 
-                      <!-- Delete Button (If DRAFT) -->
+                      <!-- Delete Button (If DRAFT or RETURNED) -->
                       <button
                         v-if="canDelete(doc)"
                         type="button"
                         class="btn btn-outline-danger"
-                        title="លុបសេចក្តីព្រាង"
+                        :title="doc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
                         @click="deleteAction(doc)"
                       >
                         <i class="fas fa-trash"></i>
@@ -454,7 +485,9 @@
                   :office-name="userStore.office?.name_kh || ''"
                   :officer-name="form.sign_name || userStore.name_kh || userStore.name"
                   :officer-position="form.sign_title || userStore.position?.title_kh || 'អ្នកធ្វើរបាយការណ៍'"
+                  :officer-signature="userStore.signature_image || ''"
                   :approvals="currentEditingApprovals"
+                  :is-approver="isApproverEditing"
                 />
               </div>
 
@@ -467,7 +500,7 @@
                     </label>
                     <select class="form-control font-weight-bold text-dark" v-model="form.forwarded_to_id">
                       <option value="">-- ជ្រើសរើសថ្នាក់ដឹកនាំបន្ទាប់ (ឬទុកទទេបើគ្រាន់តែរក្សាទុកកែប្រែ) --</option>
-                      <option v-for="r in options.recipients" :key="r.id" :value="r.id">
+                      <option v-for="r in availableRecipients" :key="r.id" :value="r.id">
                         {{ r.name_kh || r.name }} - {{ r.position?.title_kh || '' }} ({{ r.office?.name_kh || r.department?.name_kh || '' }})
                       </option>
                     </select>
@@ -507,9 +540,20 @@
 
             <!-- Modal Footer -->
             <div class="modal-footer bg-light py-2 px-4 justify-content-between flex-shrink-0">
-              <button type="button" class="btn btn-secondary px-3" @click="showCreateModal = false">
-                បិទផ្ទាំង
-              </button>
+              <div class="d-flex align-items-center">
+                <button type="button" class="btn btn-secondary px-3" @click="showCreateModal = false">
+                  បិទផ្ទាំង
+                </button>
+                <button
+                  v-if="isEditing && currentEditingDoc && canDelete(currentEditingDoc)"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm ml-2 font-weight-bold"
+                  @click="deleteAction(currentEditingDoc)"
+                  :title="currentEditingDoc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                >
+                  <i class="fas fa-trash mr-1"></i> {{ currentEditingDoc.status === 'RETURNED' ? 'លុបឯកសារនេះ' : 'លុបសេចក្តីព្រាង' }}
+                </button>
+              </div>
 
               <!-- Footer Buttons: Distinct actions for Approver editing vs Drafter -->
               <div v-if="isApproverEditing">
@@ -562,19 +606,30 @@
          ========================================== -->
     <Teleport to="body">
       <div class="custom-modal-backdrop" v-if="showReviewModal && currentReviewDoc">
-        <div class="modal-dialog modal-lg modal-dialog-centered my-auto" style="width: 100%; max-width: 750px;">
+        <div class="modal-dialog modal-dialog-centered my-auto" :style="reviewStep === 'position' ? 'width: 100%; max-width: 980px;' : 'width: 100%; max-width: 750px;'">
           <div class="modal-content shadow-2xl border-0 rounded-lg overflow-hidden">
-            <div class="modal-header bg-primary text-white py-3 px-4">
-              <h5 class="modal-title font-weight-bold">
+            <div class="modal-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
+              <h5 class="modal-title font-weight-bold mb-0">
                 <i class="fas fa-clipboard-check mr-2"></i>
-                {{ isDg ? 'ពិនិត្យ និងសម្រេចលើលិខិតឆ្លើយតប' : 'ពិនិត្យ និងចារឆ្លងលិខិត' }}
+                <span v-if="reviewStep === 'form'">
+                  {{ isDg ? 'ពិនិត្យ និងសម្រេចលើលិខិតឆ្លើយតប' : 'ពិនិត្យ និងចារឆ្លងលិខិត' }}
+                </span>
+                <span v-else>
+                  <i class="fas fa-arrows-alt mr-2"></i>រៀបចំទីតាំងមតិយោបល់ & ហត្ថលេខាលើរបាយការណ៍
+                </span>
               </h5>
-              <button type="button" class="close text-white" @click="showReviewModal = false">
-                <span>&times;</span>
-              </button>
+              <div class="d-flex align-items-center">
+                <span v-if="reviewStep === 'position'" class="badge badge-light text-primary font-weight-bold mr-3 px-2 py-1">
+                  ជំហានទី ២ / ២
+                </span>
+                <button type="button" class="close text-white" @click="showReviewModal = false">
+                  <span>&times;</span>
+                </button>
+              </div>
             </div>
 
-            <div class="modal-body p-4 bg-light">
+            <!-- STEP 1: FORM -->
+            <div class="modal-body p-4 bg-light" v-if="reviewStep === 'form'">
               <!-- Summary Card -->
               <div class="card border rounded-lg p-3 bg-white mb-3 shadow-xs">
                 <div class="font-weight-bold font-15 text-dark mb-1">{{ currentReviewDoc.title }}</div>
@@ -641,7 +696,7 @@
                 <label class="font-weight-bold text-dark">ជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីឆ្លងបន្ត <span class="text-danger">*</span></label>
                 <select class="form-control" v-model="reviewForm.forwarded_to_id" required>
                   <option value="" disabled>-- សូមជ្រើសរើសថ្នាក់ដឹកនាំ --</option>
-                  <option v-for="r in options.recipients" :key="'rev_' + r.id" :value="r.id">
+                  <option v-for="r in availableRecipients" :key="'rev_' + r.id" :value="r.id">
                     {{ r.name_kh || r.name }} - {{ r.position?.title_kh || '' }} ({{ r.office?.name_kh || r.department?.name_kh || '' }})
                   </option>
                 </select>
@@ -661,7 +716,32 @@
 
               <!-- Comment -->
               <div class="form-group mb-0">
-                <label class="font-weight-bold text-dark">មតិយោបល់ / ចំណារពិនិត្យ</label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="font-weight-bold text-dark mb-0">មតិយោបល់ / ចំណារពិនិត្យ</label>
+                  <div class="d-flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
+                      @click="reviewForm.comment = 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ឯ.ឧ អគ្គនាយក
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold"
+                      @click="reviewForm.comment = 'សូមគោរពជូនលោកប្រធាននាយកដ្ឋាន\nមេត្តាពិនិត្យ និងសម្រេច'"
+                    >
+                      + គោរពជូន ប្រធាននាយកដ្ឋាន
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-success mr-1 mb-1 font-weight-bold"
+                      @click="reviewForm.comment = 'បានពិនិត្យ និងឯកភាព'"
+                    >
+                      + បានពិនិត្យ និងឯកភាព
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   class="form-control"
                   rows="3"
@@ -669,21 +749,147 @@
                   v-model="reviewForm.comment"
                 ></textarea>
               </div>
+
+              <!-- Leader's Review & Signature Placement onto Report -->
+              <div class="card border rounded-lg p-3 bg-white mt-3 shadow-xs" v-if="reviewForm.action !== 'RETURN'">
+                <div class="custom-control custom-checkbox mb-2">
+                  <input
+                    type="checkbox"
+                    class="custom-control-input"
+                    id="embedReviewCheck"
+                    v-model="reviewForm.embed_into_document"
+                  />
+                  <label class="custom-control-label font-weight-bold text-primary cursor-pointer" for="embedReviewCheck">
+                    <i class="fas fa-file-signature mr-1"></i> បញ្ចូលមតិយោបល់ និងហត្ថលេខាទៅក្នុងឯកសាររបាយការណ៍
+                  </label>
+                </div>
+
+                <div v-if="reviewForm.embed_into_document" class="pl-3 border-left ml-2">
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="small font-weight-bold text-dark mb-1">
+                        <i class="fas fa-map-marker-alt text-danger mr-1"></i> ជ្រើសរើសទីតាំងចាប់ផ្តើមលើរបាយការណ៍៖
+                      </label>
+                      <select class="form-control form-control-sm font-weight-bold" v-model="reviewForm.placement">
+                        <option value="SIDE_BY_SIDE_LEFT">ទន្ទឹមហត្ថលេខាអ្នករៀបចំ (ខាងឆ្វេង) - ស្តង់ដារ</option>
+                        <option value="ABOVE_DRAFTER">ខាងលើហត្ថលេខាអ្នករៀបចំ</option>
+                        <option value="BELOW_DRAFTER">ខាងក្រោមហត្ថលេខាអ្នករៀបចំ</option>
+                        <option value="BOTTOM">ខាងក្រោមបង្អស់នៃរបាយការណ៍ (ចុងបញ្ចប់)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="small font-weight-bold text-dark mb-1">
+                        <i class="fas fa-calendar-alt text-primary mr-1"></i> កាលបរិច្ឆេទចុះហត្ថលេខា៖
+                      </label>
+                      <input type="text" class="form-control form-control-sm" v-model="reviewForm.sign_date" placeholder="ឧ. ៤/១១/២៦" />
+                    </div>
+                  </div>
+
+                  <!-- Signature Preview & Drawing -->
+                  <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border mt-1">
+                    <div class="d-flex align-items-center">
+                      <span class="small font-weight-bold text-muted mr-2">ហត្ថលេខា៖</span>
+                      <img v-if="userStore.signature_image" :src="userStore.signature_image" alt="ហត្ថលេខា" style="height: 38px; max-width: 140px; object-fit: contain;" />
+                      <span v-else class="small text-primary font-weight-bold" style="font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 16pt;">
+                        {{ userStore.name_kh || userStore.name }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline-primary font-weight-bold"
+                      @click="showReviewSignatureModal = true"
+                    >
+                      <i class="fas fa-pen mr-1"></i> {{ userStore.signature_image ? 'កែប្រែហត្ថលេខា' : '+ គូស/បង្ហោះហត្ថលេខា' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: POSITION ON REPORT (DRAGGABLE) -->
+            <div class="modal-body p-3 bg-light" v-if="reviewStep === 'position'">
+              <!-- Info Alert -->
+              <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between shadow-xs">
+                <div class="small">
+                  <i class="fas fa-arrows-alt text-primary mr-2 fa-lg"></i>
+                  <span><strong>ការណែនាំ៖</strong>
+                    • <strong>រំកិល៖</strong> ចុចហើយអូសប្រអប់ទៅទីតាំងសមស្រប |
+                    • <strong>ពង្រីក-បង្រួម៖</strong> ចុចអូសចំណុច Handle ជុំវិញប្រអប់ |
+                    • <strong>កែប្រែមតិ/កាលបរិច្ឆេទ៖</strong> ចុចផ្ទាល់លើអក្សរក្នុងប្រអប់ដើម្បីកែសម្រួល
+                  </span>
+                </div>
+                <button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold" @click="resetReviewPosition">
+                  <i class="fas fa-undo mr-1"></i> កំណត់ទីតាំងដើម
+                </button>
+              </div>
+
+              <!-- Document Sheet Scroll Area -->
+              <div class="review-paper-scroll" style="max-height: 62vh; overflow-y: auto; background-color: #525659; padding: 20px; border-radius: 6px; display: flex; justify-content: center;">
+                <div
+                  ref="reviewPositionPaperRef"
+                  class="review-position-paper bg-white shadow-lg"
+                  style="width: 210mm; min-height: 297mm; padding: 25mm 20mm 20mm 25mm; box-sizing: border-box; position: relative;"
+                  v-html="reviewWorkingHtml"
+                ></div>
+              </div>
             </div>
 
             <div class="modal-footer bg-white py-2 px-4 justify-content-between">
-              <button type="button" class="btn btn-secondary px-3" @click="showReviewModal = false">
-                បោះបង់
-              </button>
-              <button
-                type="button"
-                class="btn px-4 font-weight-bold"
-                :class="reviewForm.action === 'RETURN' ? 'btn-danger' : 'btn-success'"
-                @click="submitReviewAction"
-                :disabled="submittingReview"
-              >
-                <i class="fas fa-check mr-1"></i> អនុវត្តសកម្មភាព
-              </button>
+              <div v-if="reviewStep === 'position'">
+                <button type="button" class="btn btn-outline-secondary px-3" @click="reviewStep = 'form'">
+                  <i class="fas fa-arrow-left mr-1"></i> ត្រឡប់ក្រោយកែព័ត៌មាន
+                </button>
+              </div>
+              <div v-else>
+                <button type="button" class="btn btn-secondary px-3" @click="showReviewModal = false">
+                  បោះបង់
+                </button>
+              </div>
+
+              <div>
+                <!-- In Step 1 -->
+                <template v-if="reviewStep === 'form'">
+                  <button
+                    v-if="reviewForm.embed_into_document && reviewForm.action !== 'RETURN' && currentReviewDoc.content"
+                    type="button"
+                    class="btn btn-primary px-4 font-weight-bold"
+                    @click="goToReviewPositionStep"
+                  >
+                    <span>រៀបចំទីតាំងលើរបាយការណ៍ <i class="fas fa-arrow-right ml-1"></i></span>
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn px-4 font-weight-bold"
+                    :class="reviewForm.action === 'RETURN' ? 'btn-danger' : 'btn-success'"
+                    @click="submitReviewAction"
+                    :disabled="submittingReview"
+                  >
+                    <i class="fas fa-check mr-1"></i> {{ reviewForm.action === 'RETURN' ? 'បញ្ជូនត្រឡប់កែសម្រួល' : 'អនុវត្តសកម្មភាព' }}
+                  </button>
+                </template>
+
+                <!-- In Step 2 -->
+                <template v-else>
+                  <button
+                    type="button"
+                    class="btn btn-warning px-3 font-weight-bold mr-2 text-dark shadow-xs"
+                    @click="saveAndHoldReview"
+                    :disabled="submittingReview"
+                    title="រក្សាទុកមតិយោបល់ និងទីតាំងក្នុងដៃសិន ដោយមិនទាន់បញ្ជូនទៅថ្នាក់លើ"
+                  >
+                    <i class="fas fa-save mr-1"></i> រក្សាទុកក្នុងដៃសិន (ចាំចារឆ្លងតាមក្រោយ)
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-success px-4 font-weight-bold"
+                    @click="submitReviewAction"
+                    :disabled="submittingReview"
+                  >
+                    <i class="fas fa-paper-plane mr-1"></i> {{ reviewForm.action === 'DG_APPROVE' ? 'ឯកភាព & ចុះហត្ថលេខាផ្លូវការ' : 'យល់ព្រម & ចារឆ្លងបន្ត' }}
+                  </button>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -759,65 +965,162 @@
 
               <!-- TAB 1: FORMATTED WORD DOCUMENT PREVIEW -->
               <div v-show="viewTab === 'doc'">
-                <div class="d-flex justify-content-center">
-                  <div class="document-paper-preview bg-white shadow-lg rounded-sm" style="width: 100%; max-width: 794px; min-height: 1123px; padding: 45px 55px; color: #111; line-height: 2.1; box-sizing: border-box; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;">
-                    <div v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
-
-                    <!-- Attachment Download if attached -->
-                    <div v-if="currentViewDoc.file_path" class="mt-5 pt-3 border-top">
-                      <div class="small font-weight-bold text-muted mb-1">ឯកសារភ្ជាប់ Scan បន្ថែម (Attachment)៖</div>
-                      <a
-                        :href="getOutboundFileDownloadUrl(currentViewDoc.id)"
-                        target="_blank"
-                        class="btn btn-sm btn-outline-primary"
-                      >
-                        <i class="fas fa-paperclip mr-1"></i> ទាញយកឯកសារភ្ជាប់ ({{ currentViewDoc.file_name || 'ឯកសារ' }})
-                      </a>
-                    </div>
+                <!-- Floating Draggable Save Bar (shown only when boxes have been dragged AND user has document in hand) -->
+                <div v-if="hasMovedOpinionBox && canEditPositionInDetail" class="alert alert-warning shadow-sm border d-flex justify-content-between align-items-center py-2 px-3 mx-auto mb-3" style="max-width: 794px;">
+                  <div>
+                    <i class="fas fa-arrows-alt text-primary mr-2"></i>
+                    <strong class="text-dark">លោកអ្នកបានផ្លាស់ប្តូរទីតាំងមតិយោបល់ ឬហត្ថលេខា!</strong>
+                    <span class="small text-muted ml-1">សូមចុច «រក្សាទុកទីតាំងថ្មី» ដើម្បីរក្សាទុកការផ្លាស់ប្តូរ</span>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary font-weight-bold mr-2" @click="resetOpinionBoxPosition">
+                      <i class="fas fa-undo mr-1"></i> ត្រឡប់ដើម
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success font-weight-bold shadow-xs" :disabled="savingMovedPosition" @click="saveNewOpinionBoxPosition">
+                      <i class="fas fa-save mr-1"></i> {{ savingMovedPosition ? 'កំពុងរក្សាទុក...' : 'រក្សាទុកទីតាំងថ្មី' }}
+                    </button>
                   </div>
                 </div>
 
-                <!-- Workflow Approvals Record Card below Document Preview -->
-                <div class="card border rounded-lg p-3 bg-white shadow-xs mt-4 mx-auto" style="max-width: 794px;" v-if="currentViewDoc.approvals && currentViewDoc.approvals.length > 0">
+                <div class="d-flex justify-content-center">
+                  <div ref="previewPaperRef" class="document-paper-preview bg-white shadow-lg rounded-sm" style="width: 100%; max-width: 794px; min-height: 1123px; padding: 45px 55px; color: #111; line-height: 2.1; box-sizing: border-box; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;" v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
+                </div>
+
+                <!-- References & Attachments Card (ឯកសារយោង ឬឧបសម្ព័ន្ធ) -->
+                <div class="card border rounded-lg p-3 bg-white shadow-xs mt-4 mx-auto" style="max-width: 794px;">
                   <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
                     <div class="font-weight-bold text-dark font-15">
-                      <i class="fas fa-clipboard-check text-primary mr-1"></i>
-                      កំណត់ត្រាមតិយោបល់ និងការសម្រេចរបស់ថ្នាក់ដឹកនាំក្នុងប្រព័ន្ធ (Workflow Approvals Record)
+                      <i class="fas fa-paperclip text-primary mr-2"></i>
+                      ឯកសារយោង ឬឧបសម្ព័ន្ធ (References & Attachments)
                     </div>
-                    <span class="badge badge-primary px-2 py-1">
-                      {{ currentViewDoc.approvals.length }} ថ្នាក់ដឹកនាំបានពិនិត្យ
+                    <span
+                      class="badge px-2 py-1"
+                      :class="(currentViewDoc.inbound_document || currentViewDoc.reference_note || currentViewDoc.file_path) ? 'badge-primary' : 'badge-light text-muted'"
+                    >
+                      <i class="fas fa-folder-open mr-1"></i>
+                      {{ (currentViewDoc.inbound_document || currentViewDoc.reference_note || currentViewDoc.file_path) ? 'មានឯកសារយោង/ឧបសម្ព័ន្ធ' : 'គ្មានឯកសារយោង' }}
                     </span>
                   </div>
-                  <div class="table-responsive">
-                    <table class="table table-sm table-bordered mb-0">
-                      <thead class="bg-light">
-                        <tr>
-                          <th style="width: 25%;">ថ្នាក់ដឹកនាំ / តួនាទី</th>
-                          <th style="width: 20%;">ដំណាក់កាល / សកម្មភាព</th>
-                          <th style="width: 18%;">កាលបរិច្ឆេទ</th>
-                          <th>ខ្លឹមសារមតិយោបល់ / ចំណារ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="app in currentViewDoc.approvals" :key="app.id">
-                          <td class="font-weight-bold text-dark">
-                            {{ app.user?.name_kh || app.user?.name }}
-                            <div class="small font-weight-normal text-muted">{{ app.user?.position?.title_kh || app.stage_kh }}</div>
-                          </td>
-                          <td>
-                            <span class="badge" :class="getApprovalActionBadgeClass(app.action)">
-                              {{ app.action_kh }}
-                            </span>
-                            <div class="small text-muted">{{ app.stage_kh }}</div>
-                          </td>
-                          <td class="small">{{ formatDateTime(app.created_at) }}</td>
-                          <td>
-                            <div v-if="app.comment" class="font-weight-bold text-dark">{{ app.comment }}</div>
-                            <div v-else class="text-muted small font-italic">(ពុំមានកត់ត្រាមតិយោបល់)</div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+
+                  <!-- 1. Linked Inbound Document (ឯកសារចូលយោង) -->
+                  <div v-if="currentViewDoc.inbound_document" class="mb-3 p-3 rounded border bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                      <div class="font-weight-bold text-primary font-14">
+                        <i class="fas fa-link mr-1"></i> ឯកសារចូលយោង (Linked Inbound Document)
+                      </div>
+                      <span v-if="currentViewDoc.inbound_document.received_date" class="small text-muted">
+                        <i class="far fa-calendar-alt mr-1"></i> កាលបរិច្ឆេទទទួល៖ {{ formatDateShort(currentViewDoc.inbound_document.received_date) }}
+                      </span>
+                    </div>
+
+                    <div class="row small mb-2">
+                      <div class="col-md-6 mb-1">
+                        <span class="text-muted">លេខចូលទូទៅ៖</span>
+                        <strong class="text-dark ml-1">{{ currentViewDoc.inbound_document.general_inbound_number || '-' }}</strong>
+                      </div>
+                      <div class="col-md-6 mb-1" v-if="currentViewDoc.inbound_document.dg_inbound_number">
+                        <span class="text-muted">លេខចូល ឯ.ឧ អគ្គនាយក៖</span>
+                        <strong class="text-danger ml-1">{{ currentViewDoc.inbound_document.dg_inbound_number }}</strong>
+                      </div>
+                      <div class="col-12 mb-1" v-if="currentViewDoc.inbound_document.sender_organization">
+                        <span class="text-muted">មកពីស្ថាប័ន/អង្គភាព៖</span>
+                        <strong class="text-dark ml-1">{{ currentViewDoc.inbound_document.sender_organization }}</strong>
+                      </div>
+                      <div class="col-12 mb-1">
+                        <span class="text-muted">កម្មវត្ថុ៖</span>
+                        <strong class="text-dark ml-1">{{ currentViewDoc.inbound_document.title }}</strong>
+                      </div>
+                    </div>
+
+                    <!-- DG Annotation if any -->
+                    <div v-if="currentViewDoc.inbound_document.dg_annotation" class="p-2 mb-2 rounded bg-white border border-danger-subtle small">
+                      <span class="font-weight-bold text-danger"><i class="fas fa-pen-nib mr-1"></i> ចំណារ ឯ.ឧ អគ្គនាយក៖</span>
+                      <span class="text-dark ml-1">{{ currentViewDoc.inbound_document.dg_annotation }}</span>
+                    </div>
+
+                    <!-- Inbound File View/Download Buttons -->
+                    <div class="d-flex flex-wrap gap-2 mt-2 pt-2 border-top">
+                      <a
+                        v-if="currentViewDoc.inbound_document.original_file_path"
+                        :href="getViewOriginalUrl(currentViewDoc.inbound_document.id)"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        <i class="fas fa-eye mr-1"></i> មើលឯកសារចូលដើម
+                      </a>
+                      <a
+                        v-if="currentViewDoc.inbound_document.original_file_path"
+                        :href="getOriginalDownloadUrl(currentViewDoc.inbound_document.id)"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-secondary"
+                      >
+                        <i class="fas fa-download mr-1"></i> ទាញយកច្បាប់ដើម
+                      </a>
+                      <a
+                        v-if="currentViewDoc.inbound_document.annotated_file_path"
+                        :href="getViewAnnotatedUrl(currentViewDoc.inbound_document.id)"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-danger"
+                      >
+                        <i class="fas fa-file-signature mr-1"></i> មើលឯកសារមានចំណារ
+                      </a>
+                      <a
+                        v-if="currentViewDoc.inbound_document.annotated_file_path"
+                        :href="getAnnotatedDownloadUrl(currentViewDoc.inbound_document.id)"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-secondary"
+                      >
+                        <i class="fas fa-download mr-1"></i> ទាញយកច្បាប់មានចំណារ
+                      </a>
+                    </div>
+                  </div>
+
+                  <!-- 2. Reference Note (កំណត់ត្រាឯកសារយោង) -->
+                  <div v-if="currentViewDoc.reference_note" class="mb-3 p-3 rounded border bg-light">
+                    <div class="font-weight-bold text-dark font-14 mb-1">
+                      <i class="fas fa-quote-left text-info mr-1"></i> កំណត់ត្រាឯកសារយោង (Reference Note)
+                    </div>
+                    <div class="text-dark small font-weight-bold" style="white-space: pre-wrap;">
+                      {{ formatReferenceText(currentViewDoc.reference_note) }}
+                    </div>
+                  </div>
+
+                  <!-- 3. Scanned Attachment / Annex File (ឯកសារភ្ជាប់ Scan បន្ថែម ឬឧបសម្ព័ន្ធ) -->
+                  <div v-if="currentViewDoc.file_path" class="p-3 rounded border bg-light">
+                    <div class="font-weight-bold text-dark font-14 mb-2">
+                      <i class="fas fa-file-pdf text-danger mr-1"></i> ឯកសារភ្ជាប់ Scan បន្ថែម ឬឧបសម្ព័ន្ធ (Attached Annex)
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <div class="text-dark small">
+                        <i class="fas fa-paperclip mr-1 text-muted"></i>
+                        <strong>{{ currentViewDoc.file_name || 'ឯកសារឧបសម្ព័ន្ធ' }}</strong>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <a
+                          :href="getOutboundFileViewUrl(currentViewDoc.id)"
+                          target="_blank"
+                          class="btn btn-sm btn-outline-primary"
+                        >
+                          <i class="fas fa-eye mr-1"></i> មើលឯកសារ (Preview)
+                        </a>
+                        <a
+                          :href="getOutboundFileDownloadUrl(currentViewDoc.id)"
+                          target="_blank"
+                          class="btn btn-sm btn-primary"
+                        >
+                          <i class="fas fa-download mr-1"></i> ទាញយក (Download)
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 4. Empty State Fallback -->
+                  <div
+                    v-if="!currentViewDoc.inbound_document && !currentViewDoc.reference_note && !currentViewDoc.file_path"
+                    class="text-center py-4 text-muted small"
+                  >
+                    <i class="fas fa-folder-open fa-2x mb-2 text-black-50 d-block"></i>
+                    របាយការណ៍/លិខិតនេះពុំមានឯកសារយោង ឬឧបសម្ព័ន្ធភ្ជាប់ជាមួយឡើយ
                   </div>
                 </div>
               </div>
@@ -1070,7 +1373,26 @@
               </div>
             </div>
 
-            <div class="modal-footer bg-light py-2 px-4 justify-content-end flex-shrink-0">
+            <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between align-items-center flex-shrink-0">
+              <div>
+                <button
+                  v-if="currentViewDoc && canDelete(currentViewDoc)"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm font-weight-bold"
+                  @click="deleteAction(currentViewDoc)"
+                  :title="currentViewDoc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                >
+                  <i class="fas fa-trash mr-1"></i> {{ currentViewDoc.status === 'RETURNED' ? 'លុបឯកសារនេះ' : 'លុបសេចក្តីព្រាង' }}
+                </button>
+                <button
+                  v-if="currentViewDoc && canEdit(currentViewDoc)"
+                  type="button"
+                  class="btn btn-outline-primary btn-sm font-weight-bold ml-2"
+                  @click="editFromViewModal(currentViewDoc)"
+                >
+                  <i class="fas fa-edit mr-1"></i> កែសម្រួល
+                </button>
+              </div>
               <button type="button" class="btn btn-secondary px-4" @click="showViewModal = false">
                 បិទ
               </button>
@@ -1079,14 +1401,18 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Reviewer Signature Modal -->
+    <SignatureModal v-model:show="showReviewSignatureModal" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useUserStore } from '@/stores/user';
+import SignatureModal from '@/components/common/SignatureModal.vue';
 import WordEditor from '@/components/common/WordEditor.vue';
 import { renderDiffHtml } from '@/utils/diffHelper';
 import {
@@ -1095,19 +1421,33 @@ import {
   apiGetOutboundDocument,
   apiCreateOutboundDocument,
   apiUpdateOutboundDocument,
+  apiUpdateOutboundContent,
   apiReviewOutboundAction,
   apiRecallOutboundDocument,
   apiDeleteOutboundDocument,
   getOutboundFileDownloadUrl,
+  getOutboundFileViewUrl,
 } from '@/functions/api/outboundDocument';
+import {
+  getViewOriginalUrl,
+  getViewAnnotatedUrl,
+  getOriginalDownloadUrl,
+  getAnnotatedDownloadUrl,
+} from '@/functions/api/inboundDocument';
+import {
+  getShortKhmerDateString,
+  generateDraggableOpinionBoxHtml,
+  embedOpinionBoxIntoHtml,
+  setupDraggableOpinionBoxes,
+} from '@/utils/opinionBoxHelper';
 
 const userStore = useUserStore();
 const route = useRoute();
 
-const activeTab = ref('doing'); // doing, in_progress, complete
+const activeTab = ref('all'); // all, doing, in_progress, complete
 const loading = ref(false);
 const documents = ref([]);
-const stats = reactive({ doing: 0, in_progress: 0, complete: 0 });
+const stats = reactive({ all: 0, doing: 0, in_progress: 0, complete: 0 });
 
 const pagination = reactive({
   current_page: 1,
@@ -1131,6 +1471,7 @@ const options = reactive({
 const showCreateModal = ref(false);
 const isEditing = ref(false);
 const editingDocId = ref(null);
+const currentEditingDoc = ref(null);
 const currentEditingApprovals = ref([]);
 const isApproverEditing = ref(false);
 const submitting = ref(false);
@@ -1154,13 +1495,21 @@ const form = reactive({
 
 // Review Modal
 const showReviewModal = ref(false);
+const showReviewSignatureModal = ref(false);
 const currentReviewDoc = ref(null);
 const submittingReview = ref(false);
+const reviewStep = ref('form'); // 'form' | 'position'
+const reviewWorkingHtml = ref('');
+const reviewPositionPaperRef = ref(null);
+let cleanupReviewDraggable = null;
 const reviewForm = reactive({
   action: 'FORWARD', // FORWARD, RETURN, DG_APPROVE
   forwarded_to_id: '',
   response_number: '',
   comment: '',
+  embed_into_document: true,
+  placement: 'SIDE_BY_SIDE_LEFT',
+  sign_date: '',
 });
 
 // View Modal
@@ -1180,6 +1529,61 @@ const selectedInboundDoc = computed(() => {
   if (!form.inbound_document_id) return null;
   return options.inbound_documents.find(d => d.id === form.inbound_document_id) || null;
 });
+
+// Exclude current user from recipient candidates (ដកឈ្មោះខ្លួនឯងចេញ)
+const availableRecipients = computed(() => {
+  return (options.recipients || []).filter(r => Number(r.id) !== Number(userStore.id));
+});
+
+// Single avatar of the person currently holding the document (អ្នកដែលកំពុងកាន់ឯកសារក្នុងដៃ)
+const getOutboundCurrentHolder = (doc) => {
+  if (!doc) return null;
+
+  if (doc.status === 'UNDER_REVIEW' && doc.current_approver) {
+    const u = doc.current_approver;
+    const name = u.name_kh || u.name || 'ថ្នាក់ដឹកនាំ';
+    return {
+      name,
+      title: `កំពុងស្ថិតលើដៃ៖ ${name} (${u.position?.title_kh || 'ថ្នាក់ដឹកនាំកំពុងពិនិត្យ'})`,
+      avatarUrl: u.profile_image ? getFullImageUrl(u.profile_image) : '',
+      initial: name.charAt(0) || 'ថ',
+      borderClass: 'border-warning',
+      fallbackClass: 'workflow-avatar-reviewer',
+    };
+  }
+
+  if (doc.status === 'APPROVED_BY_DG' && (doc.approved_by_user || doc.current_approver)) {
+    const u = doc.approved_by_user || doc.current_approver;
+    const name = u.name_kh || u.name || 'ឯ.ឧ អគ្គនាយក';
+    return {
+      name,
+      title: `បានឯកភាពដោយ៖ ${name} (${u.position?.title_kh || 'ឯ.ឧ អគ្គនាយក'})`,
+      avatarUrl: u.profile_image ? getFullImageUrl(u.profile_image) : '',
+      initial: name.charAt(0) || 'អ',
+      borderClass: 'border-success',
+      fallbackClass: 'workflow-avatar-dg',
+    };
+  }
+
+  // DRAFT or RETURNED
+  const u = doc.drafted_by_user;
+  if (u) {
+    const name = u.name_kh || u.name || 'មន្ត្រីរៀបចំ';
+    const isReturned = doc.status === 'RETURNED';
+    return {
+      name,
+      title: isReturned
+        ? `បានបញ្ជូនត្រឡប់មក៖ ${name} (${u.position?.title_kh || 'មន្ត្រីរៀបចំ'})`
+        : `កំពុងស្ថិតលើដៃ៖ ${name} (${u.position?.title_kh || 'មន្ត្រីរៀបចំ'})`,
+      avatarUrl: u.profile_image ? getFullImageUrl(u.profile_image) : '',
+      initial: name.charAt(0) || 'ម',
+      borderClass: isReturned ? 'border-danger' : 'border-primary',
+      fallbackClass: 'workflow-avatar-drafter',
+    };
+  }
+
+  return null;
+};
 
 // Revisions Computations
 const docRevisions = computed(() => {
@@ -1239,7 +1643,8 @@ const onInboundDocSelected = () => {
     if (!form.title) {
       form.title = `របាយការណ៍ឆ្លើយតបលើ៖ ${doc.title}`;
     }
-    form.reference_note = `យោង៖ ឯកសារចូលលេខ ${doc.general_inbound_number} ចុះថ្ងៃទី ${doc.received_date || ''}`;
+    const formattedDate = doc.received_date ? formatDateShort(doc.received_date) : '';
+    form.reference_note = `យោង៖ ឯកសារចូលលេខ ${doc.general_inbound_number}${formattedDate ? ' ចុះថ្ងៃទី ' + formattedDate : ''}`;
   }
 };
 
@@ -1266,6 +1671,7 @@ const loadDocuments = async () => {
     pagination.last_page = res.data.last_page;
     pagination.total = res.data.total;
     if (res.data.stats) {
+      stats.all = res.data.stats.all || 0;
       stats.doing = res.data.stats.doing || 0;
       stats.in_progress = res.data.stats.in_progress || 0;
       stats.complete = res.data.stats.complete || 0;
@@ -1331,6 +1737,7 @@ const openCreateModal = () => {
 const openEditModal = (doc) => {
   isEditing.value = true;
   editingDocId.value = doc.id;
+  currentEditingDoc.value = doc;
   currentEditingApprovals.value = doc.approvals || [];
   isApproverEditing.value = (doc.status === 'UNDER_REVIEW' && (doc.current_approver_id === userStore.id || (userStore.level && userStore.level.toUpperCase() === 'ADMIN')));
 
@@ -1423,13 +1830,113 @@ const submitForm = async (isDraft, willForward = true) => {
   }
 };
 
+const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+const toKhmerNum = (num) => String(num).split('').map(d => khmerDigits[d] || d).join('');
+const getCurrentKhmerDateString = () => {
+  const d = new Date();
+  const day = toKhmerNum(d.getDate());
+  const monthNamesKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  const month = monthNamesKh[d.getMonth()];
+  const year = toKhmerNum(d.getFullYear());
+  return `រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
+};
+
 const openReviewActionModal = (doc) => {
   currentReviewDoc.value = doc;
+  reviewStep.value = 'form';
+  reviewWorkingHtml.value = '';
+  if (cleanupReviewDraggable) {
+    cleanupReviewDraggable();
+    cleanupReviewDraggable = null;
+  }
   reviewForm.action = isDg.value ? 'DG_APPROVE' : 'FORWARD';
   reviewForm.forwarded_to_id = '';
   reviewForm.response_number = doc.response_number || '';
-  reviewForm.comment = '';
+  reviewForm.comment = isDg.value
+    ? 'បានពិនិត្យ និងសម្រេចឯកភាព'
+    : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច';
+  reviewForm.embed_into_document = (doc.response_type !== 'LETTER');
+  reviewForm.placement = 'SIDE_BY_SIDE_LEFT';
+  reviewForm.sign_date = getShortKhmerDateString(new Date());
   showReviewModal.value = true;
+};
+
+const setupReviewPositionDraggable = () => {
+  if (cleanupReviewDraggable) {
+    cleanupReviewDraggable();
+    cleanupReviewDraggable = null;
+  }
+  if (!reviewPositionPaperRef.value) return;
+
+  cleanupReviewDraggable = setupDraggableOpinionBoxes(
+    reviewPositionPaperRef.value,
+    () => {},
+    { currentUserId: userStore.id, isAdmin: isDg.value, canEdit: true }
+  );
+
+  // Auto-select the owner's opinion box so handles are visible immediately
+  nextTick(() => {
+    if (!reviewPositionPaperRef.value) return;
+    const boxes = reviewPositionPaperRef.value.querySelectorAll('.draggable-opinion-box');
+    boxes.forEach(b => {
+      const bOwnerId = b.getAttribute('data-owner-id');
+      if (bOwnerId && Number(bOwnerId) === Number(userStore.id)) {
+        b.classList.add('is-selected');
+      }
+    });
+  });
+};
+
+const goToReviewPositionStep = () => {
+  if (reviewForm.action === 'FORWARD' && !reviewForm.forwarded_to_id) {
+    Swal.fire({ icon: 'warning', title: 'សូមជ្រើសរើស', text: 'សូមជ្រើសរើសថ្នាក់ដឹកនាំដើម្បីចារឆ្លងបន្ត!' });
+    return;
+  }
+
+  const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
+  const reviewerName = userStore.name_kh || userStore.name || '';
+  const reviewerSig = userStore.signature_image || '';
+  const shortDateKh = reviewForm.sign_date || getShortKhmerDateString(new Date());
+  const comment = reviewForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+  const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+    comment,
+    reviewerName,
+    signatureUrl: reviewerSig,
+    shortDateKh,
+    ownerId: userStore.id,
+  });
+
+  const baseContent = currentReviewDoc.value?.content || '';
+  reviewWorkingHtml.value = embedOpinionBoxIntoHtml(baseContent, leaderBoxHtml, reviewForm.placement);
+  reviewStep.value = 'position';
+
+  nextTick(() => {
+    setupReviewPositionDraggable();
+  });
+};
+
+const resetReviewPosition = () => {
+  const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
+  const reviewerName = userStore.name_kh || userStore.name || '';
+  const reviewerSig = userStore.signature_image || '';
+  const shortDateKh = reviewForm.sign_date || getShortKhmerDateString(new Date());
+  const comment = reviewForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+  const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+    comment,
+    reviewerName,
+    signatureUrl: reviewerSig,
+    shortDateKh,
+    ownerId: userStore.id,
+  });
+
+  const baseContent = currentReviewDoc.value?.content || '';
+  reviewWorkingHtml.value = embedOpinionBoxIntoHtml(baseContent, leaderBoxHtml, reviewForm.placement);
+
+  nextTick(() => {
+    setupReviewPositionDraggable();
+  });
 };
 
 const submitReviewAction = async () => {
@@ -1441,13 +1948,57 @@ const submitReviewAction = async () => {
     return;
   }
 
+  // If currently in step 1 and embed is selected, transition to position step first
+  if (reviewStep.value === 'form' && reviewForm.embed_into_document && currentReviewDoc.value?.content && reviewForm.action !== 'RETURN') {
+    goToReviewPositionStep();
+    return;
+  }
+
   submittingReview.value = true;
   try {
+    let finalContent = undefined;
+    if (reviewForm.embed_into_document && currentReviewDoc.value && currentReviewDoc.value.content && reviewForm.action !== 'RETURN') {
+      if (reviewPositionPaperRef.value) {
+        const clone = reviewPositionPaperRef.value.cloneNode(true);
+        clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
+          b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
+          b.removeAttribute('title');
+          b.querySelectorAll('div').forEach(d => {
+            if (d.textContent.trim() === '(ហត្ថលេខា)') {
+              d.remove();
+            }
+          });
+          b.querySelectorAll('[contenteditable]').forEach(el => {
+            el.removeAttribute('contenteditable');
+            el.removeAttribute('title');
+          });
+        });
+        finalContent = clone.innerHTML;
+      } else {
+        const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
+        const reviewerName = userStore.name_kh || userStore.name || '';
+        const reviewerSig = userStore.signature_image || '';
+        const shortDateKh = reviewForm.sign_date || getShortKhmerDateString(new Date());
+        const comment = reviewForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+        const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+          comment,
+          reviewerName,
+          signatureUrl: reviewerSig,
+          shortDateKh,
+          ownerId: userStore.id,
+        });
+
+        finalContent = embedOpinionBoxIntoHtml(currentReviewDoc.value.content, leaderBoxHtml, reviewForm.placement);
+      }
+    }
+
     await apiReviewOutboundAction(currentReviewDoc.value.id, {
       action: reviewForm.action,
       forwarded_to_id: reviewForm.forwarded_to_id || undefined,
       response_number: reviewForm.response_number || undefined,
       comment: reviewForm.comment || undefined,
+      content: finalContent || undefined,
     });
 
     Swal.fire({
@@ -1458,7 +2009,12 @@ const submitReviewAction = async () => {
       showConfirmButton: false,
     });
 
+    if (cleanupReviewDraggable) {
+      cleanupReviewDraggable();
+      cleanupReviewDraggable = null;
+    }
     showReviewModal.value = false;
+    reviewStep.value = 'form';
     loadDocuments();
   } catch (err) {
     const errorMsg = err.response?.data?.message || 'មិនអាចអនុវត្តសកម្មភាពបានឡើយ!';
@@ -1468,8 +2024,175 @@ const submitReviewAction = async () => {
   }
 };
 
+const previewPaperRef = ref(null);
+const hasMovedOpinionBox = ref(false);
+const savingMovedPosition = ref(false);
+const originalContentBackup = ref('');
+let cleanupPreviewDraggable = null;
+
+const canEditPositionInDetail = computed(() => {
+  if (!currentViewDoc.value) return false;
+  if (isDg.value) return true;
+  const status = currentViewDoc.value.status;
+  if (status === 'DRAFT' || status === 'RETURNED') {
+    return Number(currentViewDoc.value.drafted_by) === Number(userStore.id);
+  }
+  if (status === 'UNDER_REVIEW') {
+    return Number(currentViewDoc.value.current_approver_id) === Number(userStore.id);
+  }
+  return false;
+});
+
+const saveAndHoldReview = async () => {
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  submittingReview.value = true;
+  try {
+    let finalContent = undefined;
+    if (reviewPositionPaperRef.value) {
+      const clone = reviewPositionPaperRef.value.cloneNode(true);
+      clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
+        b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
+        b.removeAttribute('title');
+        b.querySelectorAll('*').forEach(d => {
+          if (d.textContent.trim() === '(ហត្ថលេខា)') {
+            d.remove();
+          }
+        });
+        b.querySelectorAll('[contenteditable]').forEach(el => {
+          el.removeAttribute('contenteditable');
+          el.removeAttribute('title');
+        });
+      });
+      finalContent = clone.innerHTML;
+    } else if (reviewForm.embed_into_document && currentReviewDoc.value?.content) {
+      const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
+      const reviewerName = userStore.name_kh || userStore.name || '';
+      const reviewerSig = userStore.signature_image || '';
+      const shortDateKh = reviewForm.sign_date || getShortKhmerDateString(new Date());
+      const comment = reviewForm.comment || (isDgLeader ? 'បានពិនិត្យ និងសម្រេចឯកភាព' : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច');
+
+      const leaderBoxHtml = generateDraggableOpinionBoxHtml({
+        comment,
+        reviewerName,
+        signatureUrl: reviewerSig,
+        shortDateKh,
+        ownerId: userStore.id,
+      });
+
+      finalContent = embedOpinionBoxIntoHtml(currentReviewDoc.value.content, leaderBoxHtml, reviewForm.placement);
+    }
+
+    await apiReviewOutboundAction(currentReviewDoc.value.id, {
+      action: 'HOLD',
+      comment: reviewForm.comment || undefined,
+      content: finalContent || undefined,
+    });
+
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: 'បានរក្សាទុកមតិយោបល់ និងខ្លឹមសារក្នុងដៃដោយជោគជ័យ! លោកអ្នកអាចចារឆ្លងទៅថ្នាក់លើនៅពេលក្រោយ។',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+
+    if (cleanupReviewDraggable) {
+      cleanupReviewDraggable();
+      cleanupReviewDraggable = null;
+    }
+    showReviewModal.value = false;
+    reviewStep.value = 'form';
+    loadDocuments();
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 'មិនអាចរក្សាទុកក្នុងដៃបានឡើយ!';
+    Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: errorMsg });
+  } finally {
+    submittingReview.value = false;
+  }
+};
+
+const initPreviewDraggable = () => {
+  if (cleanupPreviewDraggable) {
+    cleanupPreviewDraggable();
+    cleanupPreviewDraggable = null;
+  }
+  if (previewPaperRef.value) {
+    const canMove = canEditPositionInDetail.value;
+    cleanupPreviewDraggable = setupDraggableOpinionBoxes(
+      previewPaperRef.value,
+      () => {
+        if (canMove) {
+          hasMovedOpinionBox.value = true;
+        }
+      },
+      {
+        currentUserId: userStore.id,
+        isAdmin: isDg.value,
+        canMove,
+        canEdit: canMove,
+      }
+    );
+  }
+};
+
+const resetOpinionBoxPosition = () => {
+  if (currentViewDoc.value && originalContentBackup.value) {
+    currentViewDoc.value.content = originalContentBackup.value;
+    hasMovedOpinionBox.value = false;
+    nextTick(() => {
+      initPreviewDraggable();
+    });
+  }
+};
+
+const saveNewOpinionBoxPosition = async () => {
+  if (!currentViewDoc.value || !previewPaperRef.value) return;
+  savingMovedPosition.value = true;
+  try {
+    const clone = previewPaperRef.value.cloneNode(true);
+    clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
+      b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
+      b.removeAttribute('title');
+      b.querySelectorAll('div').forEach(d => {
+        if (d.textContent.trim() === '(ហត្ថលេខា)') {
+          d.remove();
+        }
+      });
+      b.querySelectorAll('[contenteditable]').forEach(el => {
+        el.removeAttribute('contenteditable');
+        el.removeAttribute('title');
+      });
+    });
+    const updatedHtml = clone.innerHTML;
+    await apiUpdateOutboundContent(currentViewDoc.value.id, updatedHtml);
+    currentViewDoc.value.content = updatedHtml;
+    originalContentBackup.value = updatedHtml;
+    hasMovedOpinionBox.value = false;
+    Swal.fire({
+      icon: 'success',
+      title: 'ជោគជ័យ!',
+      text: 'បានរក្សាទុកទីតាំងថ្មីដោយជោគជ័យ!',
+      timer: 1600,
+      showConfirmButton: false,
+    });
+    loadDocuments();
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'បរាជ័យ',
+      text: err.response?.data?.message || 'មិនអាចរក្សាទុកទីតាំងបានឡើយ!',
+    });
+  } finally {
+    savingMovedPosition.value = false;
+  }
+};
+
 const openViewModal = async (doc) => {
   currentViewDoc.value = doc;
+  originalContentBackup.value = doc.content || '';
+  hasMovedOpinionBox.value = false;
   viewTab.value = 'doc';
   showViewModal.value = true;
 
@@ -1477,6 +2200,7 @@ const openViewModal = async (doc) => {
     const res = await apiGetOutboundDocument(doc.id);
     if (res.data?.data) {
       currentViewDoc.value = res.data.data;
+      originalContentBackup.value = res.data.data.content || '';
       if (res.data.data.revisions?.length >= 2) {
         const sorted = [...res.data.data.revisions].sort((a, b) => a.revision_number - b.revision_number);
         selectedFromRevId.value = sorted[sorted.length - 2].id;
@@ -1488,6 +2212,10 @@ const openViewModal = async (doc) => {
     }
   } catch (err) {
     console.error('Failed to load document details:', err);
+  } finally {
+    nextTick(() => {
+      initPreviewDraggable();
+    });
   }
 };
 
@@ -1495,42 +2223,6 @@ const printCurrentViewDoc = () => {
   if (!currentViewDoc.value) return;
   const printWindow = window.open('', '_blank');
   let content = currentViewDoc.value.content || '';
-
-  // If approvals exist and document content does NOT already have the review table, append clean official review table
-  if (currentViewDoc.value.approvals && currentViewDoc.value.approvals.length > 0 && !content.includes('review-signatures-wrapper')) {
-    let reviewRows = '';
-    currentViewDoc.value.approvals.forEach(app => {
-      const dt = app.created_at ? new Date(app.created_at).toLocaleDateString('km-KH') : '';
-      reviewRows += `
-        <tr>
-          <td style="border: 1px solid #333; padding: 8px;"><strong>${app.user?.name_kh || app.user?.name}</strong><br><small>${app.user?.position?.title_kh || app.stage_kh}</small></td>
-          <td style="border: 1px solid #333; padding: 8px; text-align: center;">${app.action_kh}</td>
-          <td style="border: 1px solid #333; padding: 8px; text-align: center;">${dt}</td>
-          <td style="border: 1px solid #333; padding: 8px;">${app.comment || '-'}</td>
-        </tr>
-      `;
-    });
-    content += `
-      <div style="margin-top: 35px; page-break-inside: avoid; break-inside: avoid;">
-        <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #002060; margin-bottom: 8px; border-bottom: 1.5px solid #002060; padding-bottom: 3px;">
-          កំណត់ត្រាមតិយោបល់ និងការសម្រេចរបស់ថ្នាក់ដឹកនាំក្នុងប្រព័ន្ធ (Workflow Approvals)៖
-        </div>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10.5pt; line-height: 2.1;">
-          <thead>
-            <tr style="background-color: #f2f2f2;">
-              <th style="border: 1px solid #333; padding: 6px; width: 28%;">ថ្នាក់ដឹកនាំ / តួនាទី</th>
-              <th style="border: 1px solid #333; padding: 6px; width: 18%;">សកម្មភាព</th>
-              <th style="border: 1px solid #333; padding: 6px; width: 18%;">កាលបរិច្ឆេទ</th>
-              <th style="border: 1px solid #333; padding: 6px;">ខ្លឹមសារមតិយោបល់ / ចំណារ</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${reviewRows}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
 
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -1612,24 +2304,38 @@ const recallAction = async (doc) => {
 };
 
 const deleteAction = async (doc) => {
+  if (!doc) return;
+  const isReturned = (doc.status === 'RETURNED');
+  const docTypeLabel = isReturned ? 'ឯកសារដែលថ្នាក់ដឹកនាំបានបញ្ជូនត្រឡប់មកវិញនេះ' : 'សេចក្តីព្រាងនេះ';
   const result = await Swal.fire({
     title: 'តើលោកអ្នកពិតជាចង់លុបមែនទេ?',
-    text: 'សេចក្តីព្រាងនេះនឹងត្រូវលុបចេញពីប្រព័ន្ធ!',
+    text: `${docTypeLabel} នឹងត្រូវលុបចេញពីប្រព័ន្ធទាំងស្រុង!`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#d33',
-    confirmButtonText: 'លុបចេញ',
+    confirmButtonText: 'យល់ព្រមលុប',
     cancelButtonText: 'បោះបង់',
   });
   if (!result.isConfirmed) return;
 
   try {
     await apiDeleteOutboundDocument(doc.id);
-    Swal.fire({ icon: 'success', title: 'បានលុប!', timer: 1500, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: 'បានលុបជោគជ័យ!', timer: 1500, showConfirmButton: false });
+    if (showViewModal.value && currentViewDoc.value?.id === doc.id) {
+      showViewModal.value = false;
+    }
+    if (showCreateModal.value && editingDocId.value === doc.id) {
+      showCreateModal.value = false;
+    }
     loadDocuments();
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'បរាជ័យ', text: err.response?.data?.message || 'មិនអាចលុបបានឡើយ!' });
   }
+};
+
+const editFromViewModal = (doc) => {
+  showViewModal.value = false;
+  openEditModal(doc);
 };
 
 // Permission Helpers
@@ -1655,20 +2361,70 @@ const canRecall = (doc) => {
 };
 
 const canDelete = (doc) => {
-  if (doc.status !== 'DRAFT') return false;
-  return doc.drafted_by === userStore.id || (userStore.level && userStore.level.toUpperCase() === 'ADMIN');
+  if (!doc) return false;
+  const isDrafter = (doc.drafted_by === userStore.id);
+  const isAdmin = (userStore.level && userStore.level.toUpperCase() === 'ADMIN');
+  if (!isDrafter && !isAdmin) return false;
+  return ['DRAFT', 'RETURNED'].includes(doc.status) || isAdmin;
+};
+
+const getFullImageUrl = (path) => {
+  if (!path) return '';
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
+  const backendBase = (import.meta.env.VITE_APP_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000')
+    .replace(/\/api\/?$/, '');
+
+  let cleanPath = path.replace(/^\//, '');
+  if (cleanPath.includes('users/profile-images/') && !cleanPath.includes('thumbnails/')) {
+    cleanPath = cleanPath.replace('users/profile-images/', 'users/profile-images/thumbnails/');
+  }
+  if (!cleanPath.startsWith('storage/') && !cleanPath.startsWith('uploads/')) {
+    cleanPath = `storage/${cleanPath}`;
+  }
+  return `${backendBase}/${cleanPath}`;
 };
 
 const formatDate = (val) => {
   if (!val) return '--';
-  const d = new Date(val);
-  return d.toLocaleDateString('km-KH') + ' ' + d.toLocaleTimeString('km-KH', { hour: '2-digit', minute: '2-digit' });
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${day}/${month}/${year} ${time}`;
+  } catch {
+    return val;
+  }
 };
 
 const formatDateShort = (val) => {
-  if (!val) return '--';
-  const d = new Date(val);
-  return d.toLocaleDateString('km-KH');
+  if (!val) return '';
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return val;
+  }
+};
+
+const formatReferenceText = (text) => {
+  if (!text) return '';
+  return text.replace(/(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?/g, (match, y, m, d) => {
+    return `${d}/${m}/${y}`;
+  });
 };
 
 const formatActionName = (action) => {
@@ -1683,13 +2439,151 @@ const formatActionName = (action) => {
   }
 };
 
+const formatDateTime = (val) => formatDate(val);
+
+const getApprovalActionBadgeClass = (action) => {
+  switch (action) {
+    case 'SUBMIT':
+      return 'badge-primary';
+    case 'EDIT':
+      return 'badge-warning text-dark';
+    case 'FORWARD':
+      return 'badge-info';
+    case 'RETURN':
+      return 'badge-danger';
+    case 'DG_APPROVE':
+      return 'badge-success';
+    case 'RECALL':
+      return 'badge-secondary';
+    default:
+      return 'badge-light border';
+  }
+};
+
 onMounted(() => {
   loadOptions();
   loadDocuments();
 });
+
+onUnmounted(() => {
+  if (cleanupPreviewDraggable) {
+    cleanupPreviewDraggable();
+    cleanupPreviewDraggable = null;
+  }
+});
 </script>
 
 <style scoped>
+/* Draggable Leadership Opinion Box & Handles */
+:deep(.draggable-opinion-box) {
+  position: relative;
+  border: 1px dashed transparent !important;
+  background: transparent !important;
+  vertical-align: top !important;
+  transition: box-shadow 0.15s ease;
+}
+
+:deep(.draggable-opinion-box:hover),
+:deep(.draggable-opinion-box.is-selected) {
+  outline: 1.5px dashed #2563eb !important;
+  outline-offset: 2px;
+}
+
+:deep(.draggable-opinion-box:hover .box-handle),
+:deep(.draggable-opinion-box.is-selected .box-handle) {
+  display: block !important;
+}
+
+:deep(.draggable-opinion-box.is-dragging) {
+  opacity: 0.92;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25) !important;
+  cursor: grabbing !important;
+  z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-resizing) {
+  opacity: 0.95;
+  outline: 1.5px dashed #2563eb !important;
+  user-select: none !important;
+  z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-locked-box) {
+  cursor: default !important;
+  outline: none !important;
+  border: 1px dashed transparent !important;
+}
+:deep(.draggable-opinion-box.is-locked-box:hover) {
+  outline: none !important;
+}
+:deep(.draggable-opinion-box.is-locked-box .box-handle) {
+  display: none !important;
+}
+
+/* Ensure report signature table always aligns cells to the top row */
+:deep(.drafter-signature-table) {
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+:deep(.drafter-signature-table tr) {
+  vertical-align: top !important;
+}
+:deep(.drafter-signature-table td) {
+  vertical-align: top !important;
+}
+:deep(.drafter-signature-table .opinion-left-col) {
+  width: 50% !important;
+  vertical-align: top !important;
+  text-align: center !important;
+}
+
+:deep(.box-handle) {
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #2563eb;
+  border: 1px solid #ffffff;
+  box-sizing: border-box;
+  z-index: 30;
+  border-radius: 1px;
+}
+:deep(.box-handle.handle-tl) { top: -4.5px; left: -4.5px; cursor: nwse-resize; }
+:deep(.box-handle.handle-tc) { top: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-tr) { top: -4.5px; right: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-ml) { top: calc(50% - 4px); left: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-mr) { top: calc(50% - 4px); right: -4.5px; cursor: ew-resize; }
+:deep(.box-handle.handle-bl) { bottom: -4.5px; left: -4.5px; cursor: nesw-resize; }
+:deep(.box-handle.handle-bc) { bottom: -4.5px; left: calc(50% - 4px); cursor: ns-resize; }
+:deep(.box-handle.handle-br) { bottom: -4.5px; right: -4.5px; cursor: nwse-resize; }
+
+:deep(.opinion-box-comment[contenteditable="true"]:hover),
+:deep(.opinion-box-date[contenteditable="true"]:hover) {
+  background-color: #f1f5f9;
+  border-radius: 2px;
+  cursor: text;
+}
+
+:deep(.opinion-box-comment[contenteditable="true"]:focus),
+:deep(.opinion-box-date[contenteditable="true"]:focus) {
+  outline: 1.5px dashed #2563eb !important;
+  background-color: #ffffff !important;
+  border-radius: 2px;
+  padding: 1px 3px;
+  cursor: text;
+}
+
+@media print {
+  :deep(.box-handle),
+  :deep(.draggable-opinion-box .box-handle) {
+    display: none !important;
+  }
+  :deep(.draggable-opinion-box) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
+
 .stat-card {
   transition: all 0.25s ease-in-out;
   cursor: pointer;
@@ -1717,5 +2611,58 @@ onMounted(() => {
 .document-paper-preview {
   font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
   font-size: 12pt;
+}
+
+/* Workflow Avatars in Status Column */
+.workflow-avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+.workflow-avatar {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.workflow-avatar:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+}
+.workflow-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease;
+}
+.workflow-avatar-fallback:hover {
+  transform: scale(1.15);
+  z-index: 5;
+}
+.workflow-avatar-drafter {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+}
+.workflow-avatar-reviewer {
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+}
+.workflow-avatar-dg {
+  background: linear-gradient(135deg, #15803d, #22c55e);
 }
 </style>

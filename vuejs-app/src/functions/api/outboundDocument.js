@@ -31,6 +31,11 @@ export function apiUpdateOutboundDocument(id, formData) {
   });
 }
 
+// 5b. រក្សាទុកទីតាំង ឬខ្លឹមសារឯកសារ (Quick content & opinion box repositioning)
+export function apiUpdateOutboundContent(id, content) {
+  return axios.patch(`${APP_API_URL}/outbound-documents/${id}/content`, { content });
+}
+
 // 6. សកម្មភាពពិនិត្យឆ្លង (FORWARD, RETURN, DG_APPROVE)
 export function apiReviewOutboundAction(id, data) {
   return axios.post(`${APP_API_URL}/outbound-documents/${id}/review-action`, data);
@@ -46,11 +51,16 @@ export function apiDeleteOutboundDocument(id) {
   return axios.delete(`${APP_API_URL}/outbound-documents/${id}`);
 }
 
+function getAuthTokenQuery() {
+  const token = localStorage.getItem('token');
+  return token ? `?token=${encodeURIComponent(token)}` : '';
+}
+
 // 9. URLs for file download & view
 export function getOutboundFileDownloadUrl(id) {
-  return `${APP_API_URL}/outbound-documents/${id}/download-file`;
+  return `${APP_API_URL}/outbound-documents/${id}/download-file${getAuthTokenQuery()}`;
 }
 
 export function getOutboundFileViewUrl(id) {
-  return `${APP_API_URL}/outbound-documents/${id}/view-file`;
+  return `${APP_API_URL}/outbound-documents/${id}/view-file${getAuthTokenQuery()}`;
 }

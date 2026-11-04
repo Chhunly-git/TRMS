@@ -31,6 +31,7 @@ export const useUserStore = defineStore('user',
       email: null,
       profile_image: null,
       profile_thumbnail: null,
+      signature_image: null,
       password_null: true,
       level: localStorage.getItem("user_level") || sessionStorage.getItem("user_level") || null,
       status: null,
@@ -181,6 +182,7 @@ export const useUserStore = defineStore('user',
         this.email = user.email;
         this.profile_image = user.profile_image;
         this.profile_thumbnail = user.profile_thumbnail;
+        this.signature_image = user.signature_image || null;
         this.password_null = user.password_null;
         
         // 🟢 កន្លែងដែលត្រូវ Assign level និង status
@@ -299,6 +301,7 @@ export const useUserStore = defineStore('user',
         this.email = null;
         this.profile_image = null;
         this.profile_thumbnail = null;
+        this.signature_image = null;
         this.password_null = true;
         this.level = null;
         this.status = null;
@@ -432,6 +435,13 @@ export const useUserStore = defineStore('user',
       reset() {
         this.resetState();
         this.removeSanctumToken();
+      },
+      setProfileImage(image, thumbnail = null) {
+        this.profile_image = image;
+        if (thumbnail) this.profile_thumbnail = thumbnail;
+      },
+      setSignatureImage(signature) {
+        this.signature_image = signature;
       },
     },
     persist: {

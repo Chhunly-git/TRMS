@@ -51,6 +51,9 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::put('/change/password', [AuthController::class, 'changePassword']);
     Route::put('/update/profile-image', [AuthController::class, 'updateProfileImage']);
     Route::delete('/delete/profile-image', [AuthController::class, 'deleteProfileImage']);
+    Route::post('/update/signature-image', [AuthController::class, 'updateSignatureImage']);
+    Route::put('/update/signature-image', [AuthController::class, 'updateSignatureImage']);
+    Route::delete('/delete/signature-image', [AuthController::class, 'deleteSignatureImage']);
     Route::get('/manage/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/my-attendances', [AttendanceController::class, 'myAttendances']);
     Route::get('/manage/profile', [AuthController::class, 'getProfile']);
@@ -167,6 +170,7 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::post('/', [OutboundDocumentController::class, 'store']);
         Route::get('/{id}', [OutboundDocumentController::class, 'show']);
         Route::match(['PUT', 'POST'], '/{id}', [OutboundDocumentController::class, 'update']);
+        Route::patch('/{id}/content', [OutboundDocumentController::class, 'updateContent']);
         Route::post('/{id}/review-action', [OutboundDocumentController::class, 'reviewAction']);
         Route::post('/{id}/recall', [OutboundDocumentController::class, 'recall']);
         Route::get('/{id}/download-file', [OutboundDocumentController::class, 'downloadFile']);

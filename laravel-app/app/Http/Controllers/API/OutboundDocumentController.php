@@ -105,21 +105,11 @@ class OutboundDocumentController extends Controller
                     }
                 });
             } elseif ($sendType === 'OFFICE' && $user->office_id) {
-                // Same office OR dept leaders (positions.level <= 5) OR DG leadership (positions.level <= 2)
-                $recipientsQuery->where(function ($q) use ($user) {
-                    $q->where('users.office_id', $user->office_id)
-                      ->orWhere(function ($sub) use ($user) {
-                          $sub->where('users.department_id', $user->department_id)
-                              ->where('positions.level', '<=', 5);
-                      })
-                      ->orWhere('positions.level', '<=', 2);
-                });
+                // Strictly within same office
+                $recipientsQuery->where('users.office_id', $user->office_id);
             } elseif ($sendType === 'DEPARTMENT' && $user->department_id) {
-                // Anyone in same dept or leadership
-                $recipientsQuery->where(function ($q) use ($user) {
-                    $q->where('users.department_id', $user->department_id)
-                      ->orWhere('positions.level', '<=', 2);
-                });
+                // Strictly within same department
+                $recipientsQuery->where('users.department_id', $user->department_id);
             } elseif ($sendType === 'SUBORDINATES') {
                 // Superiors in hierarchy or DG leadership
                 $recipientsQuery->where(function ($q) use ($user, $viewerPosLevel) {
@@ -153,7 +143,7 @@ class OutboundDocumentController extends Controller
             });
         }
 
-        $recipients = $recipientsQuery->get();
+        $recipients = $recipientsQuery->get()->filter(fn($u) => (int) $u->id !== (int) $user->id)->values();
 
         return response()->json([
             'inbound_documents' => $inboundDocs,
@@ -172,22 +162,22 @@ class OutboundDocumentController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $tab = strtolower($request->input('tab', 'doing')); // doing, in_progress, complete
+        $tab = strtolower($request->input('tab', 'all')); // all, doing, in_progress, complete
         $viewerPosLevel = $user->position ? (int) $user->position->level : 99;
         $isDg = ($viewerPosLevel <= 1) || (strtoupper($user->level ?? '') === 'ADMIN');
 
         $baseQuery = InboundDocumentResponse::with([
-            'inboundDocument:id,general_inbound_number,dg_inbound_number,title,received_date,status,sender_organization,dg_annotation',
-            'draftedByUser:id,name,name_kh,email,position_id,department_id,office_id',
+            'inboundDocument:id,general_inbound_number,dg_inbound_number,title,received_date,status,sender_organization,dg_annotation,original_file_path,original_file_name,annotated_file_path,annotated_file_name',
+            'draftedByUser:id,name,name_kh,email,position_id,department_id,office_id,profile_image',
             'draftedByUser.position:id,title_kh,level',
             'draftedByUser.department:id,name_kh',
             'draftedByUser.office:id,name_kh',
-            'currentApprover:id,name,name_kh,email,position_id,department_id,office_id',
+            'currentApprover:id,name,name_kh,email,position_id,department_id,office_id,profile_image',
             'currentApprover.position:id,title_kh,level',
-            'approvedByUser:id,name,name_kh',
+            'approvedByUser:id,name,name_kh,profile_image',
             'department:id,name_kh',
             'office:id,name_kh',
-            'approvals.user:id,name,name_kh,position_id',
+            'approvals.user:id,name,name_kh,position_id,profile_image,signature_image',
             'approvals.user.position:id,title_kh,level',
             'approvals.forwardedTo:id,name,name_kh,position_id',
             'approvals.forwardedTo.position:id,title_kh,level',
@@ -195,7 +185,10 @@ class OutboundDocumentController extends Controller
 
         $query = clone $baseQuery;
 
-        if ($tab === 'complete' || $tab === 'completed') {
+        if ($tab === 'all') {
+            // Tab 0: All Accessible Documents (ឯកសារទាំងអស់ដែលខ្លួនមានសិទ្ធិមើល)
+            $this->scopeAccessibleByViewer($query, $user);
+        } elseif ($tab === 'complete' || $tab === 'completed') {
             // Tab 3: Complete (បានអនុម័តដោយអគ្គនាយក)
             $query->where('status', 'APPROVED_BY_DG');
             $this->scopeAccessibleByViewer($query, $user);
@@ -207,7 +200,7 @@ class OutboundDocumentController extends Controller
                       ->orWhere('current_approver_id', '!=', $user->id);
                 });
             $this->scopeAccessibleByViewer($query, $user);
-        } else {
+        } elseif ($tab === 'doing') {
             // Tab 1: Doing (ត្រូវធ្វើ / កំពុងរៀបចំ / ត្រូវពិនិត្យ)
             // 1. Current reviewer waiting to review
             // 2. Or drafter with DRAFT or RETURNED
@@ -220,6 +213,9 @@ class OutboundDocumentController extends Controller
                         ->whereIn('status', ['DRAFT', 'RETURNED']);
                 });
             });
+        } else {
+            // Default: All Accessible Documents
+            $this->scopeAccessibleByViewer($query, $user);
         }
 
         // Search & Filters
@@ -253,6 +249,8 @@ class OutboundDocumentController extends Controller
         $docs = $query->orderBy('id', 'desc')->paginate($perPage);
 
         // Stats calculation respecting Workflow View permissions
+        $allCount = $this->scopeAccessibleByViewer(InboundDocumentResponse::query(), $user)->count();
+
         $doingCount = InboundDocumentResponse::where(function ($q) use ($user) {
             $q->where(function ($sub) use ($user) {
                 $sub->where('current_approver_id', $user->id)->where('status', 'UNDER_REVIEW');
@@ -279,6 +277,7 @@ class OutboundDocumentController extends Controller
             'per_page' => $docs->perPage(),
             'total' => $docs->total(),
             'stats' => [
+                'all' => $allCount,
                 'doing' => $doingCount,
                 'in_progress' => $inProgressCount,
                 'complete' => $completeCount,
@@ -425,11 +424,19 @@ class OutboundDocumentController extends Controller
                 'change_summary' => 'បង្កើត និងដាក់ស្នើដំបូង (Original Submission)',
             ]);
 
+            $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+            $viewerStage = match (true) {
+                $viewerPosLevel === 1 => 'DG',
+                $viewerPosLevel === 2 => 'LEADERSHIP',
+                $viewerPosLevel <= 5 => 'DEPARTMENT',
+                default => 'OFFICE',
+            };
+
             InboundDocumentResponseApproval::create([
                 'response_id' => $resp->id,
                 'user_id' => $viewer->id,
                 'action' => 'SUBMIT',
-                'stage' => $stage,
+                'stage' => $viewerStage,
                 'comment' => $request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}"),
                 'forwarded_to_id' => $targetReviewer->id,
             ]);
@@ -480,18 +487,18 @@ class OutboundDocumentController extends Controller
         }
 
         $response = InboundDocumentResponse::with([
-            'inboundDocument:id,general_inbound_number,dg_inbound_number,title,received_date,status,sender_organization,dg_annotation',
-            'draftedByUser:id,name,name_kh,email,position_id,department_id,office_id',
+            'inboundDocument:id,general_inbound_number,dg_inbound_number,title,received_date,status,sender_organization,dg_annotation,original_file_path,original_file_name,annotated_file_path,annotated_file_name',
+            'draftedByUser:id,name,name_kh,email,position_id,department_id,office_id,profile_image',
             'draftedByUser.position:id,title_kh,level',
             'draftedByUser.department:id,name_kh',
             'draftedByUser.office:id,name_kh',
-            'currentApprover:id,name,name_kh,email,position_id,department_id,office_id',
+            'currentApprover:id,name,name_kh,email,position_id,department_id,office_id,profile_image',
             'currentApprover.position:id,title_kh,level',
-            'approvedByUser:id,name,name_kh,position_id',
+            'approvedByUser:id,name,name_kh,position_id,profile_image',
             'approvedByUser.position:id,title_kh,level',
             'department:id,name_kh',
             'office:id,name_kh',
-            'approvals.user:id,name,name_kh,position_id',
+            'approvals.user:id,name,name_kh,position_id,profile_image,signature_image',
             'approvals.user.position:id,title_kh,level',
             'approvals.forwardedTo:id,name,name_kh,position_id',
             'approvals.forwardedTo.position:id,title_kh,level',
@@ -569,7 +576,7 @@ class OutboundDocumentController extends Controller
             ], 422);
         }
 
-        $updated = DB::transaction(function () use ($request, $viewer, $response, $isDraft, $isDrafter, $isCurrentApprover, $isDg) {
+        $updated = DB::transaction(function () use ($request, $viewer, $response, $isDraft, $isDrafter, $isCurrentApprover, $isDg, $viewerPosLevel) {
             $oldContent = $response->content;
             $oldTitle = $response->title;
             $oldRef = $response->reference_note;
@@ -727,6 +734,50 @@ class OutboundDocumentController extends Controller
     }
 
     /**
+     * Quick update of response content and positioning of draggable opinion boxes
+     */
+    public function updateContent($id, Request $request)
+    {
+        $viewer = $request->user() ?: Auth::user();
+        if (!$viewer) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $response = InboundDocumentResponse::findOrFail($id);
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDg = ($viewerPosLevel <= 1) || (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isDrafter = ((int) $response->drafted_by === (int) $viewer->id);
+        $isCurrentApprover = ((int) $response->current_approver_id === (int) $viewer->id);
+        $hasApproved = InboundDocumentResponseApproval::where('response_id', $response->id)
+            ->where('user_id', $viewer->id)
+            ->exists();
+
+        if (!$isDg && !$isAdmin && !$isDrafter && !$isCurrentApprover && !$hasApproved) {
+            return response()->json(['message' => 'លោកអ្នកពុំមានសិទ្ធិកែប្រែខ្លឹមសារ ឬទីតាំងហត្ថលេខានៃលិខិតនេះឡើយ!'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'content' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $response->content = $request->input('content');
+        $response->save();
+
+        return response()->json([
+            'message' => 'បានរក្សាទុកទីតាំង និងខ្លឹមសារឯកសារដោយជោគជ័យ!',
+            'content' => $response->content,
+        ]);
+    }
+
+    /**
      * 6. សកម្មភាពពិនិត្យឆ្លង (Review Action: FORWARD, RETURN, DG_APPROVE)
      */
     public function reviewAction($id, Request $request)
@@ -747,10 +798,11 @@ class OutboundDocumentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'action' => 'required|in:FORWARD,RETURN,DG_APPROVE',
+            'action' => 'required|in:FORWARD,RETURN,DG_APPROVE,HOLD',
             'forwarded_to_id' => 'required_if:action,FORWARD|nullable|exists:users,id',
             'comment' => 'nullable|string',
             'response_number' => 'nullable|string|max:100',
+            'content' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -763,7 +815,30 @@ class OutboundDocumentController extends Controller
         $action = $request->input('action');
         $comment = $request->input('comment');
 
-        DB::transaction(function () use ($action, $comment, $request, $viewer, $response, $isDg) {
+        DB::transaction(function () use ($action, $comment, $request, $viewer, $response, $isDg, $viewerPosLevel) {
+            // If approver attached / updated report content with their opinion & signature
+            if ($request->filled('content') && trim((string)$response->content) !== trim((string)$request->input('content'))) {
+                $newContent = $request->input('content');
+                $response->content = $newContent;
+                $response->save();
+
+                $latestRevNum = \App\Models\InboundDocumentResponseRevision::where('response_id', $response->id)->max('revision_number') ?: 1;
+                $roleLabel = ($isDg ? 'ឯកឧត្តមអគ្គនាយក' : 'ថ្នាក់ដឹកនាំ');
+                $summary = "{$roleLabel} ({$viewer->name_kh}) បានបញ្ចូលមតិយោបល់ និងហត្ថលេខាលើឯកសារ";
+
+                \App\Models\InboundDocumentResponseRevision::create([
+                    'response_id' => $response->id,
+                    'user_id' => $viewer->id,
+                    'revision_number' => $latestRevNum + 1,
+                    'title' => $response->title,
+                    'header_organization' => $response->header_organization,
+                    'reference_note' => $response->reference_note,
+                    'content' => $newContent,
+                    'sign_title' => $response->sign_title,
+                    'sign_name' => $response->sign_name,
+                    'change_summary' => $summary,
+                ]);
+            }
             if ($action === 'FORWARD') {
                 $nextReviewer = User::with('position')->findOrFail($request->input('forwarded_to_id'));
                 $reviewerLevel = $nextReviewer->position ? (int) $nextReviewer->position->level : 99;
@@ -890,11 +965,29 @@ class OutboundDocumentController extends Controller
                         $this->telegram->notifyResponseApproved($response, $viewer, $doc);
                     }
                 }
+            } elseif ($action === 'HOLD') {
+                $response->update([
+                    'status' => 'UNDER_REVIEW',
+                    'current_approver_id' => $viewer->id,
+                ]);
+
+                InboundDocumentResponseApproval::create([
+                    'response_id' => $response->id,
+                    'user_id' => $viewer->id,
+                    'action' => 'EDIT',
+                    'stage' => $response->current_stage,
+                    'comment' => $comment ?: "បានកត់ត្រាមតិយោបល់ និងរក្សាទុកក្នុងដៃសិន",
+                    'forwarded_to_id' => $viewer->id,
+                ]);
             }
         });
 
+        $successMsg = ($action === 'HOLD') 
+            ? 'បានរក្សាទុកមតិយោបល់ និងខ្លឹមសារក្នុងដៃដោយជោគជ័យ! លោកអ្នកអាចចារឆ្លងទៅថ្នាក់លើនៅពេលក្រោយ។' 
+            : 'បានអនុវត្តសកម្មភាពពិនិត្យឆ្លងដោយជោគជ័យ!';
+
         return response()->json([
-            'message' => 'បានអនុវត្តសកម្មភាពពិនិត្យឆ្លងដោយជោគជ័យ!',
+            'message' => $successMsg,
             'data' => $response->fresh(['draftedByUser', 'currentApprover', 'inboundDocument', 'approvals.user', 'approvals.forwardedTo']),
         ]);
     }
@@ -946,21 +1039,36 @@ class OutboundDocumentController extends Controller
         $response = InboundDocumentResponse::findOrFail($id);
 
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if ($response->drafted_by !== $viewer->id && !$isAdmin) {
+        if ((int) $response->drafted_by !== (int) $viewer->id && !$isAdmin) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបលិខិតនេះឡើយ!'], 403);
         }
 
-        if ($response->status !== 'DRAFT') {
-            return response()->json(['message' => 'អាចលុបបានតែសេចក្តីព្រាងដែលមិនទាន់ដាក់ស្នើឆ្លងប៉ុណ្ណោះ!'], 400);
+        // Allow deleting DRAFT or RETURNED (when leaders return it for edit) or by Admin
+        $canDeleteStatus = in_array($response->status, ['DRAFT', 'RETURNED']) || $isAdmin;
+        if (!$canDeleteStatus) {
+            return response()->json(['message' => 'អាចលុបបានតែសេចក្តីព្រាង ឬលិខិតដែលបានបញ្ជូនត្រឡប់មកវិញប៉ុណ្ណោះ!'], 400);
         }
 
         if ($response->file_path && StorageService::exists($response->file_path)) {
             StorageService::delete($response->file_path);
         }
 
+        $inboundDocId = $response->inbound_document_id;
+
         $response->delete();
 
-        return response()->json(['message' => 'បានលុបសេចក្តីព្រាងដោយជោគជ័យ!']);
+        // If this response was linked to an inbound document, update status if no other active responses exist
+        if ($inboundDocId) {
+            $remainingCount = InboundDocumentResponse::where('inbound_document_id', $inboundDocId)->count();
+            if ($remainingCount === 0) {
+                $inboundDoc = \App\Models\InboundDocument::find($inboundDocId);
+                if ($inboundDoc && in_array($inboundDoc->status, ['IN_RESPONSE', 'IN_RESPONSE_PROGRESS'])) {
+                    $inboundDoc->update(['status' => 'DOING']);
+                }
+            }
+        }
+
+        return response()->json(['message' => 'បានលុបឯកសារចេញដោយជោគជ័យ!']);
     }
 
     /**

@@ -12,10 +12,13 @@ use App\Http\Requests\User\UpdateProfileImageRequest;
 use App\Http\Resources\User\UserResource;
 use App\Models\User;
 use App\Services\ImageClassService;
+use App\Services\StorageService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -202,6 +205,76 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'បានលុបរូបភាព Profile ដោយជោគជ័យ',
+        ], 200);
+    }
+
+    public function updateSignatureImage(Request $request)
+    {
+        $user = $request->user();
+        $oldSignature = $user->getRawOriginal('signature_image');
+        $newSignature = null;
+        $disk = Storage::disk(StorageService::diskName());
+
+        try {
+            if ($request->hasFile('signature_image')) {
+                $file = $request->file('signature_image');
+                $ext = $file->getClientOriginalExtension() ?: 'png';
+                $filename = 'sig_' . Str::uuid() . '.' . $ext;
+                $newSignature = $disk->putFileAs('users/signatures', $file, $filename);
+            } elseif ($request->filled('signature_base64')) {
+                $base64Data = $request->input('signature_base64');
+                $type = 'png';
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
+                    $base64Data = substr($base64Data, strpos($base64Data, ',') + 1);
+                    $type = strtolower($matches[1]);
+                }
+                $data = base64_decode($base64Data);
+                if ($data === false) {
+                    return response()->json(['message' => 'ទិន្នន័យរូបភាពហត្ថលេខាមិនត្រឹមត្រូវ!'], 422);
+                }
+                $filename = 'sig_' . Str::uuid() . '.' . $type;
+                $newSignature = 'users/signatures/' . $filename;
+                $disk->put($newSignature, $data);
+            } else {
+                return response()->json(['message' => 'សូមជ្រើសរើសរូបភាព ឬគូសហត្ថលេខា!'], 422);
+            }
+
+            $user->signature_image = $newSignature;
+            $user->save();
+        } catch (Exception $e) {
+            if ($newSignature && $disk->exists($newSignature)) {
+                $disk->delete($newSignature);
+            }
+            throw $e;
+        }
+
+        if ($oldSignature && $disk->exists($oldSignature)) {
+            $disk->delete($oldSignature);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ហត្ថលេខាត្រូវបានរក្សាទុកដោយជោគជ័យ',
+            'signature_image' => $user->signature_image,
+        ], 200);
+    }
+
+    public function deleteSignatureImage(Request $request)
+    {
+        $user = $request->user();
+        $oldSignature = $user->getRawOriginal('signature_image');
+        $disk = Storage::disk(StorageService::diskName());
+
+        $user->signature_image = null;
+        $user->save();
+
+        if ($oldSignature && $disk->exists($oldSignature)) {
+            $disk->delete($oldSignature);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានលុបហត្ថលេខាដោយជោគជ័យ',
         ], 200);
     }
  public function getProfile(Request $request)
