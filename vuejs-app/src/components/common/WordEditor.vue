@@ -1369,9 +1369,15 @@ const normalizeDocumentHtml = (html) => {
   }
 };
 
+const PAGE_H = 1123;
+const PAGE_GAP = 60;
+
 const hasPageBreak = ref(false);
 const pageBreakCount = ref(0);
-const contentHeight = ref(1123);
+const contentHeight = ref(PAGE_H);
+
+let isMeasuring = false;
+let measureTimer = null;
 
 const updatePageBreakCount = () => {
   if (!paperEditor.value) {
@@ -1386,33 +1392,37 @@ const updatePageBreakCount = () => {
 };
 
 const updateContentMeasurements = () => {
-  if (!paperEditor.value) return;
-  updatePageBreakCount();
-
-  let maxChildBottom = 0;
-  const allEls = paperEditor.value.querySelectorAll('*');
-  if (allEls.length > 0) {
-    const paperRect = paperEditor.value.getBoundingClientRect();
-    allEls.forEach(child => {
-      const rect = child.getBoundingClientRect();
-      const bottomRel = rect.bottom - paperRect.top;
-      if (bottomRel > maxChildBottom) {
-        maxChildBottom = bottomRel;
-      }
-    });
+  const el = paperEditor.value;
+  if (!el || isMeasuring) return;
+  isMeasuring = true;
+  try {
+    updatePageBreakCount();
+    const paperTop = el.getBoundingClientRect().top;
+    let bottom = 0;
+    for (const child of el.querySelectorAll('*')) {
+      const b = child.getBoundingClientRect().bottom - paperTop;
+      if (b > bottom) bottom = b;
+    }
+    const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    const next = Math.ceil(bottom + padBottom);
+    if (Math.abs(next - contentHeight.value) > 2) contentHeight.value = next; // avoid resize ping-pong
+  } finally {
+    isMeasuring = false;
   }
+};
 
-  const measured = Math.max(paperEditor.value.scrollHeight, Math.ceil(maxChildBottom + 55), 1123);
-  contentHeight.value = measured;
+const debouncedUpdateContentMeasurements = () => {
+  if (measureTimer) clearTimeout(measureTimer);
+  measureTimer = setTimeout(() => {
+    updateContentMeasurements();
+  }, 100);
 };
 
 const paperStyle = computed(() => {
-  const breaks = pageBreakCount.value;
-  const contentPages = Math.ceil(contentHeight.value / 1123);
-  const pages = Math.max(breaks + 1, contentPages, 1);
-  const minH = pages * 1123 + (pages - 1) * 60;
+  const contentPages = Math.ceil((contentHeight.value + PAGE_GAP) / (PAGE_H + PAGE_GAP));
+  const pages = Math.max(pageBreakCount.value + 1, contentPages, 1);
   return {
-    minHeight: `${minH}px`,
+    minHeight: `${pages * PAGE_H + (pages - 1) * PAGE_GAP}px`,
     backgroundColor: '#ffffff'
   };
 });
@@ -1565,7 +1575,7 @@ const checkAndApplyAutoPageBreak = () => {
 };
 
 const onEditorInput = () => {
-  updateContentMeasurements();
+  debouncedUpdateContentMeasurements();
   emitUpdate();
   triggerAutoPageBreak();
 };
@@ -1766,7 +1776,7 @@ onMounted(() => {
 
       // Continuously observe DOM changes to keep pageBreakCount & minHeight in sync
       domObserver = new MutationObserver(() => {
-        updateContentMeasurements();
+        debouncedUpdateContentMeasurements();
       });
       domObserver.observe(paperEditor.value, {
         childList: true,
@@ -1777,7 +1787,7 @@ onMounted(() => {
       // ResizeObserver on the paper element ensures the white page always covers all content
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
-          updateContentMeasurements();
+          debouncedUpdateContentMeasurements();
         });
         resizeObserver.observe(paperEditor.value);
       }
@@ -1786,6 +1796,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (measureTimer) clearTimeout(measureTimer);
   if (cleanupDraggable) cleanupDraggable();
   if (domObserver) domObserver.disconnect();
   if (resizeObserver) resizeObserver.disconnect();
