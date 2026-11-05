@@ -210,7 +210,12 @@ class AuthController extends Controller
 
     public function getSignatureImage(Request $request, $id = null)
     {
-        $targetUser = $id ? User::findOrFail($id) : $request->user();
+        $currentUser = $request->user();
+        if ($id && (int)$currentUser->id !== (int)$id && $currentUser->level !== 'ADMIN') {
+            return response()->json(['message' => 'Unauthorized to access this signature'], 403);
+        }
+
+        $targetUser = $id ? User::findOrFail($id) : $currentUser;
         $sigPath = $targetUser->getRawOriginal('signature_image');
 
         if (empty($sigPath) || !StorageService::exists($sigPath)) {
