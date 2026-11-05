@@ -3024,6 +3024,18 @@ class InboundDocumentController extends Controller
     public function downloadResponseFile($responseId, Request $request)
     {
         $viewer = $request->user();
+        if (!$viewer) {
+            return response()->json(['message' => 'សូមចូលប្រព័ន្ធជាមុនសិន!'], 401);
+        }
+
+        $canAccess = InboundDocumentResponse::where('id', $responseId)
+            ->accessibleByViewer($viewer)
+            ->exists();
+
+        if (!$canAccess) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារឆ្លើយតបនេះឡើយ!'], 403);
+        }
+
         $response = InboundDocumentResponse::with('inboundDocument')->findOrFail($responseId);
         if ($response->inboundDocument && !$this->canUserAccessDocument($response->inboundDocument, $viewer)) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារឆ្លើយតបនេះឡើយ!'], 403);
@@ -3412,6 +3424,18 @@ class InboundDocumentController extends Controller
     public function viewResponseFile($responseId, Request $request)
     {
         $viewer = $request->user();
+        if (!$viewer) {
+            return response()->json(['message' => 'សូមចូលប្រព័ន្ធជាមុនសិន!'], 401);
+        }
+
+        $canAccess = InboundDocumentResponse::where('id', $responseId)
+            ->accessibleByViewer($viewer)
+            ->exists();
+
+        if (!$canAccess) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារឆ្លើយតបនេះឡើយ!'], 403);
+        }
+
         $response = InboundDocumentResponse::with('inboundDocument')->findOrFail($responseId);
         if ($response->inboundDocument && !$this->canUserAccessDocument($response->inboundDocument, $viewer)) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិចូលមើលឯកសារឆ្លើយតបនេះឡើយ!'], 403);

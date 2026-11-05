@@ -1164,8 +1164,19 @@ class OutboundDocumentController extends Controller
     /**
      * 9. Download Attachment File
      */
-    public function downloadFile($id)
+    public function downloadFile($id, Request $request)
     {
+        $viewer = $request->user();
+        if (!$viewer) {
+            return response()->json(['message' => 'សូមចូលប្រព័ន្ធជាមុនសិន!'], 401);
+        }
+
+        $checkQuery = InboundDocumentResponse::where('id', $id);
+        $this->scopeAccessibleByViewer($checkQuery, $viewer);
+        if (!$checkQuery->exists()) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកឯកសារនេះឡើយ!'], 403);
+        }
+
         $response = InboundDocumentResponse::findOrFail($id);
         if (!$response->file_path || !StorageService::exists($response->file_path)) {
             return response()->json(['message' => 'រកមិនឃើញឯកសារភ្ជាប់ឡើយ!'], 404);
@@ -1179,12 +1190,14 @@ class OutboundDocumentController extends Controller
     public function viewFile($id, Request $request)
     {
         $viewer = $request->user();
-        if ($viewer) {
-            $checkQuery = InboundDocumentResponse::where('id', $id);
-            $this->scopeAccessibleByViewer($checkQuery, $viewer);
-            if (!$checkQuery->exists()) {
-                return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិមើលឯកសារនេះឡើយ!'], 403);
-            }
+        if (!$viewer) {
+            return response()->json(['message' => 'សូមចូលប្រព័ន្ធជាមុនសិន!'], 401);
+        }
+
+        $checkQuery = InboundDocumentResponse::where('id', $id);
+        $this->scopeAccessibleByViewer($checkQuery, $viewer);
+        if (!$checkQuery->exists()) {
+            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិមើលឯកសារនេះឡើយ!'], 403);
         }
 
         $response = InboundDocumentResponse::findOrFail($id);
