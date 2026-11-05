@@ -83,6 +83,22 @@ export const embedOpinionBoxIntoHtml = (htmlContent, boxHtml, placement = 'SIDE_
   let content = htmlContent.replace(/<[^>]*>\s*\(ហត្ថលេខា\)\s*<\/[^>]*>/gi, '');
   content = content.replace(/\(ហត្ថលេខា\)/g, '');
 
+  // Enforcement: 1 Reviewer can only have ONE opinion box in the report!
+  // If an opinion box for this reviewer already exists, update/replace it in-place instead of duplicating
+  const ownerMatch = boxHtml.match(/data-owner-id=["'](\d+)["']/);
+  if (ownerMatch && ownerMatch[1]) {
+    const ownerId = ownerMatch[1];
+    if (typeof document !== 'undefined') {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const existing = tempDiv.querySelector(`.draggable-opinion-box[data-owner-id="${ownerId}"]`);
+      if (existing) {
+        existing.outerHTML = boxHtml;
+        return tempDiv.innerHTML;
+      }
+    }
+  }
+
   if (placement === 'SIDE_BY_SIDE_LEFT') {
     // 1. Try to find opinion-left-col inside drafter table
     const leftColMatch = content.match(/<td[^>]*class=["'][^"']*opinion-left-col[^"']*["'][^>]*>/i);

@@ -11,17 +11,9 @@
             type="button"
             class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
             @click="insertTemplate('REPORT')"
-            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ (១ ទំព័រ)"
+            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ"
           >
-            <i class="fas fa-file-alt mr-1"></i> គំរូ របាយការណ៍ (១ ទំព័រ)
-          </button>
-          <button
-            type="button"
-            class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold"
-            @click="insertTemplate('REPORT_2_PAGES')"
-            title="បញ្ចូលទម្រង់របាយការណ៍ផ្លូវការ (២ ទំព័រ ដោយមានលេខទំព័រ)"
-          >
-            <i class="fas fa-copy mr-1"></i> គំរូ របាយការណ៍ (២ ទំព័រ)
+            <i class="fas fa-file-alt mr-1"></i> គំរូ របាយការណ៍
           </button>
           <button
             type="button"
@@ -33,31 +25,15 @@
           </button>
           <button
             type="button"
-            class="btn btn-xs btn-outline-success mr-1 mb-1 font-weight-bold"
+            class="btn btn-xs btn-outline-success mr-2 mb-1 font-weight-bold"
             @click="insertTemplate('LETTER')"
             title="បញ្ចូលទម្រង់លិខិតរដ្ឋបាលផ្លូវការ"
           >
             <i class="fas fa-envelope-open-text mr-1"></i> គំរូ លិខិត
           </button>
-          <button
-            type="button"
-            class="btn btn-xs btn-outline-secondary mr-2 mb-1"
-            @click="insertTemplate('BLANK')"
-            title="ទំព័រទទេ"
-          >
-            <i class="fas fa-file mr-1"></i> ទំព័រទទេ
-          </button>
 
-          <!-- Insert Page Break & Reviewer Blocks -->
+          <!-- Reviewer & Drafter Blocks -->
           <div class="border-left pl-2 ml-1 d-inline-flex align-items-center flex-wrap">
-            <button
-              type="button"
-              class="btn btn-xs btn-primary font-weight-bold mr-1 mb-1 shadow-xs"
-              @click="insertPageBreak"
-              title="បន្ថែមទំព័រថ្មី (ទំព័រទី ២, ៣... ដោយមានលេខទំព័រត្រឹមត្រូវ)"
-            >
-              <i class="fas fa-plus-circle mr-1"></i> + ទំព័រថ្មី (Page Break)
-            </button>
             <template v-if="isApprover">
               <button
                 type="button"
@@ -142,9 +118,9 @@
         <!-- Font Family Selector -->
         <div class="mr-2 mb-1">
           <select class="form-control form-control-sm font-select" v-model="selectedFont" @change="applyFont">
+            <option value="'Siemreap', sans-serif">Siemreap (អក្សរតូចទូទៅ)</option>
+            <option value="'Khmer OS Muol Light', serif">Khmer OS Muol Light (អក្សរធំ)</option>
             <option value="'Khmer OS Battambang', sans-serif">Khmer OS Battambang</option>
-            <option value="'Khmer OS Muol Light', serif">Khmer OS Muol Light</option>
-            <option value="'Siemreap', sans-serif">Siemreap</option>
             <option value="'DaunPenh', serif">DaunPenh</option>
             <option value="'Times New Roman', serif">Times New Roman</option>
             <option value="'Arial', sans-serif">Arial</option>
@@ -225,12 +201,33 @@
         </div>
 
         <!-- Insert Table & Elements -->
-        <div class="btn-group btn-group-sm mb-1">
+        <div class="btn-group btn-group-sm mb-1 mr-2">
           <button type="button" class="btn btn-light border btn-tool" @click="promptInsertTable" title="បញ្ចូលតារាង (Insert Table)">
             <i class="fas fa-table mr-1 text-primary"></i> តារាង
           </button>
           <button type="button" class="btn btn-light border btn-tool" @click="exec('insertHorizontalRule')" title="បន្ទាត់ផ្តេក">
             <i class="fas fa-minus"></i>
+          </button>
+        </div>
+
+        <!-- Page Break Controls -->
+        <div class="btn-group btn-group-sm mb-1">
+          <button
+            type="button"
+            class="btn btn-light border btn-tool text-primary font-weight-bold"
+            @click="insertManualPageBreak"
+            title="ផ្ដាច់ទំព័រ (Insert Page Break)"
+          >
+            <i class="fas fa-file-invoice mr-1 text-primary"></i> ផ្ដាច់ទំព័រ
+          </button>
+          <button
+            type="button"
+            v-if="hasPageBreak"
+            class="btn btn-light border btn-tool text-danger font-weight-bold"
+            @click="removePageBreaks"
+            title="លុបការផ្ដាច់ទំព័រ និងរួមបញ្ចូលមកទំព័រទី១វិញ (Remove Page Break)"
+          >
+            <i class="fas fa-trash-alt mr-1 text-danger"></i> លុបការផ្ដាច់ទំព័រ
           </button>
         </div>
       </div>
@@ -241,6 +238,7 @@
       <div
         class="document-paper shadow-lg"
         ref="paperEditor"
+        :style="paperStyle"
         :contenteditable="!readonly"
         @input="onEditorInput"
         @blur="onEditorBlur"
@@ -488,7 +486,7 @@ const canvasContainer = ref(null);
 const isFullscreen = ref(false);
 const showSignatureModal = ref(false);
 
-const selectedFont = ref("'Khmer OS Battambang', sans-serif");
+const selectedFont = ref("'Siemreap', sans-serif");
 const selectedSize = ref("12pt");
 const textColor = ref("#000000");
 const highlightColor = ref("#ffff00");
@@ -497,13 +495,44 @@ const highlightColor = ref("#ffff00");
 const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
 const toKhmerNum = (num) => String(num).split('').map(d => khmerDigits[d] || d).join('');
 
+const khmerMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+
 const getCurrentKhmerDateString = () => {
   const d = new Date();
   const day = toKhmerNum(d.getDate());
-  const monthNamesKh = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
-  const month = monthNamesKh[d.getMonth()];
+  const month = khmerMonths[d.getMonth()];
   const year = toKhmerNum(d.getFullYear());
   return `រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
+};
+
+// Dual Calendar: Buddhist Era (ពុទ្ធសករាជ) & Gregorian Era (គ្រឹះសករាជ)
+const getOfficialKhmerDateHtml = (input = new Date()) => {
+  const d = input instanceof Date ? input : new Date(input);
+  const day = toKhmerNum(d.getDate());
+  const month = khmerMonths[d.getMonth()] || 'វិច្ឆិកា';
+  const year = toKhmerNum(d.getFullYear());
+
+  return `
+    <div style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 10pt; color: #222; margin-bottom: 2px; outline: none; white-space: nowrap;" contenteditable="true" title="កាលបរិច្ឆេទពុទ្ធសករាជ (ចុចដើម្បីកែ)">ថ្ងៃ................... ខែ............. ឆ្នាំ........ ព.ស.២៥......</div>
+    <div style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 10.5pt; color: #111; margin-bottom: 4px; outline: none; white-space: nowrap;" contenteditable="true" title="កាលបរិច្ឆេទគ្រឹះសករាជ (ចុចដើម្បីកែ)">រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}</div>
+  `;
+};
+
+// Default department abbreviations in Trust Regulator (និយ័តករបរធនបាលកិច្ច)
+const getDepartmentAbbr = (name = '') => {
+  if (!name) return '...';
+  if (name.includes('ចុះបញ្ជី')) return 'ច.ប.ច.';
+  if (name.includes('កិច្ចការទូទៅ')) return 'ន.ក.ទ.';
+  if (name.includes('គតិយុត្ត') || name.includes('អធិការកិច្ច')) return 'គ.អ.';
+  if (name.includes('ស្រាវជ្រាវ') || name.includes('បណ្តុះបណ្តាល') || name.includes('សហប្រតិបត្តិការ')) return 'ស.ប.ស.';
+  
+  const clean = name.replace(/^នាយកដ្ឋាន\s*/, '').trim();
+  const words = clean.split(/\s+/);
+  if (words.length > 0) {
+    const letters = words.map(w => w.charAt(0)).filter(Boolean).join('.');
+    return letters + '.';
+  }
+  return '...';
 };
 
 // Word & Page counter
@@ -517,7 +546,9 @@ const wordCount = computed(() => {
 const estimatedPages = computed(() => {
   if (!paperEditor.value) return 1;
   const pageBreaks = paperEditor.value.querySelectorAll('.page-break');
-  return (pageBreaks ? pageBreaks.length : 0) + 1;
+  const breaksCount = pageBreaks ? pageBreaks.length : 0;
+  const heightPages = Math.ceil((paperEditor.value.scrollHeight || 1080) / 1080);
+  return Math.max(breaksCount + 1, heightPages, 1);
 });
 
 // Execute format command
@@ -560,17 +591,7 @@ const insertPageBreak = () => {
   const nextPageNum = (currentBreaks ? currentBreaks.length : 0) + 2;
   const khmerPageNum = toKhmerNum(nextPageNum);
 
-  const pageBreakHtml = `
-    <div class="page-break" style="page-break-before: always; break-before: page; margin-top: 40px; margin-bottom: 25px; padding-top: 25px; border-top: 1.5px dashed #007bff; position: relative;">
-      <div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #007bff; color: #ffffff; padding: 2px 16px; border-radius: 12px; font-size: 9.5pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-        ទំព័រទី ${khmerPageNum}
-      </div>
-      <div class="page-number-header" style="text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 12pt; color: #222;" contenteditable="true">
-        - ${khmerPageNum} -
-      </div>
-    </div>
-    <p style="font-size: 12pt; line-height: 2.1; text-indent: 45px;"><br></p>
-  `;
+  const pageBreakHtml = createPageBreakHtml(nextPageNum) + `<p style="font-size: 12pt; line-height: 2.1; text-indent: 95px;"><br></p>`;
 
   paperEditor.value.focus();
   document.execCommand('insertHTML', false, pageBreakHtml);
@@ -661,18 +682,18 @@ const getDrafterSignatureHtml = () => {
   return `
     <table class="drafter-signature-table" style="width: 100%; border: none; border-collapse: collapse; margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid; line-height: 2.1;">
       <tr>
-        <td class="opinion-left-col" style="width: 50%; border: none; vertical-align: top; text-align: center; padding-right: 15px;"></td>
-        <td style="width: 50%; border: none; vertical-align: top; text-align: center; font-size: 11pt; line-height: 2.1; padding-left: 15px;">
-          <div style="font-size: 11pt; color: #333;">${dateStr}</div>
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 2px;">
+        <td class="opinion-left-col" style="width: 42%; border: none; vertical-align: top; text-align: center; padding-right: 10px;"></td>
+        <td style="width: 58%; border: none; vertical-align: top; text-align: center; font-size: 11pt; line-height: 2.1; padding-left: 10px;">
+          ${getOfficialKhmerDateHtml()}
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 2px; white-space: nowrap;">
             ${dept}
           </div>
-          ${office ? `<div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000;">${office}</div>` : ''}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px;">
+          ${office ? `<div style="font-family: 'Khmer OS Muol Light', serif; font-size: 10.5pt; color: #000; white-space: nowrap;">${office}</div>` : ''}
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px; white-space: nowrap;">
             ${pos}
           </div>
           ${signatureImgHtml}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; font-weight: bold;">
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; font-weight: bold; white-space: nowrap;">
             ${officer}
           </div>
         </td>
@@ -723,6 +744,17 @@ const openSuperiorReviewModal = () => {
   superiorForm.position = isDgUser.value ? 'អគ្គនាយក' : posTitle;
   superiorForm.signatureUrl = userStore.signature_image || '';
 
+  // If user already has an opinion box in the report, pre-fill its existing values
+  if (paperEditor.value) {
+    const existingBox = paperEditor.value.querySelector(`.draggable-opinion-box[data-owner-id="${userStore.id}"]`);
+    if (existingBox) {
+      const existingComment = existingBox.querySelector('.opinion-box-comment')?.textContent?.trim();
+      const existingDate = existingBox.querySelector('.opinion-box-date')?.textContent?.trim();
+      if (existingComment) superiorForm.comment = existingComment;
+      if (existingDate) superiorForm.dateStr = existingDate;
+    }
+  }
+
   showSuperiorReviewModal.value = true;
 };
 
@@ -737,6 +769,23 @@ const applySuperiorReview = () => {
     shortDateKh,
     ownerId: userStore.id,
   });
+
+  // Rule: 1 Person can ONLY have ONE opinion box in the report!
+  // If user already has one, update it in-place instead of creating a duplicate
+  const existingBox = paperEditor.value.querySelector(`.draggable-opinion-box[data-owner-id="${userStore.id}"]`);
+  if (existingBox) {
+    existingBox.outerHTML = boxHtml;
+    emitUpdate();
+    showSuperiorReviewModal.value = false;
+    Swal.fire({
+      icon: 'success',
+      title: 'បានធ្វើបច្ចុប្បន្នភាព!',
+      text: 'លោកអ្នកមានប្រអប់មតិយោបល់រួចហើយ ប្រព័ន្ធបានធ្វើបច្ចុប្បន្នភាពលើប្រអប់របស់លោកអ្នកដោយមិនបង្កើតប្រអប់ស្ទួនឡើយ។',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+    return;
+  }
 
   const drafterTable = paperEditor.value.querySelector('.drafter-signature-table');
 
@@ -949,20 +998,21 @@ const getOfficialTemplates = () => {
   const office = props.officeName ? props.officeName : '';
   const officer = props.officerName || '.....................................';
   const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
+  const deptAbbr = getDepartmentAbbr(dept);
 
   // Standard official administrative text header
   const textHeaderHtml = `
     <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 25px; font-size: 11pt; line-height: 2.1;">
       <tr>
         <td style="width: 50%; border: none; vertical-align: top; text-align: left;">
-           <img src="logo.png" alt="Logo" style="width: 120px; height: auto; margin-bottom: 4px; padding-left: 40px">
+          <img src="logo.png" alt="Logo" style="width: 120px; height: auto; margin-bottom: 4px; padding-left: 40px">
           <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #008000;">${props.organizationName || 'និយ័តករបរធនបាលកិច្ច'}</div>
           
-          <div style="font-size: 11pt; color: #000;">លេខ៖.................... ន.ប.ធ.</div>
+          <div style="font-size: 11pt; color: #000; margin-top: 3px;">លេខ៖ <span class="doc-number-input" contenteditable="true" style="display: inline-block; min-width: 45px; border-bottom: 1px dotted #888; outline: none; padding: 0 4px;" title="ចុចដើម្បីវាយលេខចូល">.......</span> ន.ប.ធ./${deptAbbr}</div>
         </td>
         <td style="width: 50%; border: none; vertical-align: top; text-align: center;">
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color:  #008000; margin-bottom: 4px;">ព្រះរាជាណាចក្រកម្ពុជា</div>
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color:  #008000;">ជាតិ សាសនា ព្រះមហាក្សត្រ</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #008000; margin-bottom: 4px;">ព្រះរាជាណាចក្រកម្ពុជា</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #008000;">ជាតិ សាសនា ព្រះមហាក្សត្រ</div>
           <div style="font-size: 11pt; letter-spacing: 3px;">* * *</div>
         </td>
       </tr>
@@ -971,7 +1021,7 @@ const getOfficialTemplates = () => {
 
   return {
     REPORT: `
-      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; color: #111;">
         <!-- Header Text (No Letterhead Image) -->
         ${textHeaderHtml}
 
@@ -988,110 +1038,46 @@ const getOfficialTemplates = () => {
         </div>
 
         <!-- Subject & Reference Table -->
-        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 18px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; line-height: 2.1;">
           <tr>
-            <td style="width: 85px; vertical-align: top; border: none; padding: 2px 0; white-space: nowrap; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000;">កម្មវត្ថុ៖</td>
-            <td style="vertical-align: top; border: none; padding: 2px 0;">
+            <td style="width: 95px; vertical-align: top; border: none; padding: 2px 0; white-space: nowrap; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000;">កម្មវត្ថុ ៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0; text-align: justify; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
               របាយការណ៍ស្តីពី...
             </td>
           </tr>
           <tr>
-            <td style="vertical-align: top; border: none; padding: 2px 0; font-family: 'Khmer OS Muol Light', serif; white-space: nowrap;">យោង៖</td>
-            <td style="vertical-align: top; border: none; padding: 2px 0;">
+            <td style="vertical-align: top; border: none; padding: 2px 0; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; white-space: nowrap;">យោង ៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0; text-align: justify; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
               <div>- លិខិតលេខ...</div>
-              <div>- ចំណារឯកឧត្តមអគ្គនាយក...</div>
+              <div>- ចំណារ<span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span>...</div>
             </td>
           </tr>
         </table>
 
         <!-- Body Paragraph 1 -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong >ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។
+        <div style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; text-align: justify; text-indent: 95px; margin-bottom: 18px; line-height: 2.1;">
+          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។
         </div>
 
-        <!-- Body Paragraph 2 -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាពិនិត្យ ព្រមទាំងផ្តល់ការណែនាំបន្ថែមដោយមេត្តាអនុគ្រោះដ៏ខ្ពង់ខ្ពស់។
-        </div>
-
-        <!-- Body Paragraph 3 -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
-          សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់ពីខ្ញុំ។
-        </div>
-
-        <!-- 1. Drafter Signature Block -->
-        ${getDrafterSignatureHtml()}
-      </div>
-    `,
-    REPORT_2_PAGES: `
-      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
-        <!-- Header Text -->
-        ${textHeaderHtml}
-
-        <!-- Recipient Block -->
-        <div style="text-align: right; margin-bottom: 20px; padding-right: 25px;">
-          <div style="display: inline-block; text-align: center;">
-            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #000; margin-bottom: 4px;">
-              សូមគោរពជូន
-            </div>
-            <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 13pt; color: #000;">
-              ឯកឧត្តមអគ្គនាយកនៃនិយ័តករបរធនបាលកិច្ច
-            </div>
+        <!-- Closing and Signature Block (kept together on page break) -->
+        <div class="closing-and-signature-block" style="page-break-inside: avoid; break-inside: avoid;">
+          <!-- Body Paragraph 2 (Closing polite sentence 1) -->
+          <div class="closing-phrase-1" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; text-align: justify; text-indent: 95px; margin-bottom: 18px; line-height: 2.1;">
+            សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ សូម <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> មេត្តាពិនិត្យ ព្រមទាំងផ្តល់ការណែនាំបន្ថែមដោយមេត្តាអនុគ្រោះដ៏ខ្ពង់ខ្ពស់។
           </div>
-        </div>
 
-        <!-- Subject & Reference Table -->
-        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
-          <tr>
-            <td style="width: 85px; vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">កម្មវត្ថុ៖</td>
-            <td style="vertical-align: top; border: none; font-weight: bold; padding: 2px 0;">
-              របាយការណ៍ស្តីពី...
-            </td>
-          </tr>
-          <tr>
-            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
-            <td style="vertical-align: top; border: none; padding: 2px 0;">
-              <div>- លិខិតលេខ...</div>
-              <div>- ចំណារឯកឧត្តមអគ្គនាយក...</div>
-            </td>
-          </tr>
-        </table>
+          <!-- Body Paragraph 3 (Closing polite sentence 2) -->
+          <div class="closing-phrase-2" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; text-align: justify; text-indent: 95px; margin-bottom: 25px; line-height: 2.1;">
+            សូម <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់ពីខ្ញុំ។
+          </div>
 
-        <!-- Page 1 Content -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៃទំព័រទី១ នៅទីនេះ...)។
+          <!-- 1. Drafter Signature Block -->
+          ${getDrafterSignatureHtml()}
         </div>
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
-          (ខ្លឹមសារលម្អិតចំណុចទី១... ចំណុចទី២...)
-        </div>
-      </div>
-
-      <!-- PAGE 2 (Centered Page Number) -->
-      <div class="page-break" style="page-break-before: always; break-before: page; margin-top: 40px; margin-bottom: 25px; padding-top: 25px; border-top: 1.5px dashed #007bff; position: relative;">
-        <div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #007bff; color: #ffffff; padding: 2px 16px; border-radius: 12px; font-size: 9.5pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-          ទំព័រទី ២
-        </div>
-        <div class="page-number-header" style="text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 12pt; color: #222;" contenteditable="true">
-          - ២ -
-        </div>
-
-        <!-- Page 2 Body Continuation -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          (ខ្លឹមសារបន្តសម្រាប់ទំព័រទី២...)
-        </div>
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
-          សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាពិនិត្យ ព្រមទាំងផ្តល់ការណែនាំបន្ថែមដោយមេត្តាអនុគ្រោះដ៏ខ្ពង់ខ្ពស់។
-        </div>
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
-          សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់ពីខ្ញុំ។
-        </div>
-
-        <!-- 1. Drafter Signature Block at end of content -->
-        ${getDrafterSignatureHtml()}
       </div>
     `,
     SUBMISSION_NOTE: `
-      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; color: #111;">
         <!-- Header Text -->
         ${textHeaderHtml}
 
@@ -1103,42 +1089,42 @@ const getOfficialTemplates = () => {
         </div>
 
         <!-- Subject & Reference -->
-        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1;">
-          <table style="width: 100%; border: none; border-collapse: collapse; line-height: 2.1;">
+        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
+          <table style="width: 100%; border: none; border-collapse: collapse; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
             <tr>
-              <td style="width: 110px; vertical-align: top; font-weight: bold; border: none;">កម្មវត្ថុ៖</td>
-              <td style="vertical-align: top; border: none; font-weight: bold;">
+              <td style="width: 95px; vertical-align: top; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; border: none; white-space: nowrap;">កម្មវត្ថុ ៖</td>
+              <td style="vertical-align: top; border: none; font-weight: bold; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
                 ករណីស្នើសុំការពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់លើ...
               </td>
             </tr>
             <tr>
-              <td style="vertical-align: top; font-weight: bold; border: none;">យោង៖</td>
-              <td style="vertical-align: top; border: none;">
-                - លិខិត ឬចំណាររបស់ឯកឧត្តមអគ្គនាយក...
+              <td style="vertical-align: top; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; border: none; white-space: nowrap;">យោង ៖</td>
+              <td style="vertical-align: top; border: none; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
+                - លិខិត ឬចំណាររបស់<span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span>...
               </td>
             </tr>
             <tr>
-              <td style="vertical-align: top; font-weight: bold; border: none;">គោរពជូន៖</td>
-              <td style="vertical-align: top; font-weight: bold; border: none; color: #002060;">
-                ឯកឧត្តមអគ្គនាយក មេត្តាពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់។
+              <td style="vertical-align: top; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; border: none; white-space: nowrap;">គោរពជូន ៖</td>
+              <td style="vertical-align: top; font-weight: bold; border: none; color: #002060; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
+                <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> មេត្តាពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់។
               </td>
             </tr>
           </table>
         </div>
 
         <!-- Content Body -->
-        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1;">
-          <p><strong>I. សេចក្តីសង្ខេបអំពីអង្គហេតុ៖</strong></p>
-          <p style="text-indent: 40px; text-align: justify;">(រៀបរាប់សង្ខេបអំពីព័ត៌មានលម្អិត និងអង្គហេតុដែលបានកើតឡើង...)</p>
+        <div style="font-size: 12pt; margin-bottom: 20px; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
+          <p><strong style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt;">I. សេចក្តីសង្ខេបអំពីអង្គហេតុ៖</strong></p>
+          <p style="text-indent: 95px; text-align: justify;">(រៀបរាប់សង្ខេបអំពីព័ត៌មានលម្អិត និងអង្គហេតុដែលបានកើតឡើង...)</p>
 
-          <p><strong>II. មតិយោបល់ និងសំណូមពររបស់អង្គភាពជំនាញ៖</strong></p>
-          <p style="text-indent: 40px; text-align: justify;">(ផ្តល់ជាមតិយោបល់បច្ចេកទេស ច្បាប់ ឬទស្សនវិស័យច្បាស់លាស់ក្នុងការដោះស្រាយ...)</p>
+          <p><strong style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt;">II. មតិយោបល់ និងសំណូមពររបស់អង្គភាពជំនាញ៖</strong></p>
+          <p style="text-indent: 95px; text-align: justify;">(ផ្តល់ជាមតិយោបល់បច្ចេកទេស ច្បាប់ ឬទស្សនវិស័យច្បាស់លាស់ក្នុងការដោះស្រាយ...)</p>
 
-          <p><strong>III. សំណើគោរពស្នើសុំការសម្រេច៖</strong></p>
-          <p style="text-indent: 40px; text-align: justify;">
-            ផ្អែកលើមូលដ្ឋាន និងមតិយោបល់ខាងលើ សូម <strong>ឯកឧត្តមអគ្គនាយក</strong> មេត្តាពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់៖
+          <p><strong style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt;">III. សំណើគោរពស្នើសុំការសម្រេច៖</strong></p>
+          <p style="text-indent: 95px; text-align: justify;">
+            ផ្អែកលើមូលដ្ឋាន និងមតិយោបល់ខាងលើ សូម <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> មេត្តាពិនិត្យ និងសម្រេចដ៏ខ្ពង់ខ្ពស់៖
           </p>
-          <ul style="margin-left: 50px;">
+          <ul style="margin-left: 95px;">
             <li>ឯកភាពលើខ្លឹមសារលិខិត ឬសំណើ...</li>
             <li>ចុះហត្ថលេខាលើលិខិតឆ្លើយតបភ្ជាប់មកជាមួយនេះ។</li>
           </ul>
@@ -1149,16 +1135,16 @@ const getOfficialTemplates = () => {
       </div>
     `,
     LETTER: `
-      <div class="document-page page-1" style="position: relative; line-height: 2.1; color: #111;">
+      <div class="document-page page-1" style="position: relative; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; color: #111;">
         <!-- Header Text -->
         ${textHeaderHtml}
 
         <!-- Recipient Block -->
         <div style="margin-bottom: 25px;">
-          <table style="width: 100%; border: none; border-collapse: collapse;">
+          <table style="width: 100%; border: none; border-collapse: collapse; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt;">
             <tr>
               <td style="width: 45%; border: none;"></td>
-              <td style="width: 55%; border: none; text-align: left; font-size: 12pt; line-height: 2.1;">
+              <td style="width: 55%; border: none; text-align: left; line-height: 2.1;">
                 <div style="font-family: 'Khmer OS Muol Light', serif; margin-bottom: 4px;">សូមគោរពជូន</div>
                 <div style="font-weight: bold; margin-bottom: 4px;">ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី...</div>
                 <div style="color: #444;">(ស្ថាប័ន ឬក្រុមហ៊ុនទទួល)</div>
@@ -1168,41 +1154,41 @@ const getOfficialTemplates = () => {
         </div>
 
         <!-- Subject & Reference Table -->
-        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; line-height: 2.1;">
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-bottom: 18px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; line-height: 2.1;">
           <tr>
-            <td style="width: 85px; vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">កម្មវត្ថុ៖</td>
-            <td style="vertical-align: top; border: none; font-weight: bold; padding: 2px 0;">
+            <td style="width: 95px; vertical-align: top; border: none; padding: 2px 0; white-space: nowrap; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000;">កម្មវត្ថុ ៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0; text-align: justify;">
               ករណី...
             </td>
           </tr>
           <tr>
-            <td style="vertical-align: top; font-weight: bold; border: none; padding: 2px 0; white-space: nowrap;">យោង៖</td>
-            <td style="vertical-align: top; border: none; padding: 2px 0;">
+            <td style="vertical-align: top; border: none; padding: 2px 0; font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; white-space: nowrap;">យោង ៖</td>
+            <td style="vertical-align: top; border: none; padding: 2px 0; text-align: justify;">
               <div>- លិខិតលេខ...</div>
             </td>
           </tr>
         </table>
 
         <!-- Body -->
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 18px; line-height: 2.1;">
+        <div style="font-size: 12pt; text-align: justify; text-indent: 95px; margin-bottom: 18px; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
           សេចក្តីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមជម្រាបជូន <strong>ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី</strong> មេត្តាជ្រាបថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលិខិតផ្លូវការនៅទីនេះ...)។
         </div>
 
-        <div style="font-size: 12pt; text-align: justify; text-indent: 45px; margin-bottom: 25px; line-height: 2.1;">
+        <div style="font-size: 12pt; text-align: justify; text-indent: 95px; margin-bottom: 25px; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
           អាស្រ័យហេតុនេះ សូម <strong>ឯកឧត្តម / លោកជំទាវ / លោក / លោកស្រី</strong> មេត្តាជ្រាប និងចាត់ចែងតាមការគួរ។
         </div>
 
         <!-- Signature Block: Right aligned for Leadership / DG -->
-        <table style="width: 100%; border: none; border-collapse: collapse; margin-top: 35px; margin-bottom: 25px; line-height: 2.1;">
+        <table style="width: 100%; border: none; border-collapse: collapse; margin-top: 35px; margin-bottom: 25px; line-height: 2.1; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;">
           <tr>
-            <td style="width: 45%; border: none; vertical-align: bottom; font-size: 10pt; line-height: 1.8;">
+            <td style="width: 45%; border: none; vertical-align: top; font-size: 10pt; line-height: 1.8;">
               <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">ចម្លងជូន៖</div>
-              <div>- ឯកឧត្តមអគ្គនាយក "ដើម្បីគោរពជ្រាប"</div>
+              <div>- <span style="font-family: 'Khmer OS Muol Light', serif;">ឯកឧត្តមអគ្គនាយក</span> "ដើម្បីគោរពជ្រាប"</div>
               <div>- នាយកដ្ឋានរដ្ឋបាល និងហិរញ្ញវត្ថុ</div>
               <div>- ឯកសារ - កាលប្បវត្ត</div>
             </td>
-            <td style="width: 55%; border: none; text-align: center; font-size: 11pt; line-height: 2.1;">
-              <div style="font-size: 11pt; color: #333;">${getCurrentKhmerDateString()}</div>
+            <td style="width: 55%; border: none; text-align: center; font-size: 11pt; line-height: 2.1; vertical-align: top;">
+              ${getOfficialKhmerDateHtml()}
               <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #002060; margin-top: 4px; margin-bottom: 75px;">
                 អគ្គនាយក
               </div>
@@ -1212,11 +1198,6 @@ const getOfficialTemplates = () => {
             </td>
           </tr>
         </table>
-      </div>
-    `,
-    BLANK: `
-      <div style="font-family: 'Khmer OS Battambang', 'Battambang', sans-serif; line-height: 2.1; font-size: 12pt;">
-        <p><br></p>
       </div>
     `
   };
@@ -1236,15 +1217,333 @@ const insertTemplate = async (type) => {
   }
 
   const templates = getOfficialTemplates();
-  const html = templates[type] || templates.BLANK;
+  const html = templates[type] || templates.REPORT;
   if (paperEditor.value) {
     paperEditor.value.innerHTML = html;
     emitUpdate();
+    checkHasPageBreak();
+  }
+};
+
+let autoPageBreakTimer = null;
+
+const createPageBreakHtml = (pageNum) => {
+  const khmerPageNum = toKhmerNum(pageNum);
+  const prevPageNum = toKhmerNum(pageNum - 1);
+  return `
+    <div class="page-number-footer" contenteditable="false" style="text-align: center; margin-top: 35px; margin-bottom: 15px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;">
+      - ${prevPageNum} -
+    </div>
+    <div class="page-break" contenteditable="false" style="page-break-before: always; break-before: page; margin: 25px -55px 35px -55px; height: 26px; background: #525659; border-top: 1px solid #3a3d40; border-bottom: 1px solid #3a3d40; box-shadow: inset 0 4px 8px rgba(0,0,0,0.35); position: relative; user-select: none;">
+      <div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e40af; color: #ffffff; padding: 2px 18px; border-radius: 12px; font-size: 9pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 10;">
+        ទំព័រទី ${khmerPageNum} (A4)
+      </div>
+    </div>
+  `;
+};
+
+const normalizeDocumentHtml = (html) => {
+  if (!html) return html;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const pageBreaks = doc.querySelectorAll('.page-break');
+    let modified = false;
+
+    // Remove obsolete top page number headers
+    const headers = doc.querySelectorAll('.page-number-header');
+    if (headers.length > 0) {
+      modified = true;
+      headers.forEach(h => h.remove());
+    }
+
+    // Ensure "ឯកឧត្តមអគ្គនាយក" always uses Khmer OS Muol Light
+    const textNodesAndSpans = doc.querySelectorAll('strong, b, span');
+    textNodesAndSpans.forEach(el => {
+      if (el.textContent.trim() === 'ឯកឧត្តមអគ្គនាយក' && (!el.style.fontFamily || !el.style.fontFamily.includes('Muol'))) {
+        modified = true;
+        el.style.fontFamily = "'Khmer OS Muol Light', serif";
+        el.style.fontWeight = 'normal';
+      }
+    });
+
+    pageBreaks.forEach(pb => {
+      const badge = pb.querySelector('.page-break-badge');
+      const badgeText = badge ? badge.textContent.trim() : 'ទំព័រទី ២ (A4)';
+
+      const childNodes = Array.from(pb.childNodes);
+      const nonBadgeNodes = childNodes.filter(n => {
+        if (n.nodeType === Node.TEXT_NODE) return n.textContent.trim().length > 0;
+        if (n.nodeType === Node.ELEMENT_NODE) return !n.classList.contains('page-break-badge');
+        return false;
+      });
+
+      if (nonBadgeNodes.length > 0) {
+        modified = true;
+        const cleanDivider = doc.createElement('div');
+        cleanDivider.className = 'page-break';
+        cleanDivider.setAttribute('contenteditable', 'false');
+        cleanDivider.style.cssText = 'page-break-before: always; break-before: page; margin: 25px -55px 35px -55px; height: 26px; background: #525659; border-top: 1px solid #3a3d40; border-bottom: 1px solid #3a3d40; box-shadow: inset 0 4px 8px rgba(0,0,0,0.35); position: relative; user-select: none;';
+        cleanDivider.innerHTML = `<div class="page-break-badge" contenteditable="false" style="user-select: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e40af; color: #ffffff; padding: 2px 18px; border-radius: 12px; font-size: 9pt; font-family: sans-serif; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 10;">${badgeText}</div>`;
+
+        pb.parentNode.insertBefore(cleanDivider, pb);
+        nonBadgeNodes.forEach(node => {
+          pb.parentNode.insertBefore(node, pb);
+        });
+        pb.remove();
+      } else {
+        pb.setAttribute('contenteditable', 'false');
+      }
+    });
+
+    // Group closing sentences with the drafter signature block if separated by a page break
+    const updatedPageBreaks = doc.querySelectorAll('.page-break');
+    updatedPageBreaks.forEach(pb => {
+      let nextTarget = pb.nextElementSibling;
+      if (nextTarget && nextTarget.classList.contains('page-number-header')) {
+        nextTarget = nextTarget.nextElementSibling;
+      }
+
+      const isSignatureFollowing = nextTarget && (
+        nextTarget.classList.contains('drafter-signature-table') ||
+        nextTarget.querySelector?.('.drafter-signature-table')
+      );
+
+      if (isSignatureFollowing) {
+        const closingNodes = [];
+        let prev = pb.previousElementSibling;
+        while (prev) {
+          const txt = prev.textContent.trim();
+          if (
+            txt.includes('សេចក្ដីដូចបានគោរព') ||
+            txt.includes('សូម ឯកឧត្តមអគ្គនាយក') ||
+            txt.includes('មេត្តាទទួលនូវការគោរព')
+          ) {
+            closingNodes.unshift(prev);
+            prev = prev.previousElementSibling;
+          } else {
+            break;
+          }
+        }
+
+        if (closingNodes.length > 0) {
+          modified = true;
+          closingNodes.forEach(node => {
+            nextTarget.parentNode.insertBefore(node, nextTarget);
+          });
+        }
+      }
+    });
+
+    // Ensure footers for multi-page documents
+    if (updatedPageBreaks.length > 0) {
+      updatedPageBreaks.forEach((pb, idx) => {
+        const pageIdx = idx + 2;
+        let prev = pb.previousElementSibling;
+        if (!prev || !prev.classList.contains('page-number-footer')) {
+          const ftr = doc.createElement('div');
+          ftr.className = 'page-number-footer';
+          ftr.setAttribute('contenteditable', 'false');
+          ftr.style.cssText = "text-align: center; margin-top: 35px; margin-bottom: 15px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;";
+          ftr.textContent = `- ${toKhmerNum(pageIdx - 1)} -`;
+          pb.parentNode.insertBefore(ftr, pb);
+          modified = true;
+        }
+      });
+      const lastClosing = doc.querySelector('.closing-and-signature-block');
+      if (lastClosing && !lastClosing.querySelector('.page-number-footer')) {
+        const ftr = doc.createElement('div');
+        ftr.className = 'page-number-footer';
+        ftr.setAttribute('contenteditable', 'false');
+        ftr.style.cssText = "text-align: center; margin-top: 35px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;";
+        ftr.textContent = `- ${toKhmerNum(updatedPageBreaks.length + 1)} -`;
+        lastClosing.appendChild(ftr);
+        modified = true;
+      }
+    }
+
+    return modified ? doc.body.innerHTML : html;
+  } catch (e) {
+    console.error('Error normalizing document HTML:', e);
+    return html;
+  }
+};
+
+const hasPageBreak = ref(false);
+const pageBreakCount = ref(0);
+
+const updatePageBreakCount = () => {
+  if (!paperEditor.value) {
+    pageBreakCount.value = 0;
+    hasPageBreak.value = false;
+    return;
+  }
+  const breaks = paperEditor.value.querySelectorAll('.page-break');
+  const count = breaks ? breaks.length : 0;
+  pageBreakCount.value = count;
+  hasPageBreak.value = count > 0;
+};
+
+const paperStyle = computed(() => {
+  const pages = Math.max(1, pageBreakCount.value + 1);
+  const minH = pages * 1123 + (pages - 1) * 60;
+  return {
+    minHeight: `${minH}px`,
+    backgroundColor: '#ffffff'
+  };
+});
+
+const updatePaperMinHeight = () => {
+  updatePageBreakCount();
+};
+
+const checkHasPageBreak = () => {
+  updatePageBreakCount();
+};
+
+const findClosingBlock = (root) => {
+  if (!root) return null;
+  const explicit = root.querySelector('.closing-and-signature-block');
+  if (explicit) return explicit;
+
+  // Search for the closing phrase element (សេចក្ដីដូចបានគោរព...)
+  const allElements = Array.from(root.querySelectorAll('div, p'));
+  for (const el of allElements) {
+    if (el.textContent.includes('សេចក្ដីដូចបានគោរពជម្រាបជូនខាងលើ') || el.textContent.includes('សេចក្ដីដូចបានគោរព')) {
+      return el;
+    }
+  }
+
+  return root.querySelector('.drafter-signature-table');
+};
+
+const insertManualPageBreak = () => {
+  if (!paperEditor.value || props.readonly) return;
+  const existingBreaks = paperEditor.value.querySelectorAll('.page-break');
+  const nextNum = existingBreaks.length + 2;
+  const breakHtml = createPageBreakHtml(nextNum);
+
+  const target = findClosingBlock(paperEditor.value);
+  if (target) {
+    target.insertAdjacentHTML('beforebegin', breakHtml);
+    if (!target.querySelector('.page-number-footer')) {
+      target.insertAdjacentHTML('beforeend', `<div class="page-number-footer" contenteditable="false" style="text-align: center; margin-top: 35px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;">- ${toKhmerNum(nextNum)} -</div>`);
+    }
+  } else {
+    document.execCommand('insertHTML', false, breakHtml);
+  }
+  emitUpdate();
+  checkHasPageBreak();
+  Swal.fire({
+    icon: 'success',
+    title: 'បានបន្ថែមការផ្ដាច់ទំព័រ!',
+    text: `បានផ្ដាច់ទំព័រទី ${toKhmerNum(nextNum)} ទំហំស្តង់ដារ A4 ដោយមានលេខទំព័រនៅខាងក្រោម (Footer)`,
+    timer: 1600,
+    showConfirmButton: false
+  });
+};
+
+const removePageBreaks = () => {
+  if (!paperEditor.value || props.readonly) return;
+  const breaks = paperEditor.value.querySelectorAll('.page-break');
+  const headers = paperEditor.value.querySelectorAll('.page-number-header');
+  const footers = paperEditor.value.querySelectorAll('.page-number-footer');
+  breaks.forEach(el => el.remove());
+  headers.forEach(el => el.remove());
+  footers.forEach(el => el.remove());
+  emitUpdate();
+  checkHasPageBreak();
+  Swal.fire({
+    icon: 'success',
+    title: 'បានលុបការផ្ដាច់ទំព័រ',
+    text: 'ខ្លឹមសារទាំងអស់ត្រូវបានរួមបញ្ចូលគ្នានៅលើទំព័រទី១វិញដោយជោគជ័យ!',
+    timer: 1500,
+    showConfirmButton: false
+  });
+};
+
+const triggerAutoPageBreak = () => {
+  if (props.readonly || !paperEditor.value) return;
+  if (autoPageBreakTimer) clearTimeout(autoPageBreakTimer);
+  autoPageBreakTimer = setTimeout(() => {
+    checkAndApplyAutoPageBreak();
+  }, 500);
+};
+
+const checkAndApplyAutoPageBreak = () => {
+  if (!paperEditor.value || props.readonly) return;
+  const editorEl = paperEditor.value;
+  checkHasPageBreak();
+  const existingBreaks = Array.from(editorEl.querySelectorAll('.page-break'));
+  const drafterTable = editorEl.querySelector('.drafter-signature-table');
+
+  const container = editorEl.querySelector('.document-page') || editorEl;
+  const allBlocks = Array.from(container.children).filter(
+    el => !el.classList.contains('page-break') && !el.classList.contains('page-number-header')
+  );
+  if (allBlocks.length === 0) return;
+
+  // Calculate actual content bottom
+  let maxBottom = 0;
+  allBlocks.forEach(el => {
+    const bottom = el.offsetTop + el.offsetHeight;
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+
+  const A4_PAGE_CONTENT_MAX = 1060; // Standard A4 printable height limit
+
+  // Auto clean-up: if document has 1 break but content is small (< 940px) and easily fits on 1 page
+  if (existingBreaks.length === 1 && maxBottom < 940) {
+    const pb = existingBreaks[0];
+    const nextEl = pb.nextElementSibling;
+    if (nextEl && nextEl.classList.contains('page-number-header')) {
+      const targetAfter = nextEl.nextElementSibling;
+      if (targetAfter === drafterTable || targetAfter?.classList.contains('drafter-signature-table') || targetAfter?.classList.contains('closing-and-signature-block') || targetAfter?.textContent.includes('សេចក្ដីដូចបានគោរព')) {
+        pb.remove();
+        nextEl.remove();
+        emitUpdate();
+        checkHasPageBreak();
+        return;
+      }
+    }
+  }
+
+  // Auto-break only if content TRULY exceeds the full A4 page limit (> 1060px)
+  if (existingBreaks.length === 0) {
+    if (maxBottom > A4_PAGE_CONTENT_MAX) {
+      const target = findClosingBlock(editorEl);
+      if (target) {
+        target.insertAdjacentHTML('beforebegin', createPageBreakHtml(2));
+        if (!target.querySelector('.page-number-footer')) {
+          target.insertAdjacentHTML('beforeend', `<div class="page-number-footer" contenteditable="false" style="text-align: center; margin-top: 35px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;">- ២ -</div>`);
+        }
+        emitUpdate();
+        checkHasPageBreak();
+      }
+    }
+  } else {
+    // Multi-page document: check if total overflow requires additional page break
+    const numPages = existingBreaks.length + 1;
+    const maxThreshold = numPages * A4_PAGE_CONTENT_MAX;
+    if (maxBottom > maxThreshold) {
+      const nextPage = numPages + 1;
+      const target = findClosingBlock(editorEl);
+      if (target) {
+        target.insertAdjacentHTML('beforebegin', createPageBreakHtml(nextPage));
+        if (!target.querySelector('.page-number-footer')) {
+          target.insertAdjacentHTML('beforeend', `<div class="page-number-footer" contenteditable="false" style="text-align: center; margin-top: 35px; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 11pt; color: #444; user-select: none;">- ${toKhmerNum(nextPage)} -</div>`);
+        }
+        emitUpdate();
+        checkHasPageBreak();
+      }
+    }
   }
 };
 
 const onEditorInput = () => {
+  updatePageBreakCount();
   emitUpdate();
+  triggerAutoPageBreak();
 };
 
 const onEditorBlur = () => {
@@ -1266,7 +1565,19 @@ const toggleFullscreen = () => {
 // Print Document with Multi-Page styling
 const printDocument = () => {
   if (!paperEditor.value) return;
-  const content = paperEditor.value.innerHTML;
+  let rawHtml = normalizeDocumentHtml(paperEditor.value.innerHTML);
+
+  // Clean up using DOM parser so NOTHING prints as visual lines or badges on paper
+  const tempDoc = new DOMParser().parseFromString(rawHtml, 'text/html');
+  tempDoc.querySelectorAll('.page-break').forEach(el => {
+    el.className = 'page-break';
+    el.removeAttribute('style');
+    el.innerHTML = '';
+  });
+  tempDoc.querySelectorAll('.page-break-badge').forEach(el => el.remove());
+  tempDoc.querySelectorAll('.page-number-header').forEach(el => el.remove());
+  const content = tempDoc.body.innerHTML;
+
   const printWindow = window.open('', '_blank');
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -1274,13 +1585,13 @@ const printDocument = () => {
       <head>
         <title>បោះពុម្ពឯកសារ</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Siemreap&family=Battambang:wght@400;700&display=swap');
           @page {
             size: A4 portrait;
             margin: 20mm 20mm 20mm 25mm;
           }
           body {
-            font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
+            font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;
             font-size: 12pt;
             line-height: 2.1 !important;
             color: #000;
@@ -1295,20 +1606,31 @@ const printDocument = () => {
           .page-break {
             page-break-before: always !important;
             break-before: page !important;
+            border: none !important;
             border-top: none !important;
-            margin-top: 0 !important;
-            padding-top: 10mm !important;
+            border-bottom: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            display: block !important;
           }
-          .page-break-badge {
+          .page-break-badge, .page-number-header {
             display: none !important;
           }
-          .page-number-header {
+          .page-number-footer {
             text-align: center !important;
-            margin-bottom: 25px !important;
-            font-weight: bold !important;
-            font-size: 12pt !important;
-            color: #000 !important;
+            font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
+            font-size: 10.5pt !important;
+            color: #333 !important;
+            margin-top: 35px !important;
+            margin-bottom: 15px !important;
+            page-break-after: avoid !important;
           }
+          .closing-and-signature-block,
+          .drafter-signature-table,
           .review-signatures-wrapper {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -1387,22 +1709,28 @@ const exportToWord = () => {
 watch(
   () => props.modelValue,
   (newVal) => {
-    if (paperEditor.value && paperEditor.value.innerHTML !== newVal) {
-      paperEditor.value.innerHTML = newVal || '';
+    if (paperEditor.value) {
+      const normalized = normalizeDocumentHtml(newVal || '');
+      if (paperEditor.value.innerHTML !== normalized) {
+        paperEditor.value.innerHTML = normalized;
+      }
+      checkHasPageBreak();
     }
   }
 );
 
 let cleanupDraggable = null;
+let domObserver = null;
 
 onMounted(() => {
   nextTick(() => {
     if (paperEditor.value) {
       if (props.modelValue && props.modelValue.trim()) {
-        paperEditor.value.innerHTML = props.modelValue;
+        paperEditor.value.innerHTML = normalizeDocumentHtml(props.modelValue);
       } else {
         insertTemplate(props.docType || 'REPORT');
       }
+      checkHasPageBreak();
       cleanupDraggable = setupDraggableOpinionBoxes(
         paperEditor.value,
         () => {
@@ -1410,12 +1738,22 @@ onMounted(() => {
         },
         { currentUserId: userStore.id, isAdmin: isDgUser.value }
       );
+
+      // Continuously observe DOM changes to keep pageBreakCount & minHeight in sync
+      domObserver = new MutationObserver(() => {
+        updatePageBreakCount();
+      });
+      domObserver.observe(paperEditor.value, {
+        childList: true,
+        subtree: true
+      });
     }
   });
 });
 
 onUnmounted(() => {
   if (cleanupDraggable) cleanupDraggable();
+  if (domObserver) domObserver.disconnect();
 });
 </script>
 
@@ -1582,9 +1920,10 @@ onUnmounted(() => {
   flex: 1;
   background-color: #525659;
   overflow-y: auto;
-  padding: 25px 15px;
+  padding: 25px 15px 60px 15px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   min-height: 520px;
   max-height: 720px;
 }
@@ -1594,27 +1933,127 @@ onUnmounted(() => {
 }
 
 .document-paper {
-  background-color: #ffffff;
+  background-color: #ffffff !important;
   width: 100%;
   max-width: 794px; /* Exact standard A4 width at 96 DPI (210mm) */
   min-height: 1123px; /* Exact standard A4 height at 96 DPI (297mm) */
+  height: auto !important;
   padding: 45px 55px; /* Clean standard Cambodian margins */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   border-radius: 2px;
   color: #111;
   outline: none;
-  font-family: 'Khmer OS Battambang', 'Siemreap', 'Battambang', sans-serif;
+  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;
   font-size: 12pt;
   line-height: 2.1;
   cursor: text;
   box-sizing: border-box;
   overflow: visible;
+  flex-shrink: 0;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 .document-paper:focus {
   outline: none;
+}
+
+:deep(.page-break) {
+  page-break-before: always !important;
+  break-before: page !important;
+  display: block !important;
+  margin: 45px -55px 30px -55px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  background-color: #525659 !important;
+  border-top: 1px solid #3a3d40 !important;
+  border-bottom: 1px solid #3a3d40 !important;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35) !important;
+  position: relative !important;
+  user-select: none !important;
+  clear: both !important;
+}
+
+:deep(.page-break-badge) {
+  user-select: none !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  background: #1e40af !important;
+  color: #ffffff !important;
+  padding: 2px 18px !important;
+  border-radius: 12px !important;
+  font-size: 9pt !important;
+  font-family: sans-serif !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  z-index: 10 !important;
+}
+
+:deep(.page-number-header) {
+  display: none !important;
+}
+
+:deep(.page-number-footer) {
+  text-align: center !important;
+  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
+  font-size: 11pt !important;
+  color: #444 !important;
+  margin-top: 35px !important;
+  margin-bottom: 15px !important;
+  user-select: none !important;
+  clear: both !important;
+}
+
+:deep(.doc-number-input) {
+  outline: none;
+  min-width: 45px;
+  display: inline-block;
+  border-bottom: 1px dotted #888;
+  padding: 0 4px;
+}
+
+:deep(.doc-number-input:hover),
+:deep(.doc-number-input:focus) {
+  background-color: #f1f5f9;
+  border-bottom: 1.5px solid #2563eb;
+}
+
+@media print {
+  :deep(.page-break) {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    padding-top: 10mm !important;
+  }
+  :deep(.page-break-badge),
+  :deep(.page-number-header) {
+    display: none !important;
+  }
+  :deep(.page-number-footer) {
+    text-align: center !important;
+    font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
+    font-size: 10.5pt !important;
+    color: #333 !important;
+    margin-top: 35px !important;
+    margin-bottom: 15px !important;
+    page-break-after: avoid !important;
+  }
+  :deep(.closing-and-signature-block),
+  :deep(.drafter-signature-table),
+  :deep(.review-signatures-wrapper) {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
 
 .word-statusbar {

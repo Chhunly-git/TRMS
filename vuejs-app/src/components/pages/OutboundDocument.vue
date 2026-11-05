@@ -983,7 +983,7 @@
                 </div>
 
                 <div class="d-flex justify-content-center">
-                  <div ref="previewPaperRef" class="document-paper-preview bg-white shadow-lg rounded-sm" style="width: 100%; max-width: 794px; min-height: 1123px; padding: 45px 55px; color: #111; line-height: 2.1; box-sizing: border-box; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;" v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
+                  <div ref="previewPaperRef" class="document-paper-preview bg-white shadow-lg rounded-sm" :style="previewPaperStyle" v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
                 </div>
 
                 <!-- References & Attachments Card (ឯកសារយោង ឬឧបសម្ព័ន្ធ) -->
@@ -2030,6 +2030,27 @@ const savingMovedPosition = ref(false);
 const originalContentBackup = ref('');
 let cleanupPreviewDraggable = null;
 
+const previewPaperStyle = computed(() => {
+  const content = currentViewDoc.value?.content || '';
+  const match = content.match(/class=["'][^"']*page-break/g);
+  const count = match ? match.length : 0;
+  const pages = Math.max(1, count + 1);
+  const minH = pages * 1123 + (pages - 1) * 60;
+  return {
+    width: '100%',
+    maxWidth: '794px',
+    minHeight: `${minH}px`,
+    height: 'auto',
+    padding: '45px 55px',
+    color: '#111',
+    lineHeight: '2.1',
+    boxSizing: 'border-box',
+    textRendering: 'optimizeLegibility',
+    WebkitFontSmoothing: 'antialiased',
+    backgroundColor: '#ffffff'
+  };
+});
+
 const canEditPositionInDetail = computed(() => {
   if (!currentViewDoc.value) return false;
   if (isDg.value) return true;
@@ -2222,7 +2243,18 @@ const openViewModal = async (doc) => {
 const printCurrentViewDoc = () => {
   if (!currentViewDoc.value) return;
   const printWindow = window.open('', '_blank');
-  let content = currentViewDoc.value.content || '';
+  let rawHtml = currentViewDoc.value.content || '';
+
+  // Clean up using DOM parser so NOTHING prints as visual lines or badges on paper
+  const tempDoc = new DOMParser().parseFromString(rawHtml, 'text/html');
+  tempDoc.querySelectorAll('.page-break').forEach(el => {
+    el.className = 'page-break';
+    el.removeAttribute('style');
+    el.innerHTML = '';
+  });
+  tempDoc.querySelectorAll('.page-break-badge').forEach(el => el.remove());
+  tempDoc.querySelectorAll('.page-number-header').forEach(el => el.remove());
+  const content = tempDoc.body.innerHTML;
 
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -2230,13 +2262,13 @@ const printCurrentViewDoc = () => {
       <head>
         <title>${currentViewDoc.value.title || 'ឯកសាររដ្ឋបាល'}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Siemreap&family=Battambang:wght@400;700&display=swap');
           @page {
             size: A4 portrait;
             margin: 20mm 20mm 20mm 25mm;
           }
           body {
-            font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
+            font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;
             font-size: 12pt;
             line-height: 2.1 !important;
             color: #000;
@@ -2251,18 +2283,29 @@ const printCurrentViewDoc = () => {
           .page-break {
             page-break-before: always !important;
             break-before: page !important;
+            border: none !important;
             border-top: none !important;
-            margin-top: 0 !important;
-            padding-top: 10mm !important;
+            border-bottom: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            display: block !important;
           }
-          .page-break-badge { display: none !important; }
-          .page-number-header {
+          .page-break-badge, .page-number-header { display: none !important; }
+          .page-number-footer {
             text-align: center !important;
-            margin-bottom: 25px !important;
-            font-weight: bold !important;
-            font-size: 12pt !important;
-            color: #000 !important;
+            font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
+            font-size: 10.5pt !important;
+            color: #333 !important;
+            margin-top: 35px !important;
+            margin-bottom: 15px !important;
+            page-break-after: avoid !important;
           }
+          .closing-and-signature-block,
+          .drafter-signature-table,
           .review-signatures-wrapper {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -2609,8 +2652,58 @@ onUnmounted(() => {
   padding: 1rem;
 }
 .document-paper-preview {
-  font-family: 'Khmer OS Battambang', 'Battambang', sans-serif;
+  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;
   font-size: 12pt;
+  line-height: 2.1;
+  color: #111;
+}
+
+:deep(.document-paper-preview .page-break) {
+  page-break-before: always !important;
+  break-before: page !important;
+  display: block !important;
+  margin: 45px -55px 30px -55px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  background-color: #525659 !important;
+  border-top: 1px solid #3a3d40 !important;
+  border-bottom: 1px solid #3a3d40 !important;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35) !important;
+  position: relative !important;
+  user-select: none !important;
+  clear: both !important;
+}
+
+:deep(.document-paper-preview .page-break-badge) {
+  user-select: none !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  background: #1e40af !important;
+  color: #ffffff !important;
+  padding: 2px 18px !important;
+  border-radius: 12px !important;
+  font-size: 9pt !important;
+  font-family: sans-serif !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  z-index: 10 !important;
+}
+
+:deep(.document-paper-preview .page-number-header) {
+  display: none !important;
+}
+
+:deep(.document-paper-preview .page-number-footer) {
+  text-align: center !important;
+  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
+  font-size: 11pt !important;
+  color: #444 !important;
+  margin-top: 35px !important;
+  margin-bottom: 15px !important;
+  user-select: none !important;
+  clear: both !important;
 }
 
 /* Workflow Avatars in Status Column */

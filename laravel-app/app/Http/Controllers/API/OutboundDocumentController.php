@@ -408,6 +408,32 @@ class OutboundDocumentController extends Controller
             $createData['current_stage'] = $stage;
             $createData['submitted_at'] = Carbon::now();
 
+            // Assign department report number if forwarding beyond department upon creation
+            $docDeptId = $viewer->department_id;
+            $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $targetReviewer);
+            $assignedNotice = '';
+
+            if ($isLeaving) {
+                if ($request->filled('response_number')) {
+                    $customNum = trim($request->input('response_number'));
+                    $isDup = DB::table('inbound_document_responses')
+                        ->where('department_id', $docDeptId)
+                        ->whereYear('created_at', Carbon::now()->year)
+                        ->where('response_number', $customNum)
+                        ->exists();
+                    if ($isDup) {
+                        abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
+                    }
+                    $createData['response_number'] = $customNum;
+                    $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
+                } else {
+                    $gen = self::generateNextDepartmentReportNumber($docDeptId);
+                    $createData['response_number'] = $gen['full_number'];
+                    $createData['content'] = $this->injectNumberIntoContent($createData['content'], $gen['seq']);
+                    $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
+                }
+            }
+
             $resp = InboundDocumentResponse::create($createData);
 
             // Record Revision 1
@@ -437,7 +463,7 @@ class OutboundDocumentController extends Controller
                 'user_id' => $viewer->id,
                 'action' => 'SUBMIT',
                 'stage' => $viewerStage,
-                'comment' => $request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}"),
+                'comment' => ($request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}")) . $assignedNotice,
                 'forwarded_to_id' => $targetReviewer->id,
             ]);
 
@@ -677,6 +703,33 @@ class OutboundDocumentController extends Controller
                     default => 'OFFICE',
                 };
 
+                // Check if forwarding beyond department
+                $docDeptId = $response->department_id ?: $viewer->department_id;
+                $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $targetReviewer);
+                $assignedNotice = '';
+
+                if ($isLeaving && empty($response->response_number)) {
+                    if ($request->filled('response_number')) {
+                        $customNum = trim($request->input('response_number'));
+                        $isDup = DB::table('inbound_document_responses')
+                            ->where('department_id', $docDeptId)
+                            ->whereYear('created_at', Carbon::now()->year)
+                            ->where('response_number', $customNum)
+                            ->where('id', '!=', $response->id)
+                            ->exists();
+                        if ($isDup) {
+                            abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
+                        }
+                        $updateData['response_number'] = $customNum;
+                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
+                    } else {
+                        $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
+                        $updateData['response_number'] = $gen['full_number'];
+                        $updateData['content'] = $this->injectNumberIntoContent($updateData['content'] ?? $response->content, $gen['seq']);
+                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
+                    }
+                }
+
                 $updateData['status'] = 'UNDER_REVIEW';
                 $updateData['current_approver_id'] = $targetReviewer->id;
                 $updateData['current_stage'] = $stage;
@@ -696,7 +749,7 @@ class OutboundDocumentController extends Controller
                     'user_id' => $viewer->id,
                     'action' => $isDrafter ? 'SUBMIT' : 'FORWARD',
                     'stage' => $viewerStage,
-                    'comment' => $request->input('comment', "បានកែសម្រួល និងចារឆ្លងបន្ត{$responseTypeKh}"),
+                    'comment' => ($request->input('comment', "បានកែសម្រួល និងចារឆ្លងបន្ត{$responseTypeKh}")) . $assignedNotice,
                     'forwarded_to_id' => $targetReviewer->id,
                 ]);
 
@@ -705,7 +758,7 @@ class OutboundDocumentController extends Controller
                         'inbound_document_id' => $response->inbound_document_id,
                         'user_id' => $viewer->id,
                         'action' => $isDrafter ? 'RESPONSE_SUBMITTED' : 'RESPONSE_FORWARDED',
-                        'comment' => "បានកែសម្រួល និងចារឆ្លង{$responseTypeKh} ទៅកាន់ " . ($targetReviewer->name_kh ?? $targetReviewer->name) . ($request->input('comment') ? " ៖ «" . $request->input('comment') . "»" : ""),
+                        'comment' => "បានកែសម្រួល និងចារឆ្លង{$responseTypeKh} ទៅកាន់ " . ($targetReviewer->name_kh ?? $targetReviewer->name) . $assignedNotice . ($request->input('comment') ? " ៖ «" . $request->input('comment') . "»" : ""),
                     ]);
                 }
 
@@ -857,18 +910,47 @@ class OutboundDocumentController extends Controller
                     default => 'OFFICE',
                 };
 
-                $response->update([
+                $updateFields = [
                     'current_approver_id' => $nextReviewer->id,
                     'current_stage' => $nextStage,
                     'status' => 'UNDER_REVIEW',
-                ]);
+                ];
+
+                // Check if forwarding beyond department
+                $docDeptId = $response->department_id ?: $viewer->department_id;
+                $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $nextReviewer);
+                $assignedNotice = '';
+
+                if ($isLeaving && empty($response->response_number)) {
+                    if ($request->filled('response_number')) {
+                        $customNum = trim($request->input('response_number'));
+                        $isDup = DB::table('inbound_document_responses')
+                            ->where('department_id', $docDeptId)
+                            ->whereYear('created_at', Carbon::now()->year)
+                            ->where('response_number', $customNum)
+                            ->where('id', '!=', $response->id)
+                            ->exists();
+                        if ($isDup) {
+                            abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
+                        }
+                        $updateFields['response_number'] = $customNum;
+                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
+                    } else {
+                        $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
+                        $updateFields['response_number'] = $gen['full_number'];
+                        $updateFields['content'] = $this->injectNumberIntoContent($response->content, $gen['seq']);
+                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
+                    }
+                }
+
+                $response->update($updateFields);
 
                 InboundDocumentResponseApproval::create([
                     'response_id' => $response->id,
                     'user_id' => $viewer->id,
                     'action' => 'FORWARD',
                     'stage' => $viewerStage,
-                    'comment' => $comment ?: "បានពិនិត្យ និងចារបញ្ជូនបន្តជូន {$nextReviewer->name_kh}",
+                    'comment' => ($comment ?: "បានពិនិត្យ និងចារបញ្ជូនបន្តជូន {$nextReviewer->name_kh}") . $assignedNotice,
                     'forwarded_to_id' => $nextReviewer->id,
                 ]);
 
@@ -882,7 +964,7 @@ class OutboundDocumentController extends Controller
                         'inbound_document_id' => $response->inbound_document_id,
                         'user_id' => $viewer->id,
                         'action' => 'RESPONSE_FORWARDED',
-                        'comment' => "បានពិនិត្យ និងបញ្ជូនបន្ត{$responseTypeKh} ទៅកាន់ " . ($nextReviewer->name_kh ?? $nextReviewer->name) . ($comment ? " ៖ «{$comment}»" : ""),
+                        'comment' => "បានពិនិត្យ និងបញ្ជូនបន្ត{$responseTypeKh} ទៅកាន់ " . ($nextReviewer->name_kh ?? $nextReviewer->name) . $assignedNotice . ($comment ? " ៖ «{$comment}»" : ""),
                     ]);
                 }
 
@@ -925,10 +1007,18 @@ class OutboundDocumentController extends Controller
                     abort(403, 'មានតែឯកឧត្តមអគ្គនាយកទេ ទើបមានសិទ្ធិឯកភាពលើលិខិតឆ្លើយតបនេះបាន!');
                 }
 
+                $docDeptId = $response->department_id ?: $viewer->department_id;
                 $responseNumber = $request->input('response_number') ?: $response->response_number;
+
+                if (empty($responseNumber)) {
+                    $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
+                    $responseNumber = $gen['full_number'];
+                    $response->content = $this->injectNumberIntoContent($response->content, $gen['seq']);
+                }
 
                 $response->update([
                     'response_number' => $responseNumber,
+                    'content' => $response->content,
                     'status' => 'APPROVED_BY_DG',
                     'current_stage' => 'COMPLETED',
                     'approved_at' => Carbon::now(),
@@ -1102,6 +1192,125 @@ class OutboundDocumentController extends Controller
             return response()->json(['message' => 'រកមិនឃើញឯកសារភ្ជាប់ឡើយ!'], 404);
         }
         return StorageService::response($response->file_path, $response->file_name);
+    }
+
+    /**
+     * ស្វែងរកអក្សរកាត់នាយកដ្ឋានសម្រាប់កន្ទុយលេខឯកសារ (e.g. ន.ប.ធ./ច.ប.ច.)
+     */
+    public static function getDepartmentAbbreviation($departmentId)
+    {
+        if (!$departmentId) {
+            return 'ន.ក.ទ.';
+        }
+        $dept = DB::table('departments')->find($departmentId);
+        if (!$dept) {
+            return 'ន.ក.ទ.';
+        }
+        $code = strtoupper($dept->code ?? '');
+        $name = $dept->name_kh ?? '';
+
+        if ($departmentId == 2 || $code === 'TRC' || str_contains($name, 'ចុះបញ្ជីបរធនបាលកិច្ច')) {
+            return 'ច.ប.ច.';
+        }
+        if ($departmentId == 1 || $code === 'GAD' || str_contains($name, 'កិច្ចការទូទៅ')) {
+            return 'ន.ក.ទ.';
+        }
+        if ($departmentId == 3 || $code === 'LID' || str_contains($name, 'កិច្ចការគតិយុត្ត') || str_contains($name, 'អធិការកិច្ច')) {
+            return 'គ.អ.';
+        }
+        if ($departmentId == 4 || $code === 'TRCD' || str_contains($name, 'ស្រាវជ្រាវ') || str_contains($name, 'សហប្រតិបត្តិការ')) {
+            return 'ស.ប.ស.';
+        }
+
+        return 'ន.ក.ទ.';
+    }
+
+    /**
+     * បង្កើតលេខរបាយការណ៍បន្ទាប់សម្រាប់នាយកដ្ឋាន ដោយធានាមិនឱ្យស្ទួនគ្នាដាច់ខាត (Unique per department per year)
+     */
+    public static function generateNextDepartmentReportNumber($departmentId, $excludeId = null)
+    {
+        $year = Carbon::now()->year;
+        $deptAbbr = self::getDepartmentAbbreviation($departmentId);
+
+        // Lock existing records for this department in current year to prevent concurrency collisions
+        $existingNumbers = DB::table('inbound_document_responses')
+            ->where('department_id', $departmentId)
+            ->whereYear('created_at', $year)
+            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+            ->whereNotNull('response_number')
+            ->where('response_number', '!=', '')
+            ->lockForUpdate()
+            ->pluck('response_number');
+
+        $maxSeq = 0;
+        foreach ($existingNumbers as $num) {
+            if (preg_match('/^(\d+)/', trim($num), $matches)) {
+                $seqVal = (int) $matches[1];
+                if ($seqVal > $maxSeq) {
+                    $maxSeq = $seqVal;
+                }
+            }
+        }
+
+        $nextSeq = $maxSeq + 1;
+        $paddedSeq = sprintf('%03d', $nextSeq);
+        $fullNumber = "{$paddedSeq} ន.ប.ធ./{$deptAbbr}";
+
+        return [
+            'seq' => $paddedSeq,
+            'abbr' => $deptAbbr,
+            'full_number' => $fullNumber,
+        ];
+    }
+
+    /**
+     * ពិនិត្យមើលថាតើការបញ្ជូននេះ គឺបញ្ជូនផុតពីនាយកដ្ឋានដែរឬទេ
+     * (ផុតពីនាយកដ្ឋាន៖ បញ្ជូនទៅឯកឧត្តមអគ្គនាយក ឬអគ្គនាយករង (level <= 2) ឬបញ្ជូនទៅនាយកដ្ឋានផ្សេង)
+     */
+    protected function isForwardingBeyondDepartment($docDepartmentId, $targetReviewer)
+    {
+        if (!$targetReviewer) {
+            return false;
+        }
+
+        $reviewerLevel = $targetReviewer->position ? (int) $targetReviewer->position->level : 99;
+
+        // 1. បញ្ជូនទៅថ្នាក់ដឹកនាំ (អគ្គនាយក ឬអគ្គនាយករង level <= 2)
+        if ($reviewerLevel <= 2) {
+            return true;
+        }
+
+        // 2. បញ្ជូនទៅកាន់នាយកដ្ឋានផ្សេង
+        if ($targetReviewer->department_id && $docDepartmentId && (int) $targetReviewer->department_id !== (int) $docDepartmentId) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * អាប់ដេតលេខរបាយការណ៍ចូលក្នុង Content HTML
+     */
+    protected function injectNumberIntoContent($content, $seqNumber)
+    {
+        if (empty($content)) {
+            return $content;
+        }
+
+        // Replace span placeholder <span class="doc-number-input"...>.......</span>
+        $patternSpan = '/(<span class="doc-number-input"[^>]*>)([\s\S]*?)(<\/span>)/i';
+        if (preg_match($patternSpan, $content)) {
+            return preg_replace($patternSpan, '${1}' . $seqNumber . '${3}', $content);
+        }
+
+        // Fallback: លេខ៖ ....... ន.ប.ធ.
+        $patternFallback = '/(លេខ៖\s*)([\.\s]+)(\s*ន\.ប\.ធ\.)/u';
+        if (preg_match($patternFallback, $content)) {
+            return preg_replace($patternFallback, '${1}' . $seqNumber . ' ${3}', $content);
+        }
+
+        return $content;
     }
 
     /**
