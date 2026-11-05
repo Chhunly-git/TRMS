@@ -10,6 +10,7 @@ use App\Http\Requests\User\SetNewPasswordRequest;
 use App\Http\Requests\User\SigninRequest;
 use App\Http\Requests\User\UpdateProfileImageRequest;
 use App\Http\Resources\User\UserResource;
+use App\Models\InboundDocumentResponse;
 use App\Models\User;
 use App\Services\ImageClassService;
 use App\Services\StorageService;
@@ -211,11 +212,24 @@ class AuthController extends Controller
     public function getSignatureImage(Request $request, $id = null)
     {
         $currentUser = $request->user();
-        if ($id && (int)$currentUser->id !== (int)$id && $currentUser->level !== 'ADMIN') {
-            return response()->json(['message' => 'Unauthorized to access this signature'], 403);
+        $targetId = $id ? (int)$id : (int)$currentUser->id;
+
+        // Allow self access; otherwise verify viewer can access at least one response where target is drafter or approver
+        if ((int)$currentUser->id !== $targetId) {
+            $hasAccess = InboundDocumentResponse::query()
+                ->accessibleByViewer($currentUser)
+                ->where(function ($q) use ($targetId) {
+                    $q->where('drafted_by', $targetId)
+                      ->orWhereHas('approvals', fn($aq) => $aq->where('user_id', $targetId));
+                })
+                ->exists();
+
+            if (!$hasAccess) {
+                return response()->json(['message' => 'Unauthorized to access this signature'], 403);
+            }
         }
 
-        $targetUser = $id ? User::findOrFail($id) : $currentUser;
+        $targetUser = ($targetId === (int)$currentUser->id) ? $currentUser : User::findOrFail($targetId);
         $sigPath = $targetUser->getRawOriginal('signature_image');
 
         if (empty($sigPath) || !StorageService::exists($sigPath)) {
