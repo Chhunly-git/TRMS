@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\DocumentWorkflowConfig;
 use App\Models\User;
+use App\Services\FileUrlService;
 
 class InboundDocumentResponse extends Model
 {
@@ -136,6 +137,16 @@ class InboundDocumentResponse extends Model
                     default => 'របាយការណ៍',
                 };
             }
+        );
+    }
+
+    /**
+     * Rewrite legacy bucket URLs in content at render time without mutating the database
+     */
+    protected function content(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => FileUrlService::rewriteLegacyContentUrls($value),
         );
     }
 

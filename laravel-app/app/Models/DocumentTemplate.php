@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\FileUrlService;
 use App\Services\StorageService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -36,7 +37,16 @@ class DocumentTemplate extends Model
         return Attribute::make(
             get: function () {
                 $file = $this->getRawOriginal('file_path');
-                return $file ? StorageService::url($file) : null;
+                if (empty($file)) {
+                    return null;
+                }
+
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
+                }
+
+                return FileUrlService::signed($file, 30);
             }
         );
     }

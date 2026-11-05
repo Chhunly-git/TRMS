@@ -20,6 +20,7 @@ use App\Http\Controllers\API\InboundDocumentController;
 use App\Http\Controllers\API\WorkingGroupController;
 use App\Http\Controllers\API\HikvisionAttendanceController;
 use App\Http\Controllers\API\WorkflowConfigController;
+use App\Http\Controllers\API\FileAccessController;
 use App\Http\Controllers\API\OutboundDocumentController;
 
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,9 @@ Route::get('/manage/get-dashboard-summary', [AttendanceController::class, 'getDa
 // HIKVISION Biometric Event Push (Webhook for Terminals)
 Route::post('/attendance/hikvision/event', [HikvisionAttendanceController::class, 'handleWebhook']);
 Route::post('/attendance/hikvision/webhook', [HikvisionAttendanceController::class, 'handleWebhook']);
+
+// Private File Access via Temporary Signed Route (middleware: signed only)
+Route::get('/files', [FileAccessController::class, 'show'])->middleware('signed')->name('files.show');
 
 Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/signout', [AuthController::class, 'signout']);

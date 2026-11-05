@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\FileUrlService;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +26,16 @@ class InboundDocumentResponseRevision extends Model
         'sign_name',
         'change_summary',
     ];
+
+    /**
+     * Rewrite legacy bucket URLs in content at render time without mutating the database
+     */
+    protected function content(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => FileUrlService::rewriteLegacyContentUrls($value),
+        );
+    }
 
     public function response(): BelongsTo
     {

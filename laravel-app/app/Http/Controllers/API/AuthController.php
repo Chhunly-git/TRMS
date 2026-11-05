@@ -12,6 +12,7 @@ use App\Http\Requests\User\UpdateProfileImageRequest;
 use App\Http\Resources\User\UserResource;
 use App\Models\InboundDocumentResponse;
 use App\Models\User;
+use App\Services\FileUrlService;
 use App\Services\ImageClassService;
 use App\Services\StorageService;
 use Exception;
@@ -236,7 +237,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'No signature found'], 404);
         }
 
-        return StorageService::response($sigPath);
+        return redirect()->away(FileUrlService::signed($sigPath, 30));
     }
 
     public function updateSignatureImage(Request $request)

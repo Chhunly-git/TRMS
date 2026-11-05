@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
+use App\Services\FileUrlService;
 use App\Services\ImageClassService;
 use App\Services\StorageService;
 use Carbon\Carbon;
@@ -213,7 +214,7 @@ class User extends Authenticatable
     }
 
     /**
-     * ទាញយក Full URL នៃ Profile Image (Safe Null Checking)
+     * ទាញយក Full URL នៃ Profile Image (Served securely via temporary signed route)
      */
     protected function profileImage(): Attribute
     {
@@ -224,18 +225,18 @@ class User extends Authenticatable
                     return null;
                 }
 
-                try {
-                    $imageClass = ImageClassService::forUserModel();
-                    return $imageClass ? $imageClass->fullUrl($imagePath) : $imagePath;
-                } catch (\Throwable $e) {
-                    return $imagePath;
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
                 }
+
+                return FileUrlService::signed($imagePath, 30);
             },
         );
     }
 
     /**
-     * ទាញយក Full URL នៃ Signature Image (Served securely via authorized route)
+     * ទាញយក Full URL នៃ Signature Image (Served securely via temporary signed route)
      */
     protected function signatureImage(): Attribute
     {
@@ -246,13 +247,33 @@ class User extends Authenticatable
                     return null;
                 }
 
-                return url("/api/users/{$this->id}/signature-image");
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
+                }
+
+                // Allowed if self
+                if ((int)$viewer->id === (int)$this->id) {
+                    return FileUrlService::signed($imagePath, 30);
+                }
+
+                // Allowed if viewer can access at least one response where $this->id is drafter or approver
+                $targetId = (int)$this->id;
+                $hasAccess = InboundDocumentResponse::query()
+                    ->accessibleByViewer($viewer)
+                    ->where(function ($q) use ($targetId) {
+                        $q->where('drafted_by', $targetId)
+                          ->orWhereHas('approvals', fn($aq) => $aq->where('user_id', $targetId));
+                    })
+                    ->exists();
+
+                return $hasAccess ? FileUrlService::signed($imagePath, 30) : null;
             },
         );
     }
 
     /**
-     * ទាញយក Full URL នៃ Profile Thumbnail (Safe Null Checking)
+     * ទាញយក Full URL នៃ Profile Thumbnail (Served securely via temporary signed route)
      */
     protected function profileThumbnail(): Attribute
     {
@@ -263,43 +284,75 @@ class User extends Authenticatable
                     return null;
                 }
 
-                try {
-                    $imageClass = ImageClassService::forUserModel();
-                    if ($imageClass) {
-                        $thumbnailPath = $imageClass->thumbnailPath($imagePath);
-                        return $imageClass->fullUrl($thumbnailPath);
-                    }
-                } catch (\Throwable $e) {
-                    // Fallback បើ ImageClassService មានបញ្ហា
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
                 }
 
-                return str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $imagePath);
+                try {
+                    $thumbnailPath = ImageClassService::forUserModel()->thumbnailPath($imagePath);
+                    if ($thumbnailPath) {
+                        return FileUrlService::signed($thumbnailPath, 30);
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback
+                }
+
+                return FileUrlService::signed($imagePath, 30);
             },
         );
     }
 
     /**
-     * Get Full URL for National ID file
+     * Get Full URL for National ID file (Self or Admin only, 5 min)
      */
     protected function nationalIdFile(): Attribute
     {
         return Attribute::make(
             get: function () {
                 $file = $this->getRawOriginal('national_id_file');
-                return $file ? StorageService::url($file) : null;
+                if (empty($file)) {
+                    return null;
+                }
+
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
+                }
+
+                $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+                if ((int)$viewer->id !== (int)$this->id && !$isAdmin) {
+                    return null;
+                }
+
+                return FileUrlService::signed($file, 5);
             }
         );
     }
 
     /**
-     * Get Full URL for Passport file
+     * Get Full URL for Passport file (Self or Admin only, 5 min)
      */
     protected function passportFile(): Attribute
     {
         return Attribute::make(
             get: function () {
                 $file = $this->getRawOriginal('passport_file');
-                return $file ? StorageService::url($file) : null;
+                if (empty($file)) {
+                    return null;
+                }
+
+                $viewer = auth()->user() ?? request()?->user();
+                if (!$viewer) {
+                    return null;
+                }
+
+                $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+                if ((int)$viewer->id !== (int)$this->id && !$isAdmin) {
+                    return null;
+                }
+
+                return FileUrlService::signed($file, 5);
             }
         );
     }

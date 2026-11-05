@@ -34,10 +34,14 @@ class SignatureAccessTest extends TestCase
         Sanctum::actingAs($user);
 
         $response = $this->getJson("/api/users/{$user->id}/signature-image");
-        $response->assertStatus(200);
+        $response->assertRedirect();
+        $this->assertStringContainsString('/api/files?', $response->headers->get('Location'));
+        $this->get($response->headers->get('Location'))->assertStatus(200);
 
         $myResponse = $this->getJson('/api/my-signature');
-        $myResponse->assertStatus(200);
+        $myResponse->assertRedirect();
+        $this->assertStringContainsString('/api/files?', $myResponse->headers->get('Location'));
+        $this->get($myResponse->headers->get('Location'))->assertStatus(200);
     }
 
     public function test_unrelated_user_cannot_access_another_users_signature_image(): void
@@ -105,7 +109,9 @@ class SignatureAccessTest extends TestCase
         Sanctum::actingAs($viewer);
 
         $response = $this->getJson("/api/users/{$drafter->id}/signature-image");
-        $response->assertStatus(200);
+        $response->assertRedirect();
+        $this->assertStringContainsString('/api/files?', $response->headers->get('Location'));
+        $this->get($response->headers->get('Location'))->assertStatus(200);
     }
 
     public function test_viewer_can_access_signature_of_approver_on_accessible_document(): void
@@ -150,6 +156,8 @@ class SignatureAccessTest extends TestCase
         Sanctum::actingAs($viewer);
 
         $response = $this->getJson("/api/users/{$approver->id}/signature-image");
-        $response->assertStatus(200);
+        $response->assertRedirect();
+        $this->assertStringContainsString('/api/files?', $response->headers->get('Location'));
+        $this->get($response->headers->get('Location'))->assertStatus(200);
     }
 }
