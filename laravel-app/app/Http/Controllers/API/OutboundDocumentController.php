@@ -8,6 +8,7 @@ use App\Models\InboundDocument;
 use App\Models\InboundDocumentMovement;
 use App\Models\InboundDocumentResponse;
 use App\Models\InboundDocumentResponseApproval;
+use App\Models\InboundDocumentResponseRevision;
 use App\Models\User;
 use App\Services\StorageService;
 use App\Services\TelegramService;
@@ -797,16 +798,21 @@ class OutboundDocumentController extends Controller
         }
 
         $response = InboundDocumentResponse::findOrFail($id);
-        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
-        $isDg = ($viewerPosLevel <= 1) || (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+
+        // Check locked status: completed/approved docs or numbered docs are locked
+        $isLocked = in_array($response->status, ['APPROVED_BY_DG', 'COMPLETED', 'CANCELLED']);
+        if ($isLocked) {
+            return response()->json(['message' => 'ឯកសារត្រូវបានចាក់សោ មិនអាចកែប្រែបានឡើយ!'], 403);
+        }
+
         $isDrafter = ((int) $response->drafted_by === (int) $viewer->id);
         $isCurrentApprover = ((int) $response->current_approver_id === (int) $viewer->id);
-        $hasApproved = InboundDocumentResponseApproval::where('response_id', $response->id)
-            ->where('user_id', $viewer->id)
-            ->exists();
 
-        if (!$isDg && !$isAdmin && !$isDrafter && !$isCurrentApprover && !$hasApproved) {
+        // Allow only: drafter in DRAFT/RETURNED; current approver while UNDER_REVIEW; never when locked
+        $canEdit = ($isDrafter && in_array($response->status, ['DRAFT', 'RETURNED']))
+            || ($isCurrentApprover && $response->status === 'UNDER_REVIEW');
+
+        if (!$canEdit) {
             return response()->json(['message' => 'លោកអ្នកពុំមានសិទ្ធិកែប្រែខ្លឹមសារ ឬទីតាំងហត្ថលេខានៃលិខិតនេះឡើយ!'], 403);
         }
 
@@ -821,8 +827,30 @@ class OutboundDocumentController extends Controller
             ], 422);
         }
 
-        $response->content = $request->input('content');
-        $response->save();
+        $newContent = $request->input('content');
+
+        DB::transaction(function () use ($response, $viewer, $isDrafter, $newContent) {
+            $response->content = $newContent;
+            $response->save();
+
+            $latestRevNum = InboundDocumentResponseRevision::where('response_id', $response->id)->max('revision_number') ?: 1;
+            $roleLabel = $isDrafter ? 'អ្នកព្រាង' : 'អ្នកពិនិត្យ';
+            $viewerName = $viewer->name_kh ?: $viewer->name;
+            $summary = "{$roleLabel} ({$viewerName}) បានកែប្រែខ្លឹមសារ";
+
+            InboundDocumentResponseRevision::create([
+                'response_id' => $response->id,
+                'user_id' => $viewer->id,
+                'revision_number' => $latestRevNum + 1,
+                'title' => $response->title,
+                'header_organization' => $response->header_organization,
+                'reference_note' => $response->reference_note,
+                'content' => $newContent,
+                'sign_title' => $response->sign_title,
+                'sign_name' => $response->sign_name,
+                'change_summary' => $summary,
+            ]);
+        });
 
         return response()->json([
             'message' => 'បានរក្សាទុកទីតាំង និងខ្លឹមសារឯកសារដោយជោគជ័យ!',
