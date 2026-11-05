@@ -1,5 +1,30 @@
 export const KHMER_DIGITS = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ */
+export const escapeHtml = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+/**
+ * Validate and sanitize URL (blocks javascript:, data:, vbscript: schemes).
+ */
+export const sanitizeUrl = (url) => {
+  if (!url) return '';
+  const s = String(url).trim();
+  if (/^(?:javascript|data|vbscript):/i.test(s)) {
+    return '';
+  }
+  return escapeHtml(s);
+};
+
 export const toKhmerNum = (num) => {
   return String(num).split('').map(c => KHMER_DIGITS[c] || c).join('');
 };
@@ -33,17 +58,23 @@ export const generateDraggableOpinionBoxHtml = ({
   ownerId = '',
   width = 240,
 }) => {
-  const dateStr = shortDateKh || getShortKhmerDateString(new Date());
-  const sigHtml = signatureUrl
-    ? `<img src="${signatureUrl}" alt="ហត្ថលេខា" style="height: 48px; max-width: 170px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
-    : `<span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 18pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 2px 14px; letter-spacing: 1px; display: inline-block;">${reviewerName}</span>`;
+  const safeComment = escapeHtml(comment);
+  const safeReviewerName = escapeHtml(reviewerName);
+  const safeDateStr = escapeHtml(shortDateKh || getShortKhmerDateString(new Date()));
+  const safeOwnerId = escapeHtml(ownerId);
+  const safeSigUrl = sanitizeUrl(signatureUrl);
+  const safeWidth = Number(width) > 0 ? Number(width) : 240;
+
+  const sigHtml = safeSigUrl
+    ? `<img src="${safeSigUrl}" alt="ហត្ថលេខា" style="height: 48px; max-width: 170px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+    : `<span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 18pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 2px 14px; letter-spacing: 1px; display: inline-block;">${safeReviewerName}</span>`;
 
   return `
     <div class="draggable-opinion-box"
          data-draggable="true"
-         data-owner-id="${ownerId || ''}"
-         data-signer-name="${reviewerName || ''}"
-         style="position: relative; border: 1px dashed transparent; padding: 6px 12px; text-align: center; width: ${width}px; background: transparent; cursor: move; user-select: none; display: inline-block; vertical-align: top; box-sizing: border-box; line-height: 1.45; margin: 0;">
+         data-owner-id="${safeOwnerId}"
+         data-signer-name="${safeReviewerName}"
+         style="position: relative; border: 1px dashed transparent; padding: 6px 12px; text-align: center; width: ${safeWidth}px; background: transparent; cursor: move; user-select: none; display: inline-block; vertical-align: top; box-sizing: border-box; line-height: 1.45; margin: 0;">
       <!-- 8 Selection & Resize Handles -->
       <span class="box-handle handle-tl" data-handle="tl"></span>
       <span class="box-handle handle-tc" data-handle="tc"></span>
@@ -55,7 +86,7 @@ export const generateDraggableOpinionBoxHtml = ({
       <span class="box-handle handle-br" data-handle="br"></span>
 
       <!-- 1. Opinion Comment: Khmer OS Siemreap, small size -->
-      <div class="opinion-box-comment" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 9.5pt; color: #000; line-height: 1.45; margin-bottom: 6px; white-space: pre-line; outline: none; word-break: break-word;">${comment}</div>
+      <div class="opinion-box-comment" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 9.5pt; color: #000; line-height: 1.45; margin-bottom: 6px; white-space: pre-line; outline: none; word-break: break-word;">${safeComment}</div>
 
       <!-- 2. Signature image or styled text (no "(ហត្ថលេខា)" text) -->
       <div style="text-align: center; margin: 4px 0; min-height: 46px; display: flex; align-items: center; justify-content: center;">
@@ -63,11 +94,11 @@ export const generateDraggableOpinionBoxHtml = ({
       </div>
 
       <!-- 3. Date in Siemreap -->
-      <div class="opinion-box-date" style="font-size: 9pt; color: #111; margin: 2px 0; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; outline: none;">${dateStr}</div>
+      <div class="opinion-box-date" style="font-size: 9pt; color: #111; margin: 2px 0; font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; outline: none;">${safeDateStr}</div>
 
       <!-- 4. Reviewer Name -->
       <div class="opinion-box-signer" style="font-family: 'Khmer OS Muol Light', serif; font-size: 10.5pt; color: #000; margin-top: 3px;">
-        ${reviewerName}
+        ${safeReviewerName}
       </div>
     </div>
   `;

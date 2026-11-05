@@ -428,6 +428,8 @@ import {
   getShortKhmerDateString,
   generateDraggableOpinionBoxHtml,
   setupDraggableOpinionBoxes,
+  escapeHtml,
+  sanitizeUrl,
 } from '@/utils/opinionBoxHelper';
 
 const userStore = useUserStore();
@@ -662,11 +664,11 @@ const insertTableHtml = (rows, cols) => {
 
 // Official Template & Signature Generators
 const getDrafterSignatureHtml = () => {
-  const dept = props.departmentName || 'នាយកដ្ឋាន...';
-  const office = props.officeName ? props.officeName : '';
-  const officer = props.officerName || '.....................................';
-  const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
-  const signatureUrl = props.officerSignature || '';
+  const dept = escapeHtml(props.departmentName || 'នាយកដ្ឋាន...');
+  const office = props.officeName ? escapeHtml(props.officeName) : '';
+  const officer = escapeHtml(props.officerName || '.....................................');
+  const pos = escapeHtml(props.officerPosition || 'អ្នកធ្វើរបាយការណ៍');
+  const signatureUrl = sanitizeUrl(props.officerSignature || '');
   const dateStr = getCurrentKhmerDateString();
 
   const signatureImgHtml = signatureUrl
@@ -860,11 +862,11 @@ const getReviewBlockHtml = (approvalsList = []) => {
   let reviewCardsHtml = '';
   completedReviews.forEach((app, idx) => {
     const numKh = toKhmerNum(idx + 1);
-    const dateKh = formatAppDate(app);
-    const reviewerName = app.user?.name_kh || app.user?.name || '';
-    const reviewerPos = app.user?.position?.title_kh || app.stage_kh || 'ថ្នាក់ដឹកនាំ';
+    const dateKh = escapeHtml(formatAppDate(app));
+    const reviewerName = escapeHtml(app.user?.name_kh || app.user?.name || '');
+    const reviewerPos = escapeHtml(app.user?.position?.title_kh || app.stage_kh || 'ថ្នាក់ដឹកនាំ');
     const isDg = (app.action === 'DG_APPROVE' || app.stage === 'DG');
-    const reviewerSig = app.user?.signature_image || '';
+    const reviewerSig = sanitizeUrl(app.user?.signature_image || '');
     const reviewerSigHtml = reviewerSig
       ? `<div style="text-align: right; margin: 4px 0 2px auto;">
            <img src="${reviewerSig}" alt="ហត្ថលេខា" style="height: 55px; max-width: 160px; object-fit: contain; display: inline-block;" />
@@ -880,7 +882,7 @@ const getReviewBlockHtml = (approvalsList = []) => {
       : `<span style="display:inline-block; font-size:8.5pt; color:#16a34a; background:#dcfce7; padding:1px 8px; border-radius:4px; font-weight:bold;">✓ បានពិនិត្យ និងចារឆ្លង</span>`;
 
     const comment = app.comment
-      ? `<span style="color:#0f172a; font-weight:500;">${app.comment}</span>`
+      ? `<span style="color:#0f172a; font-weight:500;">${escapeHtml(app.comment)}</span>`
       : `<span style="color:#64748b; font-style:italic;">(បានឯកភាពតាមឋានានុក្រម)</span>`;
 
     reviewCardsHtml += `
@@ -998,7 +1000,8 @@ const getOfficialTemplates = () => {
   const office = props.officeName ? props.officeName : '';
   const officer = props.officerName || '.....................................';
   const pos = props.officerPosition || 'អ្នកធ្វើរបាយការណ៍';
-  const deptAbbr = getDepartmentAbbr(dept);
+  const deptAbbr = escapeHtml(getDepartmentAbbr(dept));
+  const orgName = escapeHtml(props.organizationName || 'និយ័តករបរធនបាលកិច្ច');
 
   // Standard official administrative text header
   const textHeaderHtml = `
@@ -1006,7 +1009,7 @@ const getOfficialTemplates = () => {
       <tr>
         <td style="width: 50%; border: none; vertical-align: top; text-align: left;">
           <img src="logo.png" alt="Logo" style="width: 120px; height: auto; margin-bottom: 4px; padding-left: 40px">
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #008000;">${props.organizationName || 'និយ័តករបរធនបាលកិច្ច'}</div>
+          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #008000;">${orgName}</div>
           
           <div style="font-size: 11pt; color: #000; margin-top: 3px;">លេខ៖ <span class="doc-number-input" contenteditable="true" style="display: inline-block; min-width: 45px; border-bottom: 1px dotted #888; outline: none; padding: 0 4px;" title="ចុចដើម្បីវាយលេខចូល">.......</span> ន.ប.ធ./${deptAbbr}</div>
         </td>
