@@ -189,11 +189,15 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/all', [WorkingGroupController::class, 'all']);
         Route::get('/', [WorkingGroupController::class, 'index']);
         Route::get('/{id}', [WorkingGroupController::class, 'show']);
-        Route::post('/', [WorkingGroupController::class, 'store']);
-        Route::match(['PUT', 'POST'], '/{id}', [WorkingGroupController::class, 'update']);
-        Route::delete('/{id}', [WorkingGroupController::class, 'destroy']);
-        Route::post('/{id}/members', [WorkingGroupController::class, 'addMember']);
-        Route::delete('/{id}/members/{memberId}', [WorkingGroupController::class, 'removeMember']);
+
+        // Write actions restricted to Admin / users with working-groups permission
+        Route::middleware('admin')->group(function () {
+            Route::post('/', [WorkingGroupController::class, 'store']);
+            Route::match(['PUT', 'POST'], '/{id}', [WorkingGroupController::class, 'update']);
+            Route::delete('/{id}', [WorkingGroupController::class, 'destroy']);
+            Route::post('/{id}/members', [WorkingGroupController::class, 'addMember']);
+            Route::delete('/{id}/members/{memberId}', [WorkingGroupController::class, 'removeMember']);
+        });
     });
 
     // ការកំណត់ Workflow ផ្ទាល់ខ្លួនរបស់មន្ត្រីកំពុង Login

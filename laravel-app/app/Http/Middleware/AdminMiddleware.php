@@ -89,7 +89,10 @@ class AdminMiddleware
         }
 
         if (str_contains($path, 'working-groups')) {
-            return $user->hasPermission('working-groups') || ($request->isMethod('GET') && $user->hasPermission('inbound-documents'));
+            if ($request->isMethod('GET')) {
+                return true;
+            }
+            return ($user->position && (int) $user->position->level === 1);
         }
 
         return false;
