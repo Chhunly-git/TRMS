@@ -28,12 +28,14 @@ class InboundDocumentResponseRevision extends Model
     ];
 
     /**
-     * Rewrite legacy bucket URLs in content at render time without mutating the database
+     * Rewrite legacy bucket URLs in content at render time without mutating the database,
+     * and sanitize content upon saving using HTMLPurifier allowlist.
      */
     protected function content(): Attribute
     {
         return Attribute::make(
             get: fn (?string $value) => FileUrlService::rewriteLegacyContentUrls($value),
+            set: fn (?string $value) => \App\Services\HtmlSanitizerService::clean($value),
         );
     }
 
