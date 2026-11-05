@@ -1371,6 +1371,7 @@ const normalizeDocumentHtml = (html) => {
 
 const hasPageBreak = ref(false);
 const pageBreakCount = ref(0);
+const contentHeight = ref(1123);
 
 const updatePageBreakCount = () => {
   if (!paperEditor.value) {
@@ -1384,8 +1385,31 @@ const updatePageBreakCount = () => {
   hasPageBreak.value = count > 0;
 };
 
+const updateContentMeasurements = () => {
+  if (!paperEditor.value) return;
+  updatePageBreakCount();
+
+  let maxChildBottom = 0;
+  const allEls = paperEditor.value.querySelectorAll('*');
+  if (allEls.length > 0) {
+    const paperRect = paperEditor.value.getBoundingClientRect();
+    allEls.forEach(child => {
+      const rect = child.getBoundingClientRect();
+      const bottomRel = rect.bottom - paperRect.top;
+      if (bottomRel > maxChildBottom) {
+        maxChildBottom = bottomRel;
+      }
+    });
+  }
+
+  const measured = Math.max(paperEditor.value.scrollHeight, Math.ceil(maxChildBottom + 55), 1123);
+  contentHeight.value = measured;
+};
+
 const paperStyle = computed(() => {
-  const pages = Math.max(1, pageBreakCount.value + 1);
+  const breaks = pageBreakCount.value;
+  const contentPages = Math.ceil(contentHeight.value / 1123);
+  const pages = Math.max(breaks + 1, contentPages, 1);
   const minH = pages * 1123 + (pages - 1) * 60;
   return {
     minHeight: `${minH}px`,
@@ -1394,11 +1418,11 @@ const paperStyle = computed(() => {
 });
 
 const updatePaperMinHeight = () => {
-  updatePageBreakCount();
+  updateContentMeasurements();
 };
 
 const checkHasPageBreak = () => {
-  updatePageBreakCount();
+  updateContentMeasurements();
 };
 
 const findClosingBlock = (root) => {
@@ -1541,7 +1565,7 @@ const checkAndApplyAutoPageBreak = () => {
 };
 
 const onEditorInput = () => {
-  updatePageBreakCount();
+  updateContentMeasurements();
   emitUpdate();
   triggerAutoPageBreak();
 };
@@ -1721,6 +1745,7 @@ watch(
 
 let cleanupDraggable = null;
 let domObserver = null;
+let resizeObserver = null;
 
 onMounted(() => {
   nextTick(() => {
@@ -1741,12 +1766,21 @@ onMounted(() => {
 
       // Continuously observe DOM changes to keep pageBreakCount & minHeight in sync
       domObserver = new MutationObserver(() => {
-        updatePageBreakCount();
+        updateContentMeasurements();
       });
       domObserver.observe(paperEditor.value, {
         childList: true,
-        subtree: true
+        subtree: true,
+        characterData: true
       });
+
+      // ResizeObserver on the paper element ensures the white page always covers all content
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          updateContentMeasurements();
+        });
+        resizeObserver.observe(paperEditor.value);
+      }
     }
   });
 });
@@ -1754,6 +1788,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (cleanupDraggable) cleanupDraggable();
   if (domObserver) domObserver.disconnect();
+  if (resizeObserver) resizeObserver.disconnect();
 });
 </script>
 
