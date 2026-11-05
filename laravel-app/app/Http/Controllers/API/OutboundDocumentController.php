@@ -563,7 +563,8 @@ class OutboundDocumentController extends Controller
         $response = InboundDocumentResponse::findOrFail($id);
 
         $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
-        $isDg = ($viewerPosLevel <= 1) || (strtoupper($viewer->level ?? '') === 'ADMIN');
+        $isDg = ($viewerPosLevel <= 1);
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         $isDrafter = ((int) $response->drafted_by === (int) $viewer->id);
         $isCurrentApprover = ((int) $response->current_approver_id === (int) $viewer->id && $response->status === 'UNDER_REVIEW');
 
@@ -868,13 +869,14 @@ class OutboundDocumentController extends Controller
 
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
-        $isDg = ($viewerPosLevel <= 1) || $isAdmin;
+        $isDg = ($viewerPosLevel <= 1); // Strictly DG position (level 1), ADMIN is not DG
 
         if ($response->status !== 'UNDER_REVIEW') {
             return response()->json(['message' => 'លិខិតនេះមិនស្ថិតក្នុងការពិនិត្យឆ្លងឡើយ!'], 400);
         }
 
-        if ($response->current_approver_id !== $viewer->id && !$isAdmin) {
+        // Only the designated current_approver can review (Admin cannot act as another approver)
+        if ((int) $response->current_approver_id !== (int) $viewer->id) {
             return response()->json(['message' => 'លោកអ្នកពុំមែនជាថ្នាក់ដឹកនាំទទួលបន្ទុកពិនិត្យលិខិតនេះឡើយ!'], 403);
         }
 
@@ -1119,7 +1121,8 @@ class OutboundDocumentController extends Controller
         $response = InboundDocumentResponse::findOrFail($id);
 
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if ($response->drafted_by !== $viewer->id && !$isAdmin) {
+        $isDrafter = ((int) $response->drafted_by === (int) $viewer->id);
+        if (!$isDrafter && !$isAdmin) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិទាញយកលិខិតនេះមកវិញឡើយ!'], 403);
         }
 
@@ -1127,10 +1130,27 @@ class OutboundDocumentController extends Controller
             return response()->json(['message' => 'អាចទាញយកមកវិញបានតែលិខិតដែលកំពុងស្ថិតក្នុងការពិនិត្យប៉ុណ្ណោះ!'], 400);
         }
 
-        DB::transaction(function () use ($viewer, $response) {
+        // If admin is recalling on behalf of drafter, require audit reason
+        if ($isAdmin && !$isDrafter) {
+            $validator = Validator::make($request->all(), [
+                'reason' => 'required|string|min:5',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+            $viewerName = $viewer->name_kh ?: $viewer->name;
+            $auditComment = "Admin ({$viewerName}) បានទាញយកលិខិតមកវិញដោយមូលហេតុ៖ " . $request->input('reason');
+        } else {
+            $auditComment = 'បានទាញយកសេចក្តីព្រាងមកវិញដើម្បីកែសម្រួលឡើងវិញ';
+        }
+
+        DB::transaction(function () use ($viewer, $response, $auditComment) {
             $response->update([
                 'status' => 'DRAFT',
-                'current_approver_id' => $viewer->id,
+                'current_approver_id' => $response->drafted_by,
             ]);
 
             InboundDocumentResponseApproval::create([
@@ -1138,13 +1158,68 @@ class OutboundDocumentController extends Controller
                 'user_id' => $viewer->id,
                 'action' => 'RECALL',
                 'stage' => 'OFFICE',
-                'comment' => 'បានទាញយកសេចក្តីព្រាងមកវិញដើម្បីកែសម្រួលឡើងវិញ',
+                'comment' => $auditComment,
+                'forwarded_to_id' => $response->drafted_by,
             ]);
         });
 
         return response()->json([
             'message' => 'បានទាញយកលិខិតមកវិញដោយជោគជ័យ!',
             'data' => $response->fresh(),
+        ]);
+    }
+
+    /**
+     * Admin Reassign Response to another approver (Requires audit reason)
+     */
+    public function reassign($id, Request $request)
+    {
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        if (!$isAdmin) {
+            return response()->json(['message' => 'មានតែ Admin ប៉ុណ្ណោះដែលអាចចាត់តាំងអ្នកពិនិត្យឡើងវិញបាន!'], 403);
+        }
+
+        $response = InboundDocumentResponse::findOrFail($id);
+        if ($response->status !== 'UNDER_REVIEW') {
+            return response()->json(['message' => 'អាចចាត់តាំងឡើងវិញបានតែឯកសារដែលកំពុងស្ថិតក្រោមការពិនិត្យប៉ុណ្ណោះ!'], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'target_user_id' => 'required|exists:users,id',
+            'reason' => 'required|string|min:5',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $targetUser = User::findOrFail($request->input('target_user_id'));
+        $viewerName = $viewer->name_kh ?: $viewer->name;
+        $targetName = $targetUser->name_kh ?: $targetUser->name;
+        $reason = $request->input('reason');
+
+        DB::transaction(function () use ($response, $viewer, $targetUser, $viewerName, $targetName, $reason) {
+            $response->update([
+                'current_approver_id' => $targetUser->id,
+            ]);
+
+            InboundDocumentResponseApproval::create([
+                'response_id' => $response->id,
+                'user_id' => $viewer->id,
+                'action' => 'FORWARD',
+                'stage' => $response->current_stage,
+                'forwarded_to_id' => $targetUser->id,
+                'comment' => "Admin ({$viewerName}) បានចាត់តាំងអ្នកពិនិត្យឡើងវិញទៅកាន់ {$targetName} ដោយមូលហេតុ៖ {$reason}",
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'បានចាត់តាំងអ្នកពិនិត្យឡើងវិញដោយជោគជ័យ!',
+            'data' => $response->fresh(['currentApprover']),
         ]);
     }
 
