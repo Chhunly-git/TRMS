@@ -865,20 +865,6 @@ class OutboundDocumentController extends Controller
     public function reviewAction($id, Request $request)
     {
         $viewer = $request->user();
-        $response = InboundDocumentResponse::with('inboundDocument')->findOrFail($id);
-
-        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
-        $isDg = ($viewerPosLevel <= 1); // Strictly DG position (level 1), ADMIN is not DG
-
-        if ($response->status !== 'UNDER_REVIEW') {
-            return response()->json(['message' => 'លិខិតនេះមិនស្ថិតក្នុងការពិនិត្យឆ្លងឡើយ!'], 400);
-        }
-
-        // Only the designated current_approver can review (Admin cannot act as another approver)
-        if ((int) $response->current_approver_id !== (int) $viewer->id) {
-            return response()->json(['message' => 'លោកអ្នកពុំមែនជាថ្នាក់ដឹកនាំទទួលបន្ទុកពិនិត្យលិខិតនេះឡើយ!'], 403);
-        }
 
         $validator = Validator::make($request->all(), [
             'action' => 'required|in:FORWARD,RETURN,DG_APPROVE,HOLD',
@@ -898,7 +884,23 @@ class OutboundDocumentController extends Controller
         $action = $request->input('action');
         $comment = $request->input('comment');
 
-        DB::transaction(function () use ($action, $comment, $request, $viewer, $response, $isDg, $viewerPosLevel) {
+        return DB::transaction(function () use ($id, $action, $comment, $request, $viewer) {
+            // Lock the response row for update to prevent race conditions & double submissions
+            $response = InboundDocumentResponse::with('inboundDocument')->where('id', $id)->lockForUpdate()->firstOrFail();
+
+            $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+            $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+            $isDg = ($viewerPosLevel <= 1); // Strictly DG position (level 1), ADMIN is not DG
+
+            if ($response->status !== 'UNDER_REVIEW') {
+                return response()->json(['message' => 'លិខិតនេះមិនស្ថិតក្នុងការពិនិត្យឆ្លងឡើយ!'], 400);
+            }
+
+            // Only the designated current_approver can review (Admin cannot act as another approver)
+            if ((int) $response->current_approver_id !== (int) $viewer->id) {
+                return response()->json(['message' => 'លោកអ្នកពុំមែនជាថ្នាក់ដឹកនាំទទួលបន្ទុកពិនិត្យលិខិតនេះឡើយ!'], 403);
+            }
+
             // If approver attached / updated report content with their opinion & signature
             if ($request->filled('content') && trim((string)$response->content) !== trim((string)$request->input('content'))) {
                 $newContent = $request->input('content');
@@ -907,7 +909,8 @@ class OutboundDocumentController extends Controller
 
                 $latestRevNum = \App\Models\InboundDocumentResponseRevision::where('response_id', $response->id)->max('revision_number') ?: 1;
                 $roleLabel = ($isDg ? 'ឯកឧត្តមអគ្គនាយក' : 'ថ្នាក់ដឹកនាំ');
-                $summary = "{$roleLabel} ({$viewer->name_kh}) បានបញ្ចូលមតិយោបល់ និងហត្ថលេខាលើឯកសារ";
+                $viewerName = $viewer->name_kh ?: $viewer->name;
+                $summary = "{$roleLabel} ({$viewerName}) បានបញ្ចូលមតិយោបល់ និងហត្ថលេខាលើឯកសារ";
 
                 \App\Models\InboundDocumentResponseRevision::create([
                     'response_id' => $response->id,
@@ -1100,16 +1103,16 @@ class OutboundDocumentController extends Controller
                     'forwarded_to_id' => $viewer->id,
                 ]);
             }
+
+            $successMsg = ($action === 'HOLD') 
+                ? 'បានរក្សាទុកមតិយោបល់ និងខ្លឹមសារក្នុងដៃដោយជោគជ័យ! លោកអ្នកអាចចារឆ្លងទៅថ្នាក់លើនៅពេលក្រោយ។' 
+                : 'បានអនុវត្តសកម្មភាពពិនិត្យឆ្លងដោយជោគជ័យ!';
+
+            return response()->json([
+                'message' => $successMsg,
+                'data' => $response->fresh(['draftedByUser', 'currentApprover', 'inboundDocument', 'approvals.user', 'approvals.forwardedTo']),
+            ]);
         });
-
-        $successMsg = ($action === 'HOLD') 
-            ? 'បានរក្សាទុកមតិយោបល់ និងខ្លឹមសារក្នុងដៃដោយជោគជ័យ! លោកអ្នកអាចចារឆ្លងទៅថ្នាក់លើនៅពេលក្រោយ។' 
-            : 'បានអនុវត្តសកម្មភាពពិនិត្យឆ្លងដោយជោគជ័យ!';
-
-        return response()->json([
-            'message' => $successMsg,
-            'data' => $response->fresh(['draftedByUser', 'currentApprover', 'inboundDocument', 'approvals.user', 'approvals.forwardedTo']),
-        ]);
     }
 
     /**
