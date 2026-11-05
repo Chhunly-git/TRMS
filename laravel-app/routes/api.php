@@ -54,6 +54,8 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
     Route::post('/update/signature-image', [AuthController::class, 'updateSignatureImage']);
     Route::put('/update/signature-image', [AuthController::class, 'updateSignatureImage']);
     Route::delete('/delete/signature-image', [AuthController::class, 'deleteSignatureImage']);
+    Route::get('/users/{id}/signature-image', [AuthController::class, 'getSignatureImage']);
+    Route::get('/my-signature', [AuthController::class, 'getSignatureImage']);
     Route::get('/manage/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/my-attendances', [AttendanceController::class, 'myAttendances']);
     Route::get('/manage/profile', [AuthController::class, 'getProfile']);

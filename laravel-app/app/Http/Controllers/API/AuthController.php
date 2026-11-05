@@ -208,6 +208,18 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function getSignatureImage(Request $request, $id = null)
+    {
+        $targetUser = $id ? User::findOrFail($id) : $request->user();
+        $sigPath = $targetUser->getRawOriginal('signature_image');
+
+        if (empty($sigPath) || !StorageService::exists($sigPath)) {
+            return response()->json(['message' => 'No signature found'], 404);
+        }
+
+        return StorageService::response($sigPath);
+    }
+
     public function updateSignatureImage(Request $request)
     {
         $user = $request->user();

@@ -35,11 +35,11 @@ services:
         image: mysql:8.0
         container_name: mysql-container
         environment:
-            MYSQL_DATABASE: chat_system
-            MYSQL_USER: chat_user
-            MYSQL_PASSWORD: chat_password
-            MYSQL_ROOT_PASSWORD: root
-            TZ: UTC
+            MYSQL_DATABASE: ${MYSQL_DATABASE:-tr_system}
+            MYSQL_USER: ${MYSQL_USER:-tr_user}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tr_password}
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+            TZ: Asia/Phnom_Penh
         volumes:
             - mysql_data:/var/lib/mysql
 
@@ -48,8 +48,8 @@ services:
         container_name: minio-container
         restart: unless-stopped
         environment:
-            MINIO_ROOT_USER: minioadmin
-            MINIO_ROOT_PASSWORD: minioadminpassword
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadminpassword}
         volumes:
             - minio_data:/data
         ports:
@@ -62,12 +62,17 @@ services:
         container_name: minio-mc-container
         depends_on:
             - minio-service
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadminpassword}
         entrypoint: >
             /bin/sh -c "
             sleep 3;
-            mc alias set localminio http://minio-service:9000 minioadmin minioadminpassword;
+            mc alias set localminio http://minio-service:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
             mc mb --ignore-existing localminio/trms-bucket;
-            mc anonymous set download localminio/trms-bucket;
+            mc anonymous set none localminio/trms-bucket;
+            mc mb --ignore-existing localminio/trms-public;
+            mc anonymous set download localminio/trms-public;
             exit 0;
             "
 
@@ -80,8 +85,8 @@ services:
             UPLOAD_LIMIT: 50M
             PMA_HOST: mysql-service
             PMA_PORT: 3306
-            PMA_USER: root
-            PMA_PASSWORD: root
+            PMA_USER: ${PMA_USER:-root}
+            PMA_PASSWORD: ${PMA_PASSWORD:-root}
         ports:
             - "9090:80"
 volumes:

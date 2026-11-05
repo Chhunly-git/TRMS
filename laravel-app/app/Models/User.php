@@ -235,7 +235,7 @@ class User extends Authenticatable
     }
 
     /**
-     * ទាញយក Full URL នៃ Signature Image (Safe Null Checking)
+     * ទាញយក Full URL នៃ Signature Image (Served securely via authorized route)
      */
     protected function signatureImage(): Attribute
     {
@@ -246,12 +246,7 @@ class User extends Authenticatable
                     return null;
                 }
 
-                try {
-                    $imageClass = ImageClassService::forUserModel();
-                    return $imageClass ? $imageClass->fullUrl($imagePath) : $imagePath;
-                } catch (\Throwable $e) {
-                    return $imagePath;
-                }
+                return url("/api/users/{$this->id}/signature-image");
             },
         );
     }
