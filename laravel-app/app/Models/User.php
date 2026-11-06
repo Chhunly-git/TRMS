@@ -291,7 +291,7 @@ class User extends Authenticatable
 
                 try {
                     $thumbnailPath = ImageClassService::forUserModel()->thumbnailPath($imagePath);
-                    if ($thumbnailPath) {
+                    if ($thumbnailPath && StorageService::exists($thumbnailPath)) {
                         return FileUrlService::signed($thumbnailPath, 30);
                     }
                 } catch (\Throwable $e) {

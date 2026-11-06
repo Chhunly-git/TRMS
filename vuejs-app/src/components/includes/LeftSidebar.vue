@@ -369,7 +369,7 @@ watch(
 
 // Restore profile and permissions on mount
 onMounted(async () => {
-  if (!userStore.id || !userStore.permissions || userStore.permissions.length === 0) {
+  if (userStore.getSanctumToken()) {
     try {
       const res = await apiGetMyProfile();
       const myData = res.data.user || res.data.data || res.data;
@@ -411,7 +411,13 @@ const getFullImageUrl = (path) => {
 };
 
 const onImageError = (event) => {
-  event.target.src = emptyImage;
+  const currentSrc = event.target.src;
+  const fallbackUrl = userStore.profile_image ? getFullImageUrl(userStore.profile_image) : null;
+  if (fallbackUrl && currentSrc !== fallbackUrl && currentSrc !== emptyImage) {
+    event.target.src = fallbackUrl;
+  } else {
+    event.target.src = emptyImage;
+  }
 };
 </script>
 

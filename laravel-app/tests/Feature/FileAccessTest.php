@@ -154,4 +154,43 @@ class FileAccessTest extends TestCase
         $fileResponse->assertStatus(200);
         $this->assertEquals('sig-png-content', $fileResponse->streamedContent());
     }
+
+    public function test_signin_returns_signed_profile_and_thumbnail_urls(): void
+    {
+        $profilePath = 'users/profile-images/my_profile.jpg';
+        $sigPath = 'users/signatures/my_sig.png';
+        Storage::disk(StorageService::diskName())->put($profilePath, 'my-profile-bytes');
+        Storage::disk(StorageService::diskName())->put($sigPath, 'my-sig-bytes');
+
+        $user = User::factory()->create([
+            'email' => 'officer@example.com',
+            'password' => bcrypt('Secret123!'),
+            'profile_image' => $profilePath,
+            'signature_image' => $sigPath,
+            'status' => 'ACTIVE',
+        ]);
+
+        $response = $this->postJson('/api/signin', [
+            'email' => 'officer@example.com',
+            'password' => 'Secret123!',
+        ]);
+
+        $response->assertStatus(200);
+        $userData = $response->json('user');
+
+        $this->assertNotNull($userData['profile_image']);
+        $this->assertStringContainsString('/api/files?', $userData['profile_image']);
+        $this->assertStringContainsString('signature=', $userData['profile_image']);
+
+        $this->assertNotNull($userData['profile_thumbnail']);
+        $this->assertStringContainsString('/api/files?', $userData['profile_thumbnail']);
+
+        $this->assertNotNull($userData['signature_image']);
+        $this->assertStringContainsString('/api/files?', $userData['signature_image']);
+
+        // Fetching the profile image using the returned signed URL works without Sanctum token
+        $imgRes = $this->get($userData['profile_image']);
+        $imgRes->assertStatus(200);
+        $this->assertEquals('my-profile-bytes', $imgRes->streamedContent());
+    }
 }

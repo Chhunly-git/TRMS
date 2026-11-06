@@ -49,6 +49,10 @@ class AuthController extends Controller
             ]);
         }
 
+        // កំណត់ User ទៅក្នុង Auth/Request context មុននឹង Serialize Resource ដើម្បីឱ្យ Signed URL Accessors ដំណើរការបាន
+        auth()->setUser($user);
+        $request->setUserResolver(fn() => $user);
+
         // បង្កើត Token ថ្មី
         $token = $user->createToken('auth_token')->plainTextToken;
 
