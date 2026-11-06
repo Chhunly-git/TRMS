@@ -180,6 +180,7 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::post('/{id}/review-action', [OutboundDocumentController::class, 'reviewAction']);
         Route::post('/{id}/recall', [OutboundDocumentController::class, 'recall']);
         Route::post('/{id}/reassign', [OutboundDocumentController::class, 'reassign']);
+        Route::post('/{id}/cancel', [OutboundDocumentController::class, 'cancel']);
         Route::get('/{id}/download-file', [OutboundDocumentController::class, 'downloadFile']);
         Route::get('/{id}/view-file', [OutboundDocumentController::class, 'viewFile']);
         Route::delete('/{id}', [OutboundDocumentController::class, 'destroy']);

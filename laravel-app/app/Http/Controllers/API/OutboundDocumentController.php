@@ -10,8 +10,10 @@ use App\Models\InboundDocumentResponse;
 use App\Models\InboundDocumentResponseApproval;
 use App\Models\InboundDocumentResponseRevision;
 use App\Models\User;
+use App\Services\DocumentNumberService;
 use App\Services\StorageService;
 use App\Services\TelegramService;
+use App\Services\WorkflowRecipientService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -76,79 +78,20 @@ class OutboundDocumentController extends Controller
             ->limit(100)
             ->get();
 
-        $recipientsQuery = User::whereNotIn('users.status', ['DISABLED', 'SUSPENDED'])
-            ->where('users.id', '!=', $user->id)
-            ->leftJoin('positions', 'users.position_id', '=', 'positions.id')
-            ->select('users.id', 'users.name', 'users.name_kh', 'users.email', 'users.position_id', 'users.department_id', 'users.office_id', 'users.profile_image')
-            ->with(['position:id,title_kh,title_en,level', 'department:id,name_kh', 'office:id,name_kh'])
-            ->orderByRaw('COALESCE(positions.level, 999) ASC')
-            ->orderBy('users.name_kh', 'ASC');
+        $recipients = WorkflowRecipientService::allowedRecipients($user);
 
-        // Check Workflow Setup for sending constraints
+        // Working groups that this user actively belongs to
+        $myWorkingGroups = $user->workingGroups()
+            ->wherePivot('status', 'ACTIVE')
+            ->select('working_groups.id', 'working_groups.name_kh', 'working_groups.code', 'working_groups.abbreviation_kh')
+            ->get();
+
         $config = DocumentWorkflowConfig::where('user_id', $user->id)->first();
-        if (!$isDg && $config) {
-            $sendType = $config->send_type ?? 'SUBORDINATES';
-            if ($sendType === 'CUSTOM') {
-                $recipientsQuery->where(function ($q) use ($config) {
-                    if (!empty($config->send_dept_ids)) {
-                        $q->orWhereIn('users.department_id', $config->send_dept_ids);
-                    }
-                    if (!empty($config->send_office_ids)) {
-                        $q->orWhereIn('users.office_id', $config->send_office_ids);
-                    }
-                    if (!empty($config->send_user_ids)) {
-                        $q->orWhereIn('users.id', $config->send_user_ids);
-                    }
-                    if (!empty($config->send_working_group_ids)) {
-                        $q->orWhereHas('workingGroups', function ($wgQ) use ($config) {
-                            $wgQ->whereIn('working_groups.id', $config->send_working_group_ids);
-                        });
-                    }
-                });
-            } elseif ($sendType === 'OFFICE' && $user->office_id) {
-                // Strictly within same office
-                $recipientsQuery->where('users.office_id', $user->office_id);
-            } elseif ($sendType === 'DEPARTMENT' && $user->department_id) {
-                // Strictly within same department
-                $recipientsQuery->where('users.department_id', $user->department_id);
-            } elseif ($sendType === 'SUBORDINATES') {
-                // Superiors in hierarchy or DG leadership
-                $recipientsQuery->where(function ($q) use ($user, $viewerPosLevel) {
-                    $q->where(function ($sub) use ($user, $viewerPosLevel) {
-                        $sub->where('positions.level', '<', $viewerPosLevel)
-                            ->where(function ($deptOrOff) use ($user) {
-                                if ($user->department_id) {
-                                    $deptOrOff->where('users.department_id', $user->department_id);
-                                }
-                                if ($user->office_id) {
-                                    $deptOrOff->orWhere('users.office_id', $user->office_id);
-                                }
-                            });
-                    })->orWhere('positions.level', '<=', 2);
-                });
-            }
-        } elseif (!$isDg) {
-            // Default when no config: superiors in hierarchy or DG leadership
-            $recipientsQuery->where(function ($q) use ($user, $viewerPosLevel) {
-                $q->where(function ($sub) use ($user, $viewerPosLevel) {
-                    $sub->where('positions.level', '<', $viewerPosLevel)
-                        ->where(function ($deptOrOff) use ($user) {
-                            if ($user->department_id) {
-                                $deptOrOff->where('users.department_id', $user->department_id);
-                            }
-                            if ($user->office_id) {
-                                $deptOrOff->orWhere('users.office_id', $user->office_id);
-                            }
-                        });
-                })->orWhere('positions.level', '<=', 2);
-            });
-        }
-
-        $recipients = $recipientsQuery->get()->filter(fn($u) => (int) $u->id !== (int) $user->id)->values();
 
         return response()->json([
             'inbound_documents' => $inboundDocs,
             'recipients' => $recipients,
+            'my_working_groups' => $myWorkingGroups,
             'my_workflow_config' => $config,
         ]);
     }
@@ -342,9 +285,32 @@ class OutboundDocumentController extends Controller
                 default => 'របាយការណ៍',
             };
 
+            $issuingUnitType = strtoupper($request->input('issuing_unit_type', 'DEPARTMENT'));
+            if (!in_array($issuingUnitType, ['DEPARTMENT', 'WORKING_GROUP'], true)) {
+                $issuingUnitType = 'DEPARTMENT';
+            }
+
+            $issuingUnitId = $viewer->department_id;
+            if ($issuingUnitType === 'WORKING_GROUP') {
+                $wgId = (int) $request->input('issuing_unit_id');
+                $isMember = DB::table('working_group_members')
+                    ->where('working_group_id', $wgId)
+                    ->where('user_id', $viewer->id)
+                    ->where('status', 'ACTIVE')
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+                if (!$isMember) {
+                    abort(403, 'លោកអ្នកមិនមែនជាសមាជិកសកម្មនៃក្រុមការងារនេះឡើយ!');
+                }
+                $issuingUnitId = $wgId;
+            }
+
             $createData = [
                 'inbound_document_id' => $inboundDocId,
                 'response_type' => $responseType,
+                'issuing_unit_type' => $issuingUnitType,
+                'issuing_unit_id' => $issuingUnitId,
                 'title' => $request->input('title'),
                 'header_organization' => $request->input('header_organization') ?: ($viewer->department?->name_kh ?? 'និយ័តករបរធនបាលកិច្ច'),
                 'reference_note' => $request->input('reference_note'),
@@ -395,6 +361,16 @@ class OutboundDocumentController extends Controller
 
             // Submit Upward Mode
             $targetReviewer = User::with('position')->findOrFail($request->input('forwarded_to_id'));
+
+            // Server-side validation of forward and non-head guard
+            $dummyResponse = new InboundDocumentResponse([
+                'issuing_unit_type' => $createData['issuing_unit_type'],
+                'issuing_unit_id' => $createData['issuing_unit_id'],
+                'department_id' => $createData['department_id'],
+                'number_seq' => null,
+            ]);
+            WorkflowRecipientService::validateForward($viewer, $targetReviewer, $dummyResponse);
+
             $reviewerLevel = $targetReviewer->position ? (int) $targetReviewer->position->level : 99;
 
             $stage = match (true) {
@@ -408,32 +384,6 @@ class OutboundDocumentController extends Controller
             $createData['current_approver_id'] = $targetReviewer->id;
             $createData['current_stage'] = $stage;
             $createData['submitted_at'] = Carbon::now();
-
-            // Assign department report number if forwarding beyond department upon creation
-            $docDeptId = $viewer->department_id;
-            $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $targetReviewer);
-            $assignedNotice = '';
-
-            if ($isLeaving) {
-                if ($request->filled('response_number')) {
-                    $customNum = trim($request->input('response_number'));
-                    $isDup = DB::table('inbound_document_responses')
-                        ->where('department_id', $docDeptId)
-                        ->whereYear('created_at', Carbon::now()->year)
-                        ->where('response_number', $customNum)
-                        ->exists();
-                    if ($isDup) {
-                        abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
-                    }
-                    $createData['response_number'] = $customNum;
-                    $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
-                } else {
-                    $gen = self::generateNextDepartmentReportNumber($docDeptId);
-                    $createData['response_number'] = $gen['full_number'];
-                    $createData['content'] = $this->injectNumberIntoContent($createData['content'], $gen['seq']);
-                    $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
-                }
-            }
 
             $resp = InboundDocumentResponse::create($createData);
 
@@ -464,7 +414,7 @@ class OutboundDocumentController extends Controller
                 'user_id' => $viewer->id,
                 'action' => 'SUBMIT',
                 'stage' => $viewerStage,
-                'comment' => ($request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}")) . $assignedNotice,
+                'comment' => $request->input('comment', "បានរៀបចំ និងដាក់ស្នើឆ្លង{$responseTypeKh}"),
                 'forwarded_to_id' => $targetReviewer->id,
             ]);
 
@@ -696,6 +646,8 @@ class OutboundDocumentController extends Controller
             // Submit / Forward Upward
             if ($request->filled('forwarded_to_id')) {
                 $targetReviewer = User::with('position')->findOrFail($request->input('forwarded_to_id'));
+                WorkflowRecipientService::validateForward($viewer, $targetReviewer, $response);
+
                 $reviewerLevel = $targetReviewer->position ? (int) $targetReviewer->position->level : 99;
 
                 $stage = match (true) {
@@ -704,33 +656,6 @@ class OutboundDocumentController extends Controller
                     $reviewerLevel <= 5 => 'DEPARTMENT',
                     default => 'OFFICE',
                 };
-
-                // Check if forwarding beyond department
-                $docDeptId = $response->department_id ?: $viewer->department_id;
-                $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $targetReviewer);
-                $assignedNotice = '';
-
-                if ($isLeaving && empty($response->response_number)) {
-                    if ($request->filled('response_number')) {
-                        $customNum = trim($request->input('response_number'));
-                        $isDup = DB::table('inbound_document_responses')
-                            ->where('department_id', $docDeptId)
-                            ->whereYear('created_at', Carbon::now()->year)
-                            ->where('response_number', $customNum)
-                            ->where('id', '!=', $response->id)
-                            ->exists();
-                        if ($isDup) {
-                            abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
-                        }
-                        $updateData['response_number'] = $customNum;
-                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
-                    } else {
-                        $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
-                        $updateData['response_number'] = $gen['full_number'];
-                        $updateData['content'] = $this->injectNumberIntoContent($updateData['content'] ?? $response->content, $gen['seq']);
-                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
-                    }
-                }
 
                 $updateData['status'] = 'UNDER_REVIEW';
                 $updateData['current_approver_id'] = $targetReviewer->id;
@@ -751,7 +676,7 @@ class OutboundDocumentController extends Controller
                     'user_id' => $viewer->id,
                     'action' => $isDrafter ? 'SUBMIT' : 'FORWARD',
                     'stage' => $viewerStage,
-                    'comment' => ($request->input('comment', "បានកែសម្រួល និងចារឆ្លងបន្ត{$responseTypeKh}")) . $assignedNotice,
+                    'comment' => $request->input('comment', "បានកែសម្រួល និងចារឆ្លងបន្ត{$responseTypeKh}"),
                     'forwarded_to_id' => $targetReviewer->id,
                 ]);
 
@@ -927,6 +852,10 @@ class OutboundDocumentController extends Controller
             }
             if ($action === 'FORWARD') {
                 $nextReviewer = User::with('position')->findOrFail($request->input('forwarded_to_id'));
+
+                // Server-side validation of forward and non-head guard
+                WorkflowRecipientService::validateForward($viewer, $nextReviewer, $response);
+
                 $reviewerLevel = $nextReviewer->position ? (int) $nextReviewer->position->level : 99;
 
                 $nextStage = match (true) {
@@ -943,38 +872,15 @@ class OutboundDocumentController extends Controller
                     default => 'OFFICE',
                 };
 
+                // Single Trigger: Assign number if Unit Head forwards outside issuing unit
+                $assignedNumber = DocumentNumberService::assign($response, $viewer, $nextReviewer);
+                $assignedNotice = $assignedNumber ? " (បានចុះលេខផ្លូវការ៖ {$assignedNumber})" : '';
+
                 $updateFields = [
                     'current_approver_id' => $nextReviewer->id,
                     'current_stage' => $nextStage,
                     'status' => 'UNDER_REVIEW',
                 ];
-
-                // Check if forwarding beyond department
-                $docDeptId = $response->department_id ?: $viewer->department_id;
-                $isLeaving = $this->isForwardingBeyondDepartment($docDeptId, $nextReviewer);
-                $assignedNotice = '';
-
-                if ($isLeaving && empty($response->response_number)) {
-                    if ($request->filled('response_number')) {
-                        $customNum = trim($request->input('response_number'));
-                        $isDup = DB::table('inbound_document_responses')
-                            ->where('department_id', $docDeptId)
-                            ->whereYear('created_at', Carbon::now()->year)
-                            ->where('response_number', $customNum)
-                            ->where('id', '!=', $response->id)
-                            ->exists();
-                        if ($isDup) {
-                            abort(422, "លេខរបាយការណ៍ «{$customNum}» មានរួចហើយនៅក្នុងនាយកដ្ឋាននេះ មិនអាចដាក់ស្ទួនគ្នាបានឡើយ!");
-                        }
-                        $updateFields['response_number'] = $customNum;
-                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$customNum})";
-                    } else {
-                        $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
-                        $updateFields['response_number'] = $gen['full_number'];
-                        $updateFields['content'] = $this->injectNumberIntoContent($response->content, $gen['seq']);
-                        $assignedNotice = " (បានចុះលេខរបាយការណ៍៖ {$gen['full_number']})";
-                    }
-                }
 
                 $response->update($updateFields);
 
@@ -1040,18 +946,7 @@ class OutboundDocumentController extends Controller
                     abort(403, 'មានតែឯកឧត្តមអគ្គនាយកទេ ទើបមានសិទ្ធិឯកភាពលើលិខិតឆ្លើយតបនេះបាន!');
                 }
 
-                $docDeptId = $response->department_id ?: $viewer->department_id;
-                $responseNumber = $request->input('response_number') ?: $response->response_number;
-
-                if (empty($responseNumber)) {
-                    $gen = self::generateNextDepartmentReportNumber($docDeptId, $response->id);
-                    $responseNumber = $gen['full_number'];
-                    $response->content = $this->injectNumberIntoContent($response->content, $gen['seq']);
-                }
-
                 $response->update([
-                    'response_number' => $responseNumber,
-                    'content' => $response->content,
                     'status' => 'APPROVED_BY_DG',
                     'current_stage' => 'COMPLETED',
                     'approved_at' => Carbon::now(),
@@ -1064,7 +959,7 @@ class OutboundDocumentController extends Controller
                     'user_id' => $viewer->id,
                     'action' => 'DG_APPROVE',
                     'stage' => 'COMPLETED',
-                    'comment' => $comment ?: "ឯកឧត្តមអគ្គនាយកបានពិនិត្យ និងឯកភាព" . ($responseNumber ? " (លេខចេញ៖ {$responseNumber})" : ""),
+                    'comment' => $comment ?: "ឯកឧត្តមអគ្គនាយកបានពិនិត្យ និងឯកភាព" . ($response->response_number ? " (លេខចេញ៖ {$response->response_number})" : ""),
                 ]);
 
                 // IF LINKED TO INBOUND DOCUMENT: AUTO COMPLETE THE INBOUND DOCUMENT
@@ -1131,6 +1026,10 @@ class OutboundDocumentController extends Controller
 
         if ($response->status !== 'UNDER_REVIEW') {
             return response()->json(['message' => 'អាចទាញយកមកវិញបានតែលិខិតដែលកំពុងស្ថិតក្នុងការពិនិត្យប៉ុណ្ណោះ!'], 400);
+        }
+
+        if ($response->number_seq !== null) {
+            return response()->json(['message' => 'មិនអាចទាញយកឯកសារដែលបានចុះលេខផ្លូវការរួចហើយត្រឡប់ទៅជាសេចក្តីព្រាង (DRAFT) វិញបានឡើយ!'], 409);
         }
 
         // If admin is recalling on behalf of drafter, require audit reason
@@ -1234,6 +1133,10 @@ class OutboundDocumentController extends Controller
         $viewer = $request->user();
         $response = InboundDocumentResponse::findOrFail($id);
 
+        if ($response->number_seq !== null) {
+            return response()->json(['message' => 'មិនអាចលុបឯកសារដែលបានចុះលេខផ្លូវការរួចហើយបានឡើយ!'], 409);
+        }
+
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
         if ((int) $response->drafted_by !== (int) $viewer->id && !$isAdmin) {
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបលិខិតនេះឡើយ!'], 403);
@@ -1314,122 +1217,51 @@ class OutboundDocumentController extends Controller
     }
 
     /**
-     * ស្វែងរកអក្សរកាត់នាយកដ្ឋានសម្រាប់កន្ទុយលេខឯកសារ (e.g. ន.ប.ធ./ច.ប.ច.)
+     * Admin Cancel Response (Preserves sequence number and audit history)
      */
-    public static function getDepartmentAbbreviation($departmentId)
+    public function cancel($id, Request $request)
     {
-        if (!$departmentId) {
-            return 'ន.ក.ទ.';
-        }
-        $dept = DB::table('departments')->find($departmentId);
-        if (!$dept) {
-            return 'ន.ក.ទ.';
-        }
-        $code = strtoupper($dept->code ?? '');
-        $name = $dept->name_kh ?? '';
-
-        if ($departmentId == 2 || $code === 'TRC' || str_contains($name, 'ចុះបញ្ជីបរធនបាលកិច្ច')) {
-            return 'ច.ប.ច.';
-        }
-        if ($departmentId == 1 || $code === 'GAD' || str_contains($name, 'កិច្ចការទូទៅ')) {
-            return 'ន.ក.ទ.';
-        }
-        if ($departmentId == 3 || $code === 'LID' || str_contains($name, 'កិច្ចការគតិយុត្ត') || str_contains($name, 'អធិការកិច្ច')) {
-            return 'គ.អ.';
-        }
-        if ($departmentId == 4 || $code === 'TRCD' || str_contains($name, 'ស្រាវជ្រាវ') || str_contains($name, 'សហប្រតិបត្តិការ')) {
-            return 'ស.ប.ស.';
+        $viewer = $request->user();
+        $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
+        if (!$isAdmin) {
+            return response()->json(['message' => 'មានតែ Admin ប៉ុណ្ណោះដែលអាចលុបចោលឯកសារផ្លូវការបាន!'], 403);
         }
 
-        return 'ន.ក.ទ.';
-    }
-
-    /**
-     * បង្កើតលេខរបាយការណ៍បន្ទាប់សម្រាប់នាយកដ្ឋាន ដោយធានាមិនឱ្យស្ទួនគ្នាដាច់ខាត (Unique per department per year)
-     */
-    public static function generateNextDepartmentReportNumber($departmentId, $excludeId = null)
-    {
-        $year = Carbon::now()->year;
-        $deptAbbr = self::getDepartmentAbbreviation($departmentId);
-
-        // Lock existing records for this department in current year to prevent concurrency collisions
-        $existingNumbers = DB::table('inbound_document_responses')
-            ->where('department_id', $departmentId)
-            ->whereYear('created_at', $year)
-            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
-            ->whereNotNull('response_number')
-            ->where('response_number', '!=', '')
-            ->lockForUpdate()
-            ->pluck('response_number');
-
-        $maxSeq = 0;
-        foreach ($existingNumbers as $num) {
-            if (preg_match('/^(\d+)/', trim($num), $matches)) {
-                $seqVal = (int) $matches[1];
-                if ($seqVal > $maxSeq) {
-                    $maxSeq = $seqVal;
-                }
-            }
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|min:5',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        $nextSeq = $maxSeq + 1;
-        $paddedSeq = sprintf('%03d', $nextSeq);
-        $fullNumber = "{$paddedSeq} ន.ប.ធ./{$deptAbbr}";
+        $response = InboundDocumentResponse::findOrFail($id);
 
-        return [
-            'seq' => $paddedSeq,
-            'abbr' => $deptAbbr,
-            'full_number' => $fullNumber,
-        ];
-    }
+        return DB::transaction(function () use ($response, $viewer, $request) {
+            $viewerName = $viewer->name_kh ?: $viewer->name;
+            $reason = $request->input('reason');
+            $numLabel = $response->response_number ? "លេខ «{$response->response_number}» " : '';
 
-    /**
-     * ពិនិត្យមើលថាតើការបញ្ជូននេះ គឺបញ្ជូនផុតពីនាយកដ្ឋានដែរឬទេ
-     * (ផុតពីនាយកដ្ឋាន៖ បញ្ជូនទៅឯកឧត្តមអគ្គនាយក ឬអគ្គនាយករង (level <= 2) ឬបញ្ជូនទៅនាយកដ្ឋានផ្សេង)
-     */
-    protected function isForwardingBeyondDepartment($docDepartmentId, $targetReviewer)
-    {
-        if (!$targetReviewer) {
-            return false;
-        }
+            $response->update([
+                'status' => 'CANCELLED',
+                'current_approver_id' => null,
+            ]);
 
-        $reviewerLevel = $targetReviewer->position ? (int) $targetReviewer->position->level : 99;
+            InboundDocumentResponseApproval::create([
+                'response_id' => $response->id,
+                'user_id' => $viewer->id,
+                'action' => 'CANCEL',
+                'stage' => $response->current_stage,
+                'comment' => "Admin ({$viewerName}) បានលុបចោលឯកសារ {$numLabel}ដោយមូលហេតុ៖ {$reason}",
+            ]);
 
-        // 1. បញ្ជូនទៅថ្នាក់ដឹកនាំ (អគ្គនាយក ឬអគ្គនាយករង level <= 2)
-        if ($reviewerLevel <= 2) {
-            return true;
-        }
-
-        // 2. បញ្ជូនទៅកាន់នាយកដ្ឋានផ្សេង
-        if ($targetReviewer->department_id && $docDepartmentId && (int) $targetReviewer->department_id !== (int) $docDepartmentId) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * អាប់ដេតលេខរបាយការណ៍ចូលក្នុង Content HTML
-     */
-    protected function injectNumberIntoContent($content, $seqNumber)
-    {
-        if (empty($content)) {
-            return $content;
-        }
-
-        // Replace span placeholder <span class="doc-number-input"...>.......</span>
-        $patternSpan = '/(<span class="doc-number-input"[^>]*>)([\s\S]*?)(<\/span>)/i';
-        if (preg_match($patternSpan, $content)) {
-            return preg_replace($patternSpan, '${1}' . $seqNumber . '${3}', $content);
-        }
-
-        // Fallback: លេខ៖ ....... ន.ប.ធ.
-        $patternFallback = '/(លេខ៖\s*)([\.\s]+)(\s*ន\.ប\.ធ\.)/u';
-        if (preg_match($patternFallback, $content)) {
-            return preg_replace($patternFallback, '${1}' . $seqNumber . ' ${3}', $content);
-        }
-
-        return $content;
+            return response()->json([
+                'message' => 'បានលុបចោលឯកសារដោយជោគជ័យ និងរក្សាលេខលំដាប់ឯកសារ!',
+                'data' => $response->fresh(),
+            ]);
+        });
     }
 
     /**

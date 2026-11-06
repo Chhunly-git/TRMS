@@ -17,6 +17,7 @@ class WorkingGroup extends Model
         'name_kh',
         'name_en',
         'code',
+        'abbreviation_kh',
         'reference_document',
         'established_date',
         'description',

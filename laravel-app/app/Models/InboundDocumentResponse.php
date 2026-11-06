@@ -20,6 +20,11 @@ class InboundDocumentResponse extends Model
         'inbound_document_id',
         'response_type',
         'response_number',
+        'number_seq',
+        'number_year',
+        'number_suffix',
+        'issuing_unit_type',
+        'issuing_unit_id',
         'title',
         'header_organization',
         'reference_note',
@@ -42,6 +47,8 @@ class InboundDocumentResponse extends Model
     protected $casts = [
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
+        'number_seq' => 'integer',
+        'number_year' => 'integer',
     ];
 
     protected $appends = [
@@ -68,6 +75,11 @@ class InboundDocumentResponse extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function workingGroup(): BelongsTo
+    {
+        return $this->belongsTo(WorkingGroup::class, 'issuing_unit_id');
     }
 
     public function office(): BelongsTo

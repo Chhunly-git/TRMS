@@ -17,7 +17,7 @@ class ReviewActionLockTest extends TestCase
 
     public function test_review_action_fails_if_document_already_forwarded_or_approved(): void
     {
-        $dept = Department::create(['code' => 'D1', 'name_kh' => 'នាយកដ្ឋាន ១', 'name_en' => 'Dept 1']);
+        $dept = Department::create(['code' => 'D1', 'name_kh' => 'នាយកដ្ឋាន ១', 'name_en' => 'Dept 1', 'abbreviation_kh' => 'ន.១']);
 
         $directorPos = Position::create(['title_kh' => 'ប្រធាននាយកដ្ឋាន', 'title_en' => 'Director', 'level' => 3]);
         $dgPos = Position::create(['title_kh' => 'អគ្គនាយក', 'title_en' => 'DG', 'level' => 1]);
@@ -78,7 +78,7 @@ class ReviewActionLockTest extends TestCase
 
     public function test_review_action_fails_when_status_is_not_under_review(): void
     {
-        $dept = Department::create(['code' => 'D1', 'name_kh' => 'នាយកដ្ឋាន ១', 'name_en' => 'Dept 1']);
+        $dept = Department::create(['code' => 'D1', 'name_kh' => 'នាយកដ្ឋាន ១', 'name_en' => 'Dept 1', 'abbreviation_kh' => 'ន.១']);
         $directorPos = Position::create(['title_kh' => 'ប្រធាននាយកដ្ឋាន', 'title_en' => 'Director', 'level' => 3]);
 
         $drafter = User::factory()->create([
