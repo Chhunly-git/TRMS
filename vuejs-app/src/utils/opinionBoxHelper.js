@@ -25,6 +25,25 @@ export const sanitizeUrl = (url) => {
   return escapeHtml(s);
 };
 
+/**
+ * Extract relative file path from signed URL or legacy bucket URL if it points to users/signatures/.
+ */
+export const extractFilePathFromUrl = (url) => {
+  if (!url) return '';
+  const match = String(url).match(/(?:[?&]path=|\/trms-bucket\/)([^&"'>\s]+)/i);
+  if (match) {
+    try {
+      const decoded = decodeURIComponent(match[1]);
+      if (decoded.startsWith('users/signatures/')) {
+        return escapeHtml(decoded);
+      }
+    } catch {
+      return '';
+    }
+  }
+  return '';
+};
+
 export const toKhmerNum = (num) => {
   return String(num).split('').map(c => KHMER_DIGITS[c] || c).join('');
 };
@@ -64,9 +83,11 @@ export const generateDraggableOpinionBoxHtml = ({
   const safeOwnerId = escapeHtml(ownerId);
   const safeSigUrl = sanitizeUrl(signatureUrl);
   const safeWidth = Number(width) > 0 ? Number(width) : 240;
+  const filePath = extractFilePathFromUrl(signatureUrl);
+  const dataPathAttr = filePath ? ` data-file-path="${filePath}"` : '';
 
   const sigHtml = safeSigUrl
-    ? `<img src="${safeSigUrl}" alt="ហត្ថលេខា" style="height: 48px; max-width: 170px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+    ? `<img src="${safeSigUrl}"${dataPathAttr} alt="ហត្ថលេខា" style="height: 48px; max-width: 170px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
     : `<span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 18pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 2px 14px; letter-spacing: 1px; display: inline-block;">${safeReviewerName}</span>`;
 
   return `

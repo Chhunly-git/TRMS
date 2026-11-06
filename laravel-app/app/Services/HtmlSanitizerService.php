@@ -11,7 +11,8 @@ class HtmlSanitizerService
 
     /**
      * Sanitize HTML content with a strict allowlist.
-     * Restricts CSS properties, removes data: URIs, removes external images, and strips XSS vectors.
+     * Restricts CSS properties, removes data: URIs, removes external images, and strips XSS vectors,
+     * while preserving document editor attributes (data-draggable, data-owner-id, data-file-path).
      */
     public static function clean(?string $dirtyHtml): ?string
     {
@@ -30,12 +31,15 @@ class HtmlSanitizerService
             $config->set('Core.Encoding', 'UTF-8');
             $config->set('Cache.SerializerPath', $cacheDir);
 
+            $config->set('HTML.DefinitionID', 'trms-html-purifier');
+            $config->set('HTML.DefinitionRev', 1);
+
             // Allowed HTML elements and attributes
             $allowedHtml = implode(',', [
                 'p[style|class|id|dir]',
                 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'sub', 'sup',
-                'span[style|class|id]',
-                'div[style|class|id]',
+                'span[style|class|id|data-handle]',
+                'div[style|class|id|data-draggable|data-owner-id|data-signer-name]',
                 'h1[style|class]', 'h2[style|class]', 'h3[style|class]',
                 'h4[style|class]', 'h5[style|class]', 'h6[style|class]',
                 'hr', 'br',
@@ -46,7 +50,7 @@ class HtmlSanitizerService
                 'th[style|class|colspan|rowspan|width]',
                 'td[style|class|colspan|rowspan|width]',
                 'blockquote[style|class]', 'pre[style|class]', 'code[style|class]',
-                'img[src|alt|title|width|height|style|class]',
+                'img[src|alt|title|width|height|style|class|data-file-path]',
             ]);
             $config->set('HTML.Allowed', $allowedHtml);
 
@@ -73,6 +77,15 @@ class HtmlSanitizerService
             $appHost = parse_url(config('app.url', 'http://localhost:8000'), PHP_URL_HOST) ?: 'localhost';
             $config->set('URI.Host', $appHost);
             $config->set('URI.DisableExternalResources', true);
+
+            // Register custom HTML5 data-* attributes (MUST occur after all $config->set calls)
+            if ($def = $config->maybeGetRawHTMLDefinition()) {
+                $def->addAttribute('div', 'data-draggable', 'Text');
+                $def->addAttribute('div', 'data-owner-id', 'Text');
+                $def->addAttribute('div', 'data-signer-name', 'Text');
+                $def->addAttribute('span', 'data-handle', 'Text');
+                $def->addAttribute('img', 'data-file-path', 'Text');
+            }
 
             self::$purifier = new HTMLPurifier($config);
         }

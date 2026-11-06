@@ -430,6 +430,7 @@ import {
   setupDraggableOpinionBoxes,
   escapeHtml,
   sanitizeUrl,
+  extractFilePathFromUrl,
 } from '@/utils/opinionBoxHelper';
 
 const userStore = useUserStore();
@@ -669,11 +670,13 @@ const getDrafterSignatureHtml = () => {
   const officer = escapeHtml(props.officerName || '.....................................');
   const pos = escapeHtml(props.officerPosition || 'អ្នកធ្វើរបាយការណ៍');
   const signatureUrl = sanitizeUrl(props.officerSignature || '');
+  const drafterFilePath = extractFilePathFromUrl(props.officerSignature || '');
+  const drafterDataAttr = drafterFilePath ? ` data-file-path="${drafterFilePath}"` : '';
   const dateStr = getCurrentKhmerDateString();
 
   const signatureImgHtml = signatureUrl
     ? `<div style="text-align: center; margin: 4px 0 2px 0;">
-         <img src="${signatureUrl}" alt="ហត្ថលេខា" style="height: 60px; max-width: 190px; object-fit: contain; display: inline-block;" />
+         <img src="${signatureUrl}"${drafterDataAttr} alt="ហត្ថលេខា" style="height: 60px; max-width: 190px; object-fit: contain; display: inline-block;" />
        </div>`
     : `<div class="digital-signature-placeholder" style="text-align: center; margin: 4px 0 2px 0; min-height: 52px; display: flex; align-items: center; justify-content: center;">
          <span style="font-family: 'Brush Script MT', 'Segoe Script', cursive, serif; font-size: 20pt; color: #002060; font-weight: bold; border-bottom: 1.5px dashed #002060; padding: 2px 20px; letter-spacing: 1px; display: inline-block;">
@@ -867,9 +870,11 @@ const getReviewBlockHtml = (approvalsList = []) => {
     const reviewerPos = escapeHtml(app.user?.position?.title_kh || app.stage_kh || 'ថ្នាក់ដឹកនាំ');
     const isDg = (app.action === 'DG_APPROVE' || app.stage === 'DG');
     const reviewerSig = sanitizeUrl(app.user?.signature_image || '');
+    const reviewerFilePath = extractFilePathFromUrl(app.user?.signature_image || '');
+    const reviewerDataAttr = reviewerFilePath ? ` data-file-path="${reviewerFilePath}"` : '';
     const reviewerSigHtml = reviewerSig
       ? `<div style="text-align: right; margin: 4px 0 2px auto;">
-           <img src="${reviewerSig}" alt="ហត្ថលេខា" style="height: 55px; max-width: 160px; object-fit: contain; display: inline-block;" />
+           <img src="${reviewerSig}"${reviewerDataAttr} alt="ហត្ថលេខា" style="height: 55px; max-width: 160px; object-fit: contain; display: inline-block;" />
          </div>`
       : `<div style="height: 35px;"></div>`;
 

@@ -85,6 +85,7 @@ class HtmlSanitizerTest extends TestCase
         $this->assertStringNotContainsString('data:image', $rawContent);
         $this->assertStringNotContainsString('external.com', $rawContent);
         $this->assertStringContainsString('Valid text', $rawContent);
-        $this->assertStringContainsString('/api/files?path=users/signatures/local.png', $rawContent);
+        $this->assertStringContainsString('data-file-path="users/signatures/local.png"', $rawContent);
+        $this->assertStringNotContainsString('/api/files', $rawContent);
     }
 }

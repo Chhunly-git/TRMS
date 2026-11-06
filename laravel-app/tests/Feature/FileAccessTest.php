@@ -9,6 +9,7 @@ use App\Services\FileUrlService;
 use App\Services\StorageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
@@ -116,18 +117,26 @@ class FileAccessTest extends TestCase
 
         $legacyHtml = '<p>អត្ថបទ</p><img src="http://localhost:9000/trms-bucket/' . $sigFile . '" alt="ហត្ថលេខា" />';
 
-        $author = User::factory()->create(['level' => 'OFFICER', 'status' => 'ACTIVE']);
+        $author = User::factory()->create([
+            'level' => 'OFFICER',
+            'status' => 'ACTIVE',
+            'signature_image' => $sigFile,
+        ]);
 
-        $doc = InboundDocumentResponse::create([
+        $docId = DB::table('inbound_document_responses')->insertGetId([
             'title' => 'លិខិតចាស់',
             'content' => $legacyHtml,
             'drafted_by' => $author->id,
             'status' => 'DRAFT',
             'current_stage' => 'OFFICE',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
+        $doc = InboundDocumentResponse::find($docId);
+
         // 1. Raw DB content MUST remain completely unchanged
-        $rawContent = $doc->getRawOriginal('content');
+        $rawContent = DB::table('inbound_document_responses')->where('id', $docId)->value('content');
         $this->assertEquals($legacyHtml, $rawContent);
 
         // 2. Accessor content MUST return rewritten signed URL
