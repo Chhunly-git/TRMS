@@ -51,6 +51,41 @@ class HtmlSanitizerTest extends TestCase
         $this->assertStringNotContainsString('attacker.com', $clean);
     }
 
+    public function test_html_sanitizer_preserves_opinion_box_position_and_offsets(): void
+    {
+        $dirty = '<div class="draggable-opinion-box" data-draggable="true" data-owner-id="5" data-offset-x="45" data-offset-y="-15" style="width: 240px;">Opinion Box</div>';
+        $clean = HtmlSanitizerService::clean($dirty);
+
+        $this->assertStringContainsString('data-offset-x="45"', $clean);
+        $this->assertStringContainsString('data-offset-y="-15"', $clean);
+        $this->assertStringContainsString('data-draggable="true"', $clean);
+    }
+
+    public function test_html_sanitizer_preserves_composer_document_markers(): void
+    {
+        $dirty = '<div class="lc-doc" data-doc-v="2" data-doc-type="REPORT">'
+            . '<div class="lc-header" data-region="header">'
+            . '<span data-sys="doc-number">.......</span>'
+            . '<img src="/logo.png" alt="Logo" class="lc-logo">'
+            . '</div>'
+            . '<table class="lc-subj" data-region="subject">'
+            . '<tr><td class="lc-lbl">កម្មវត្ថុ</td><td data-field="subject">របាយការណ៍ស្តីពីការងារ</td></tr>'
+            . '</table>'
+            . '<div class="lc-body" data-region="body"><p>ខ្លឹមសាររបាយការណ៍</p></div>'
+            . '</div>';
+
+        $clean = HtmlSanitizerService::clean($dirty);
+
+        $this->assertStringContainsString('data-doc-v="2"', $clean);
+        $this->assertStringContainsString('data-doc-type="REPORT"', $clean);
+        $this->assertStringContainsString('data-region="header"', $clean);
+        $this->assertStringContainsString('data-sys="doc-number"', $clean);
+        $this->assertStringContainsString('data-region="subject"', $clean);
+        $this->assertStringContainsString('data-field="subject"', $clean);
+        $this->assertStringContainsString('data-region="body"', $clean);
+        $this->assertStringContainsString('src="/logo.png"', $clean);
+    }
+
     public function test_content_save_via_api_automatically_sanitizes_html(): void
     {
         $dept = Department::create(['code' => 'D1', 'name_kh' => 'នាយកដ្ឋាន ១', 'name_en' => 'Dept 1']);

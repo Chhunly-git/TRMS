@@ -17,6 +17,7 @@ class InboundDocumentResponse extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'format_version',
         'inbound_document_id',
         'response_type',
         'response_number',
@@ -25,9 +26,18 @@ class InboundDocumentResponse extends Model
         'number_suffix',
         'issuing_unit_type',
         'issuing_unit_id',
+        'recipient_type',
+        'recipient_text',
         'title',
         'header_organization',
         'reference_note',
+        'references',
+        'closing_phrase_1',
+        'closing_phrase_2',
+        'body_html',
+        'lunar_date_kh',
+        'solar_date_kh',
+        'content_hash',
         'content',
         'sign_title',
         'sign_name',
@@ -45,6 +55,8 @@ class InboundDocumentResponse extends Model
     ];
 
     protected $casts = [
+        'format_version' => 'integer',
+        'references' => 'array',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'number_seq' => 'integer',
@@ -105,6 +117,28 @@ class InboundDocumentResponse extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(InboundDocumentResponseRevision::class, 'response_id')->orderBy('revision_number', 'asc');
+    }
+
+    public function opinionPlacements(): HasMany
+    {
+        return $this->hasMany(ResponseOpinionPlacement::class, 'response_id')->orderBy('order_seq', 'asc');
+    }
+
+    public function computeContentHash(): string
+    {
+        $payload = [
+            'format_version' => $this->format_version ?? 2,
+            'response_type' => $this->response_type,
+            'title' => trim($this->title ?? ''),
+            'recipient_type' => $this->recipient_type ?? 'INTERNAL',
+            'recipient_text' => trim($this->recipient_text ?? ''),
+            'references' => is_array($this->references) ? array_values($this->references) : [],
+            'closing_phrase_1' => trim($this->closing_phrase_1 ?? ''),
+            'closing_phrase_2' => trim($this->closing_phrase_2 ?? ''),
+            'body_html' => trim($this->body_html ?? ''),
+        ];
+
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE));
     }
 
     protected function statusKh(): Attribute

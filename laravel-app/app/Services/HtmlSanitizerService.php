@@ -32,23 +32,23 @@ class HtmlSanitizerService
             $config->set('Cache.SerializerPath', $cacheDir);
 
             $config->set('HTML.DefinitionID', 'trms-html-purifier');
-            $config->set('HTML.DefinitionRev', 1);
+            $config->set('HTML.DefinitionRev', 2);
 
             // Allowed HTML elements and attributes
             $allowedHtml = implode(',', [
                 'p[style|class|id|dir]',
                 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'sub', 'sup',
-                'span[style|class|id|data-handle]',
-                'div[style|class|id|data-draggable|data-owner-id|data-signer-name]',
+                'span[style|class|id|data-handle|data-sys]',
+                'div[style|class|id|data-draggable|data-owner-id|data-signer-name|data-offset-x|data-offset-y|data-placement|data-region|data-field|data-doc-v|data-doc-type]',
                 'h1[style|class]', 'h2[style|class]', 'h3[style|class]',
                 'h4[style|class]', 'h5[style|class]', 'h6[style|class]',
                 'hr', 'br',
                 'ul[style|class]', 'ol[style|class]', 'li[style|class]',
-                'table[style|class|border|cellpadding|cellspacing|width]',
+                'table[style|class|border|cellpadding|cellspacing|width|data-region]',
                 'thead[style|class]', 'tbody[style|class]', 'tfoot[style|class]',
                 'tr[style|class]',
-                'th[style|class|colspan|rowspan|width]',
-                'td[style|class|colspan|rowspan|width]',
+                'th[style|class|colspan|rowspan|width|data-field]',
+                'td[style|class|colspan|rowspan|width|data-field]',
                 'blockquote[style|class]', 'pre[style|class]', 'code[style|class]',
                 'img[src|alt|title|width|height|style|class|data-file-path]',
             ]);
@@ -83,7 +83,18 @@ class HtmlSanitizerService
                 $def->addAttribute('div', 'data-draggable', 'Text');
                 $def->addAttribute('div', 'data-owner-id', 'Text');
                 $def->addAttribute('div', 'data-signer-name', 'Text');
+                $def->addAttribute('div', 'data-offset-x', 'Text');
+                $def->addAttribute('div', 'data-offset-y', 'Text');
+                $def->addAttribute('div', 'data-placement', 'Text');
+                $def->addAttribute('div', 'data-region', 'Text');
+                $def->addAttribute('div', 'data-field', 'Text');
+                $def->addAttribute('div', 'data-doc-v', 'Text');
+                $def->addAttribute('div', 'data-doc-type', 'Text');
                 $def->addAttribute('span', 'data-handle', 'Text');
+                $def->addAttribute('span', 'data-sys', 'Text');
+                $def->addAttribute('table', 'data-region', 'Text');
+                $def->addAttribute('td', 'data-field', 'Text');
+                $def->addAttribute('th', 'data-field', 'Text');
                 $def->addAttribute('img', 'data-file-path', 'Text');
             }
 

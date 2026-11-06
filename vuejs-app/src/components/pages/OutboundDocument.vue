@@ -488,6 +488,10 @@
                   :officer-signature="userStore.signature_image || ''"
                   :approvals="currentEditingApprovals"
                   :is-approver="isApproverEditing"
+                  :document-number="currentEditingDoc?.response_number || ''"
+                  :department-abbr="currentEditingDoc?.department?.code || userStore.department?.code || ''"
+                  :logo-url="'/logo.png'"
+                  :footer-html="''"
                 />
               </div>
 

@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\KhmerDateHelper;
 use App\Models\DocumentWorkflowConfig;
 use App\Models\InboundDocument;
 use App\Models\InboundDocumentMovement;
 use App\Models\InboundDocumentResponse;
 use App\Models\InboundDocumentResponseApproval;
 use App\Models\InboundDocumentResponseRevision;
+use App\Models\ResponseOpinionPlacement;
 use App\Models\User;
 use App\Services\DocumentNumberService;
+use App\Services\DocumentRenderService;
 use App\Services\StorageService;
 use App\Services\TelegramService;
 use App\Services\WorkflowRecipientService;
@@ -244,9 +247,18 @@ class OutboundDocumentController extends Controller
         $rules = [
             'inbound_document_id' => 'nullable|exists:inbound_documents,id',
             'response_type' => 'required|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'format_version' => 'nullable|integer|in:1,2',
+            'recipient_type' => 'nullable|string|in:INTERNAL,EXTERNAL',
+            'recipient_text' => 'nullable|string|max:500',
             'title' => 'required|string|max:500',
             'header_organization' => 'nullable|string|max:255',
             'reference_note' => 'nullable|string',
+            'references' => 'nullable|array',
+            'closing_phrase_1' => 'nullable|string',
+            'closing_phrase_2' => 'nullable|string',
+            'body_html' => 'nullable|string',
+            'lunar_date_kh' => 'nullable|string|max:255',
+            'solar_date_kh' => 'nullable|string|max:255',
             'content' => 'nullable|string',
             'sign_title' => 'nullable|string|max:255',
             'sign_name' => 'nullable|string|max:255',
@@ -306,14 +318,29 @@ class OutboundDocumentController extends Controller
                 $issuingUnitId = $wgId;
             }
 
+            $formatVersion = (int) $request->input('format_version', 1);
+            $bodyHtml = $request->input('body_html');
+            if ($bodyHtml) {
+                $bodyHtml = \App\Services\FileUrlService::normalizeContentForStorage($bodyHtml);
+            }
+
             $createData = [
+                'format_version' => $formatVersion,
                 'inbound_document_id' => $inboundDocId,
                 'response_type' => $responseType,
                 'issuing_unit_type' => $issuingUnitType,
                 'issuing_unit_id' => $issuingUnitId,
+                'recipient_type' => $request->input('recipient_type', 'INTERNAL'),
+                'recipient_text' => $request->input('recipient_text') ?: 'ឯកឧត្តមអគ្គនាយក នៃនិយ័តករបរធនបាលកិច្ច',
                 'title' => $request->input('title'),
                 'header_organization' => $request->input('header_organization') ?: ($viewer->department?->name_kh ?? 'និយ័តករបរធនបាលកិច្ច'),
                 'reference_note' => $request->input('reference_note'),
+                'references' => $request->input('references'),
+                'closing_phrase_1' => $request->input('closing_phrase_1') ?: 'សេចក្តីដូចបានគោរពរាយការណ៍ជូនខាងលើ សូម ឯកឧត្តមអគ្គនាយក មេត្តាពិនិត្យ និងផ្តល់ការណែនាំដ៏ខ្ពង់ខ្ពស់។',
+                'closing_phrase_2' => $request->input('closing_phrase_2') ?: 'សូម ឯកឧត្តមអគ្គនាយក មេត្តាទទួលនូវការគោរពដ៏ខ្ពង់ខ្ពស់អំពីខ្ញុំ។',
+                'body_html' => $bodyHtml,
+                'lunar_date_kh' => $request->input('lunar_date_kh') ?: KhmerDateHelper::getDefaultLunarDateString(),
+                'solar_date_kh' => $request->input('solar_date_kh') ?: KhmerDateHelper::toKhmerSolarDate(),
                 'content' => $request->input('content'),
                 'sign_title' => $request->input('sign_title') ?: ($viewer->position?->title_kh ?? 'មន្ត្រី'),
                 'sign_name' => $request->input('sign_name') ?: ($viewer->name_kh ?? $viewer->name),
@@ -323,6 +350,14 @@ class OutboundDocumentController extends Controller
                 'file_path' => $filePath,
                 'file_name' => $fileName,
             ];
+
+            $dummyResponse = new InboundDocumentResponse($createData);
+            $createData['content_hash'] = $dummyResponse->computeContentHash();
+
+            // If content is empty but structured body_html is provided, generate content for backward compatibility
+            if (empty($createData['content']) && !empty($createData['body_html'])) {
+                $createData['content'] = (new DocumentRenderService())->renderHtml($dummyResponse);
+            }
 
             if ($isDraft) {
                 $createData['status'] = 'DRAFT';
@@ -501,7 +536,12 @@ class OutboundDocumentController extends Controller
             $response->load(['revisions.user:id,name,name_kh,position_id', 'revisions.user.position:id,title_kh,level']);
         }
 
-        return response()->json(['data' => $response]);
+        $renderService = new DocumentRenderService();
+        $responseArray = $response->toArray();
+        $responseArray['rendered_html'] = $renderService->renderHtml($response);
+        $responseArray['opinion_slots'] = $renderService->getOpinionsData($response);
+
+        return response()->json(['data' => $responseArray]);
     }
 
     /**
@@ -531,9 +571,18 @@ class OutboundDocumentController extends Controller
         $rules = [
             'inbound_document_id' => 'nullable|exists:inbound_documents,id',
             'response_type' => 'required|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'format_version' => 'nullable|integer|in:1,2',
+            'recipient_type' => 'nullable|string|in:INTERNAL,EXTERNAL',
+            'recipient_text' => 'nullable|string|max:500',
             'title' => 'required|string|max:500',
             'header_organization' => 'nullable|string|max:255',
             'reference_note' => 'nullable|string',
+            'references' => 'nullable|array',
+            'closing_phrase_1' => 'nullable|string',
+            'closing_phrase_2' => 'nullable|string',
+            'body_html' => 'nullable|string',
+            'lunar_date_kh' => 'nullable|string|max:255',
+            'solar_date_kh' => 'nullable|string|max:255',
             'content' => 'nullable|string',
             'sign_title' => 'nullable|string|max:255',
             'sign_name' => 'nullable|string|max:255',
@@ -579,7 +628,7 @@ class OutboundDocumentController extends Controller
 
             $updateData = [
                 'response_type' => $responseType,
-                'title' => $request->input('title'),
+                'title' => $request->input('title', $response->title),
                 'header_organization' => $request->input('header_organization', $response->header_organization),
                 'reference_note' => $request->input('reference_note', $response->reference_note),
                 'content' => $request->input('content', $response->content),
@@ -588,6 +637,43 @@ class OutboundDocumentController extends Controller
                 'file_path' => $filePath,
                 'file_name' => $fileName,
             ];
+
+            if ($request->has('format_version')) {
+                $updateData['format_version'] = (int) $request->input('format_version');
+            }
+            if ($request->has('recipient_type')) {
+                $updateData['recipient_type'] = $request->input('recipient_type');
+            }
+            if ($request->has('recipient_text')) {
+                $updateData['recipient_text'] = $request->input('recipient_text');
+            }
+            if ($request->has('references')) {
+                $updateData['references'] = $request->input('references');
+            }
+            if ($request->has('closing_phrase_1')) {
+                $updateData['closing_phrase_1'] = $request->input('closing_phrase_1');
+            }
+            if ($request->has('closing_phrase_2')) {
+                $updateData['closing_phrase_2'] = $request->input('closing_phrase_2');
+            }
+            if ($request->has('body_html')) {
+                $bodyHtml = $request->input('body_html');
+                $updateData['body_html'] = $bodyHtml ? \App\Services\FileUrlService::normalizeContentForStorage($bodyHtml) : null;
+            }
+            if ($request->has('lunar_date_kh')) {
+                $updateData['lunar_date_kh'] = $request->input('lunar_date_kh');
+            }
+            if ($request->has('solar_date_kh')) {
+                $updateData['solar_date_kh'] = $request->input('solar_date_kh');
+            }
+
+            $dummyModel = clone $response;
+            $dummyModel->fill($updateData);
+            $updateData['content_hash'] = $dummyModel->computeContentHash();
+
+            if (!empty($updateData['body_html']) && ($dummyModel->format_version ?? 1) === 2) {
+                $updateData['content'] = (new DocumentRenderService())->renderHtml($dummyModel);
+            }
 
             if ($request->has('inbound_document_id')) {
                 $updateData['inbound_document_id'] = $request->input('inbound_document_id') ? (int) $request->input('inbound_document_id') : null;
@@ -743,7 +829,17 @@ class OutboundDocumentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'content' => 'required|string',
+            'content' => 'nullable|string',
+            'body_html' => 'nullable|string',
+            'format_version' => 'nullable|integer',
+            'title' => 'nullable|string|max:500',
+            'recipient_type' => 'nullable|string|in:INTERNAL,EXTERNAL',
+            'recipient_text' => 'nullable|string|max:500',
+            'references' => 'nullable|array',
+            'closing_phrase_1' => 'nullable|string',
+            'closing_phrase_2' => 'nullable|string',
+            'lunar_date_kh' => 'nullable|string',
+            'solar_date_kh' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -753,10 +849,46 @@ class OutboundDocumentController extends Controller
             ], 422);
         }
 
-        $newContent = $request->input('content');
+        DB::transaction(function () use ($response, $viewer, $isDrafter, $request) {
+            $isStructured = $request->has('body_html') || ($response->format_version === 2 && $request->has('references'));
 
-        DB::transaction(function () use ($response, $viewer, $isDrafter, $newContent) {
-            $response->content = $newContent;
+            if ($isStructured) {
+                $response->format_version = (int) $request->input('format_version', 2);
+                if ($request->has('title')) {
+                    $response->title = $request->input('title');
+                }
+                if ($request->has('recipient_type')) {
+                    $response->recipient_type = $request->input('recipient_type');
+                }
+                if ($request->has('recipient_text')) {
+                    $response->recipient_text = $request->input('recipient_text');
+                }
+                if ($request->has('references')) {
+                    $response->references = $request->input('references');
+                }
+                if ($request->has('closing_phrase_1')) {
+                    $response->closing_phrase_1 = $request->input('closing_phrase_1');
+                }
+                if ($request->has('closing_phrase_2')) {
+                    $response->closing_phrase_2 = $request->input('closing_phrase_2');
+                }
+                if ($request->has('body_html')) {
+                    $bodyHtml = $request->input('body_html');
+                    $response->body_html = $bodyHtml ? \App\Services\FileUrlService::normalizeContentForStorage($bodyHtml) : null;
+                }
+                if ($request->has('lunar_date_kh')) {
+                    $response->lunar_date_kh = $request->input('lunar_date_kh');
+                }
+                if ($request->has('solar_date_kh')) {
+                    $response->solar_date_kh = $request->input('solar_date_kh');
+                }
+
+                $response->content_hash = $response->computeContentHash();
+                $response->content = (new DocumentRenderService())->renderHtml($response);
+            } else {
+                $response->content = $request->input('content');
+            }
+
             $response->save();
 
             $latestRevNum = InboundDocumentResponseRevision::where('response_id', $response->id)->max('revision_number') ?: 1;
@@ -771,17 +903,140 @@ class OutboundDocumentController extends Controller
                 'title' => $response->title,
                 'header_organization' => $response->header_organization,
                 'reference_note' => $response->reference_note,
-                'content' => $newContent,
+                'content' => $response->content,
                 'sign_title' => $response->sign_title,
                 'sign_name' => $response->sign_name,
                 'change_summary' => $summary,
             ]);
         });
 
+        $renderService = new DocumentRenderService();
+
         return response()->json([
             'message' => 'បានរក្សាទុកទីតាំង និងខ្លឹមសារឯកសារដោយជោគជ័យ!',
             'content' => $response->content,
+            'body_html' => $response->body_html,
+            'format_version' => $response->format_version,
+            'rendered_html' => $renderService->renderHtml($response),
         ]);
+    }
+
+    /**
+     * Get opinion placement slots for a document.
+     */
+    public function getOpinionSlots($id)
+    {
+        $doc = InboundDocumentResponse::with(['draftedByUser.position', 'department', 'office'])->findOrFail($id);
+        $renderService = new DocumentRenderService();
+        $opinions = $renderService->getOpinionsData($doc);
+
+        $occupiedSlots = array_column($opinions, 'slot');
+        $allAllowedSlots = ['OPINION_LEFT_1', 'OPINION_LEFT_2', 'OPINION_LEFT_3', 'OPINION_LEFT_4', 'OPINION_LEFT_5', 'OPINION_LEFT_6'];
+        $vacantSlots = array_values(array_diff($allAllowedSlots, $occupiedSlots));
+
+        return response()->json([
+            'drafter_block' => [
+                'user_id' => $doc->drafted_by,
+                'name_kh' => $doc->draftedByUser?->name_kh ?? $doc->draftedByUser?->name,
+                'role_title' => $doc->sign_title ?? $doc->draftedByUser?->position?->title_kh ?? 'មន្ត្រី',
+                'is_locked' => true,
+                'slot' => 'DRAFTER_RIGHT',
+                'description' => 'ទីតាំងកាលបរិច្ឆេទ និងហត្ថលេខារបស់អ្នកបង្កើតរបាយការណ៍ត្រូវបានរក្សាទុកជាអចិន្ត្រៃយ៍ មិនអាចជំនួសបានឡើយ',
+            ],
+            'opinions' => $opinions,
+            'vacant_slots' => $vacantSlots,
+        ]);
+    }
+
+    /**
+     * Drag-and-drop update of an opinion box placement.
+     */
+    public function updateOpinionPlacement($id, Request $request)
+    {
+        $viewer = $request->user();
+        $doc = InboundDocumentResponse::findOrFail($id);
+
+        // 1. Hard Guard: Cannot modify completed document
+        if (in_array($doc->status, ['COMPLETED', 'CANCELLED'], true)) {
+            return response()->json([
+                'message' => 'ឯកសារត្រូវបានអនុម័តចប់សព្វគ្រប់រួចរាល់ មិនអាចកែប្រែទីតាំងបានឡើយ'
+            ], 422);
+        }
+
+        $request->validate([
+            'approval_id' => 'required|exists:inbound_document_response_approvals,id',
+            'target_slot' => 'required|string',
+        ]);
+
+        $approval = InboundDocumentResponseApproval::where('response_id', $doc->id)
+            ->where('id', $request->input('approval_id'))
+            ->firstOrFail();
+
+        // 2. Ownership check: Can only move own box
+        if ((int) $approval->user_id !== (int) $viewer->id) {
+            return response()->json([
+                'message' => 'លោកអ្នកអាចរើបានតែប្រអប់មតិផ្ទាល់ខ្លួនប៉ុណ្ណោះ!'
+            ], 403);
+        }
+
+        $targetSlot = $request->input('target_slot');
+
+        // 3. Hard Guard: Drafter Area is strictly prohibited
+        $allowedLeaderSlots = ['OPINION_LEFT_1', 'OPINION_LEFT_2', 'OPINION_LEFT_3', 'OPINION_LEFT_4', 'OPINION_LEFT_5', 'OPINION_LEFT_6'];
+        if ($targetSlot === 'DRAFTER_AREA' || $targetSlot === 'DRAFTER_RIGHT' || !in_array($targetSlot, $allowedLeaderSlots, true)) {
+            return response()->json([
+                'message' => 'ទីតាំងកាលបរិច្ឆេទ និងហត្ថលេខារបស់អ្នកបង្កើតរបាយការណ៍ត្រូវបានរក្សាទុកជាអចិន្ត្រៃយ៍ មិនអាចជំនួសបានឡើយ'
+            ], 422);
+        }
+
+        // 4. Check if target slot is occupied by another approval
+        $conflict = ResponseOpinionPlacement::where('response_id', $doc->id)
+            ->where('slot', $targetSlot)
+            ->where('approval_id', '!=', $approval->id)
+            ->exists();
+
+        if ($conflict) {
+            return response()->json([
+                'message' => 'Slot នេះត្រូវបានកាន់កាប់ដោយប្រអប់មតិយោបល់ផ្សេងទៀតរួចហើយ!'
+            ], 409);
+        }
+
+        // 5. Update or create placement
+        $placement = ResponseOpinionPlacement::firstOrNew([
+            'response_id' => $doc->id,
+            'approval_id' => $approval->id,
+        ]);
+
+        $history = $placement->movement_history ?? [];
+        $history[] = [
+            'from' => $placement->slot,
+            'to' => $targetSlot,
+            'moved_at' => now()->toIso8601String(),
+            'user_id' => $viewer->id,
+        ];
+
+        $placement->user_id = $viewer->id;
+        $placement->slot = $targetSlot;
+        $placement->movement_history = $history;
+        $placement->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានផ្លាស់ប្តូរទីតាំងប្រអប់មតិយោបល់ដោយជោគជ័យ!',
+            'placement' => $placement,
+        ]);
+    }
+
+    /**
+     * Get standalone rendered HTML for viewing or printing.
+     */
+    public function getRenderedHtml($id)
+    {
+        $doc = InboundDocumentResponse::findOrFail($id);
+        $renderService = new DocumentRenderService();
+
+        return response($renderService->renderHtml($doc))
+            ->header('Content-Type', 'text/html; charset=utf-8');
     }
 
     /**

@@ -225,6 +225,20 @@ export const setupDraggableOpinionBoxes = (containerEl, onDragEnd, options = {})
       box.style.verticalAlign = 'top';
       box.style.margin = '0';
 
+      // Restore position from data-offset-x and data-offset-y
+      const attrX = box.getAttribute('data-offset-x');
+      const attrY = box.getAttribute('data-offset-y');
+      if (attrX !== null || attrY !== null) {
+        const posX = parseFloat(attrX) || 0;
+        const posY = parseFloat(attrY) || 0;
+        box.style.position = 'relative';
+        box.style.left = `${posX}px`;
+        box.style.top = `${posY}px`;
+      } else if (box.style.left || box.style.top) {
+        box.setAttribute('data-offset-x', String(parseFloat(box.style.left) || 0));
+        box.setAttribute('data-offset-y', String(parseFloat(box.style.top) || 0));
+      }
+
       // 2. Remove any old (ហត្ថលេខា)
       box.querySelectorAll('*').forEach(el => {
         if (el.textContent.trim() === '(ហត្ថលេខា)') {
@@ -258,11 +272,9 @@ export const setupDraggableOpinionBoxes = (containerEl, onDragEnd, options = {})
       const signerName = box.getAttribute('data-signer-name') || 'ថ្នាក់ដឹកនាំ';
       const isOwner = !ownerId || (currentUserId && Number(ownerId) === Number(currentUserId));
       
-      // CAN MOVE ONLY IF:
-      // - user is owner or admin
-      // - AND document is currently in hand (canMoveOpt !== false && canEdit !== false)
-      const canMove = (isOwner || isAdmin) && (canMoveOpt !== false) && (canEdit !== false);
-      const canEditContent = isOwner && (canEdit !== false) && (canMoveOpt !== false);
+      // CAN MOVE: Anyone editing the document can move/reposition boxes to fit the layout nicely
+      const canMove = (canMoveOpt !== false) && (canEdit !== false);
+      const canEditContent = (isOwner || isAdmin || !ownerId) && (canEdit !== false) && (canMoveOpt !== false);
 
       const dateEl = box.querySelector('.opinion-box-date');
 
@@ -415,9 +427,13 @@ export const setupDraggableOpinionBoxes = (containerEl, onDragEnd, options = {})
     }
 
     if (isDragging) {
+      const finalLeft = Math.round(origLeft + dx);
+      const finalTop = Math.round(origTop + dy);
       activeEl.style.position = 'relative';
-      activeEl.style.left = `${origLeft + dx}px`;
-      activeEl.style.top = `${origTop + dy}px`;
+      activeEl.style.left = `${finalLeft}px`;
+      activeEl.style.top = `${finalTop}px`;
+      activeEl.setAttribute('data-offset-x', String(finalLeft));
+      activeEl.setAttribute('data-offset-y', String(finalTop));
     }
   };
 

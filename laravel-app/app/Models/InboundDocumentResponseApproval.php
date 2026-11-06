@@ -20,6 +20,9 @@ class InboundDocumentResponseApproval extends Model
         'attachment_path',
         'attachment_name',
         'forwarded_to_id',
+        'signature_snapshot_path',
+        'signature_snapshot_hash',
+        'content_hash',
     ];
 
     protected $appends = [
@@ -40,6 +43,11 @@ class InboundDocumentResponseApproval extends Model
     public function forwardedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'forwarded_to_id');
+    }
+
+    public function placement(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ResponseOpinionPlacement::class, 'approval_id');
     }
 
     protected function actionKh(): Attribute

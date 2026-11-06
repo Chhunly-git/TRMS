@@ -177,6 +177,9 @@ Route::middleware(['auth:sanctum', 'enabled'])->group(function () {
         Route::get('/{id}', [OutboundDocumentController::class, 'show']);
         Route::match(['PUT', 'POST'], '/{id}', [OutboundDocumentController::class, 'update']);
         Route::patch('/{id}/content', [OutboundDocumentController::class, 'updateContent']);
+        Route::get('/{id}/opinion-slots', [OutboundDocumentController::class, 'getOpinionSlots']);
+        Route::patch('/{id}/opinion-placement', [OutboundDocumentController::class, 'updateOpinionPlacement']);
+        Route::get('/{id}/rendered-html', [OutboundDocumentController::class, 'getRenderedHtml']);
         Route::post('/{id}/review-action', [OutboundDocumentController::class, 'reviewAction']);
         Route::post('/{id}/recall', [OutboundDocumentController::class, 'recall']);
         Route::post('/{id}/reassign', [OutboundDocumentController::class, 'reassign']);

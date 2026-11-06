@@ -64,3 +64,16 @@ export function getOutboundFileDownloadUrl(id) {
 export function getOutboundFileViewUrl(id) {
   return `${APP_API_URL}/outbound-documents/${id}/view-file${getAuthTokenQuery()}`;
 }
+
+// 10. Structured Composer v2 API Endpoints
+export function apiGetOpinionSlots(id) {
+  return axios.get(`${APP_API_URL}/outbound-documents/${id}/opinion-slots`);
+}
+
+export function apiUpdateOpinionPlacement(id, data) {
+  return axios.patch(`${APP_API_URL}/outbound-documents/${id}/opinion-placement`, data);
+}
+
+export function apiGetRenderedHtml(id) {
+  return axios.get(`${APP_API_URL}/outbound-documents/${id}/rendered-html`);
+}
