@@ -3181,6 +3181,14 @@ class InboundDocumentController extends Controller
             return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបឯកសារនេះឡើយ!'], 403);
         }
 
+        // មិនអនុញ្ញាតឱ្យលុបឯកសារចូលណាដែលមានលិខិតឆ្លើយតបឡើយ (ការពារសុចរិតភាពទិន្នន័យឯកសារ)
+        if ($doc->responses()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចលុបឯកសារចូលនេះបានទេ ដោយសារមានលិខិតឆ្លើយតបរួចហើយ!'
+            ], 409);
+        }
+
         return DB::transaction(function () use ($doc) {
             // Soft delete assignments & responses
             $doc->assignments()->delete();

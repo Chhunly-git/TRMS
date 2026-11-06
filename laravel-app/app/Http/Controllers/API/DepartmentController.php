@@ -68,6 +68,14 @@ class DepartmentController extends Controller
     public function deleteDepartment($id)
     {
         $department = Department::findOrFail($id);
+
+        if ($department->offices()->exists() || $department->users()->exists() || \App\Models\InboundDocumentResponse::where('department_id', $id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចលុបនាយកដ្ឋាននេះបានទេ ដោយសារមានការិយាល័យ បុគ្គលិក ឬឯកសារកំពុងប្រើប្រាស់!'
+            ], 409);
+        }
+
         $department->delete();
 
         return response()->json([

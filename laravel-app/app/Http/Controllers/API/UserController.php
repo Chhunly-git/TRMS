@@ -620,31 +620,13 @@ class UserController extends Controller
     {
         $user = User::where('id', $request->route('id'))->firstOrFail();
 
-        try {
-            DB::beginTransaction();
-
-            // លុបរូបភាពពី Storage ពេលលុប User
-            $rawProfile = $user->getRawOriginal('profile_image');
-            if ($rawProfile) {
-                StorageService::delete($rawProfile);
-                $thumb = str_replace('users/profile-images/', 'users/profile-images/thumbnails/', $rawProfile);
-                StorageService::delete($thumb);
-            }
-
-            $user->tokens()->delete();
-            $user->delete();
-            DB::commit();
-        } catch (Exception $e) {
-            DB::rollBack();
-            return response([
-                'success' => false,
-                'message' => 'មានបញ្ហាក្នុងការលុបទិន្នន័យ'
-            ], 500);
-        }
+        // ផ្លាស់ប្តូរការលុបទៅជាការផ្អាកដំណើរការ (Deactivation) ដើម្បីរក្សាប្រវត្តិឯកសារ និងសុចរិតភាព Foreign Keys
+        $user->update(['status' => 'INACTIVE']);
+        $user->tokens()->delete();
 
         return response([
             'success' => true,
-            'message' => 'ទិន្នន័យត្រូវបានលុបដោយជោគជ័យ។'
+            'message' => 'គណនីអ្នកប្រើប្រាស់ត្រូវបានផ្អាកដំណើរការ (Deactivated) ដោយជោគជ័យ ដើម្បីរក្សាប្រវត្តិឯកសារ។'
         ], 200);
     }
 
