@@ -1475,8 +1475,8 @@
               <div class="review-paper-scroll" style="max-height: 62vh; overflow-y: auto; background-color: #525659; padding: 20px; border-radius: 6px; display: flex; justify-content: center;">
                 <div
                   ref="responseReviewPositionPaperRef"
-                  class="review-position-paper bg-white shadow-lg"
-                  style="width: 210mm; min-height: 297mm; padding: 25mm 20mm 20mm 25mm; box-sizing: border-box; position: relative;"
+                  :class="['review-position-paper bg-white shadow-lg', { 'lc-doc': isResponseReviewV2 }]"
+                  :style="responseReviewPositionPaperStyle"
                   v-html="responseReviewWorkingHtml"
                 ></div>
               </div>
@@ -2595,6 +2595,7 @@ import axios from 'axios';
 import { useUserStore } from '@/stores/user';
 import SignatureModal from '@/components/common/SignatureModal.vue';
 import WordEditor from '@/components/common/WordEditor.vue';
+import { DOC_CSS, DOC_VERSION_MARK, extractDocNumberPrefix } from '@/utils/letterComposer';
 import DocumentTrackingFlowModal from '@/components/common/DocumentTrackingFlowModal.vue';
 import { getMovementDuration, getApprovalDuration } from '@/utils/durationHelper';
 import {
@@ -4919,6 +4920,30 @@ const openReviewResponseModal = async (doc) => {
   }
 };
 
+const isResponseReviewV2 = computed(() => (responseReviewWorkingHtml.value || '').includes(DOC_VERSION_MARK));
+
+const responseReviewPositionPaperStyle = computed(() => (
+  isResponseReviewV2.value
+    ? {
+        width: '794px',
+        minHeight: '1123px',
+        padding: '38px 57px 56px 76px',
+        boxSizing: 'border-box',
+        position: 'relative',
+        fontFamily: "'Khmer OS Siemreap', 'Siemreap', sans-serif",
+        fontSize: '12pt',
+        lineHeight: '1.95',
+        color: '#111',
+      }
+    : {
+        width: '210mm',
+        minHeight: '297mm',
+        padding: '25mm 20mm 20mm 25mm',
+        boxSizing: 'border-box',
+        position: 'relative',
+      }
+));
+
 const setupResponseReviewPositionDraggable = () => {
   if (cleanupResponseReviewDraggable) {
     cleanupResponseReviewDraggable();
@@ -4926,10 +4951,24 @@ const setupResponseReviewPositionDraggable = () => {
   }
   if (!responseReviewPositionPaperRef.value) return;
 
+  if (isResponseReviewV2.value) {
+    let s = document.getElementById('lc-doc-css');
+    if (!s) {
+      s = document.createElement('style');
+      s.id = 'lc-doc-css';
+      document.head.appendChild(s);
+    }
+    s.textContent = DOC_CSS;
+    const numText = extractDocNumberPrefix(selectedResponse.value?.response_number) || '.......................';
+    responseReviewPositionPaperRef.value.querySelectorAll('[data-sys="doc-number"]').forEach((el) => {
+      el.textContent = numText;
+    });
+  }
+
   cleanupResponseReviewDraggable = setupDraggableOpinionBoxes(
     responseReviewPositionPaperRef.value,
     () => {},
-    { currentUserId: userStore.id, isAdmin: isDg.value, canEdit: true }
+    { currentUserId: userStore.id, canEdit: true }
   );
 
   // Auto-select the newly added box so handles are visible immediately
@@ -5723,10 +5762,24 @@ onMounted(() => {
 /* Draggable Leadership Opinion Box & Handles */
 :deep(.draggable-opinion-box) {
   position: relative;
+  display: inline-block !important;
+  box-sizing: border-box !important;
   border: 1px dashed transparent !important;
   background: transparent !important;
   vertical-align: top !important;
   transition: box-shadow 0.15s ease;
+}
+
+:deep(.opinion-boxes-row) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 8px 14px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  clear: both !important;
+  box-sizing: border-box !important;
 }
 
 :deep(.draggable-opinion-box:hover),

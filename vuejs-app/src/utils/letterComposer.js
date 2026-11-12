@@ -22,13 +22,23 @@ const KH = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'
 export const toKhmerNum = (v) => String(v).replace(/[0-9]/g, (d) => KH[+d]);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/** Strip trailing " ន.ប.ធ./..." when displaying inside the letterhead number slot so the suffix is never duplicated. */
+export function extractDocNumberPrefix(value) {
+  const s = String(value == null ? '' : value).trim();
+  if (!s) return '';
+  const stripped = s.replace(/\s*ន\.ប\.ធ\.\/.*$/, '').trim();
+  return stripped || s;
+}
+
 // ---------------------------------------------------------------------------
 // Document CSS (injected once into <head>; also used by print and Word export)
 // ---------------------------------------------------------------------------
 export const DOC_CSS = `
-.lc-doc{font-family:'Khmer OS Siemreap','Siemreap',sans-serif;font-size:12pt;line-height:1.95;color:#111;}
-.lc-doc .moul,.lc-doc .lc-moul{font-family:'Khmer OS Muol Light','Moul',serif;font-weight:normal;}
-.lc-doc .lc-green{color:#1a8a3a;}
+.lc-doc,.lc-doc p,.lc-doc li,.lc-doc td,.lc-doc th,.lc-doc span,.lc-doc div{font-family:'Khmer OS Siemreap','Siemreap',sans-serif!important;}
+.lc-doc{font-size:12pt;line-height:1.95;color:#111;}
+.lc-doc .lc-header div,.lc-doc .lc-header span,.lc-doc .lc-subj td,.lc-doc .lc-doc-title,.lc-doc .lc-recipient,.lc-doc .lc-recipient div,.lc-doc .lc-body,.lc-doc .lc-body p,.lc-doc .lc-body li,.lc-doc .lc-body span,.lc-doc .lc-body td,.lc-doc .lc-body th,.lc-doc .lc-closing,.lc-doc .lc-closing p,.lc-doc .lc-closing span,.lc-doc .drafter-signature-table td:last-child>div:not(.digital-signature-placeholder),.lc-doc .lc-page-num{font-size:12pt!important;}
+.lc-doc .moul,.lc-doc .lc-moul,.lc-doc .lc-moul div,.lc-doc .lc-moul p,.lc-doc .lc-recipient,.lc-doc .lc-recipient div,.lc-doc .lc-recipient p,.lc-doc td.lc-lbl,.lc-doc .drafter-signature-table td:last-child>div:not([data-field]):not(.digital-signature-placeholder),.lc-doc .opinion-box-signer{font-family:'Khmer OS Muol Light','Moul',serif!important;font-weight:normal!important;}
+.lc-doc .lc-green{color:#1a8a3a!important;}
 .lc-sheet{position:absolute;left:0;top:0;width:${PAGE_W}px;min-height:${PAGE_H}px;box-sizing:border-box;padding:${PAD_T}px ${PAD_R}px ${PAD_B}px ${PAD_L}px;background:#fff;transform-origin:top left;outline:none;}
 .lc-measure-sheet{position:absolute;left:-10000px;top:0;width:${PAGE_W}px;box-sizing:border-box;padding:${PAD_T}px ${PAD_R}px 0 ${PAD_L}px;visibility:hidden;}
 .lc-measure{position:absolute;left:-10000px;top:0;visibility:hidden;}
@@ -36,45 +46,54 @@ export const DOC_CSS = `
 .lc-page{position:absolute;left:0;top:0;width:${PAGE_W}px;height:${PAGE_H}px;background:#fff;overflow:hidden;transform-origin:top left;}
 .lc-page-inner{position:absolute;left:${PAD_L}px;right:${PAD_R}px;top:${PAD_T}px;}
 .lc-page-footer{position:absolute;left:34px;right:34px;bottom:${FOOT_BOTTOM}px;}
-.lc-page-num{position:absolute;left:0;right:0;text-align:center;font-size:11pt;color:#222;}
+.lc-page-num{position:absolute;left:0;right:0;text-align:center;font-size:12pt;color:#222;}
 .lc-blk{display:flow-root;}
 /* letterhead */
-.lc-header{margin:-16px -13px 6px -24px;}
-.lc-lh{display:grid;grid-template-columns:32% 44% 24%;align-items:start;}
+.lc-header{margin:-14px -10px 8px -29px;}
+.lc-lh{display:grid;grid-template-columns:minmax(0,32%) minmax(0,36%) minmax(0,32%);align-items:start;}
 .lc-lh-l{text-align:center;}
 .lc-lh-c{text-align:center;}
-.lc-logo{width:118px;height:auto;display:inline-block;}
-.lc-k1{font-size:13pt;line-height:1.9;}
+.lc-logo{width:112px;height:auto;display:inline-block;}
+.lc-k1{font-size:12pt;line-height:1.9;}
 .lc-k2{font-size:12pt;line-height:1.8;}
-.lc-orn{font-size:10pt;letter-spacing:3px;line-height:1.4;}
-.lc-org{font-size:11pt;line-height:1.9;}
-.lc-num{font-size:10.5pt;border-bottom:1.5px solid #1a8a3a;display:inline-block;padding:0 2px;white-space:nowrap;line-height:1.8;}
-.lc-recipient{padding-top:12px;font-size:12pt;line-height:2;}
-.lc-doc-title{text-align:center;font-size:15pt;margin:6px 0 10px;}
+.lc-orn{font-size:12pt;letter-spacing:3px;line-height:1.4;}
+.lc-org{font-size:12pt;line-height:1.85;white-space:nowrap;}
+.lc-num{font-size:12pt;border-bottom:1.5px solid #1a8a3a;display:inline-block;padding:0 4px;white-space:nowrap;line-height:1.8;}
+.lc-recipient{margin:8px auto 4px;text-align:center;font-size:12pt;line-height:1.95;}
+.lc-doc-title{text-align:center;font-size:12pt;margin:6px 0 10px;}
 .lc-letter-to{margin:0 0 12px 45%;line-height:2;}
 /* subject & references */
 .lc-subj{width:100%;border-collapse:collapse;margin:2px 0 10px;}
-.lc-subj td{vertical-align:top;padding:0 0 2px;border:none;}
-.lc-subj td.lc-lbl{width:88px;white-space:nowrap;font-family:'Khmer OS Muol Light','Moul',serif;font-size:11.5pt;}
+.lc-subj td{vertical-align:top!important;padding:0 4px 3px 4px!important;border:none!important;}
+.lc-subj td.lc-lbl{width:96px;padding-left:0!important;white-space:nowrap;font-size:12pt;}
 .lc-ref::before{content:"- ";}
 /* body & closing */
-.lc-body p,.lc-closing p{margin:0 0 4px;text-align:justify;text-indent:72px;}
+.lc-body p,.lc-closing p{margin:0 0 4px;text-align:left;text-indent:72px;}
 .lc-body ul,.lc-body ol{margin:0 0 2px;padding-left:100px;}
-.lc-body li{text-align:justify;}
+.lc-body li{text-align:left;}
 .lc-body table{border-collapse:collapse;width:100%;margin:6px 0 10px;line-height:1.6;}
 .lc-body td,.lc-body th{border:1px solid #333;padding:4px 8px;vertical-align:top;text-indent:0;}
 .lc-closing{margin-top:6px;}
 .lc-doc .drafter-signature-table{margin-top:10px!important;margin-bottom:10px!important;}
+.lc-doc .draggable-opinion-box,.lc-page .draggable-opinion-box{display:inline-block!important;vertical-align:top!important;box-sizing:border-box!important;}
+.lc-doc .opinion-boxes-row,.lc-page .opinion-boxes-row,.opinion-boxes-row{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-items:flex-start!important;gap:8px 14px!important;width:100%!important;margin-top:8px!important;clear:both!important;box-sizing:border-box!important;}
+.lc-page .box-handle,.lc-page .opinion-box-actions{display:none!important;}
+.lc-page .draggable-opinion-box{outline:none!important;box-shadow:none!important;cursor:default!important;}
 /* editing affordances (only while editing; never printed) */
 .lc-editing [data-field],.lc-editing [data-region="body"]{outline:1.5px dashed transparent;outline-offset:3px;border-radius:3px;transition:outline-color .12s,background-color .12s;}
 .lc-editing [data-field]:hover,.lc-editing [data-region="body"]:hover{outline-color:#8cc3a1;background:#f6fbf7;}
 .lc-editing [data-field]:focus,.lc-editing [data-region="body"]:focus{outline:1.5px solid #2457c5;background:#f5f8ff;}
 .lc-editing [data-field]:empty::before{content:attr(data-ph);color:#9aa4b2;}
-.lc-editing [data-region="header"]:hover,.lc-editing .drafter-signature-table td:last-child:hover{background:rgba(110,120,140,.07);border-radius:4px;cursor:default;}
-@media (prefers-reduced-motion:reduce){.lc-editing [data-field],.lc-editing [data-region="body"]{transition:none;}}
-@page{size:A4;margin:0;}
-@media print{.lc-print .lc-page-wrap{width:210mm!important;height:297mm!important;box-shadow:none;break-after:page;}
-.lc-print .lc-page-wrap:last-child{break-after:auto;}.lc-print .lc-page{transform:none!important;}}
+.lc-editing [data-sys="doc-number"]{outline:1px dashed rgba(26,138,58,.45);outline-offset:1px;border-radius:3px;min-width:48px;display:inline-block;padding:0 3px;cursor:text;transition:outline-color .12s,background-color .12s;}
+.lc-editing [data-sys="doc-number"]:hover{outline-color:#1a8a3a;background:#f0fdf4;}
+.lc-editing [data-sys="doc-number"]:focus{outline:1.5px solid #2457c5;background:#f5f8ff;color:#111;}
+.lc-editing [data-sys="doc-number"]:empty::before{content:attr(data-ph);color:#9aa4b2;}
+.lc-editing [data-region="header"]:hover,.lc-editing .drafter-signature-table td:last-child:hover{background:rgba(110,120,140,.05);border-radius:4px;cursor:default;}
+@media (prefers-reduced-motion:reduce){.lc-editing [data-field],.lc-editing [data-region="body"],.lc-editing [data-sys="doc-number"]{transition:none;}}
+@page{size:A4 portrait;margin:0;}
+@media print{html,body.lc-print{margin:0!important;padding:0!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+.lc-print .lc-page-wrap{position:relative!important;width:210mm!important;height:297mm!important;margin:0!important;padding:0!important;overflow:hidden!important;box-shadow:none!important;page-break-after:always!important;break-after:page!important;}
+.lc-print .lc-page-wrap:last-child{page-break-after:auto!important;break-after:auto!important;}.lc-print .lc-page{width:210mm!important;height:297mm!important;transform:none!important;overflow:hidden!important;}}
 `;
 
 // ---------------------------------------------------------------------------
@@ -89,9 +108,10 @@ const headerHtml = (type, ctx, recipientHtml = '') => `
     <div class="lc-lh-c"><div class="lc-moul lc-green lc-k1">ព្រះរាជាណាចក្រកម្ពុជា</div><div class="lc-green lc-k2">ជាតិ សាសនា ព្រះមហាក្សត្រ</div><div class="lc-green lc-orn">* * *</div></div>
     <div></div>
     <div class="lc-lh-l"><div class="lc-moul lc-green lc-org">${ctx.organizationName}</div><div class="lc-green lc-num">លេខ៖ <span data-sys="doc-number">.......................</span> ន.ប.ធ./${ctx.abbr}</div></div>
-    <div class="lc-lh-c">${recipientHtml}</div>
+    <div></div>
     <div></div>
   </div>
+  ${recipientHtml}
 </div>`;
 
 const subjectHtml = (subject, refs, extraRows = '') => `
@@ -135,7 +155,7 @@ ${ctx.drafterHtml}`;
 
   // REPORT (default)
   return headerHtml('REPORT', ctx,
-    `<div class="lc-recipient"><div class="lc-moul">សូមគោរពជូន</div><div class="lc-moul" data-field="recipient">ឯកឧត្តមអគ្គនាយកនៃ${ctx.organizationName}</div></div>`) +
+    `<div class="lc-recipient lc-moul" data-field="recipient"><div>សូមគោរពជូន</div><div>ឯកឧត្តមអគ្គនាយកនៃ${ctx.organizationName}</div></div>`) +
     subjectHtml('របាយការណ៍ស្តីពី...', ['លិខិតលេខ...', `ចំណារ${H}...`]) + `
 <div class="lc-body" data-region="body">
   <p>សេចក្ដីដូចមានចែងក្នុងកម្មវត្ថុ និងយោងខាងលើ ខ្ញុំសូមគោរពជម្រាបជូន ${H} មេត្តាជ្រាបដ៏ខ្ពង់ខ្ពស់ថា៖ (សូមសរសេររៀបរាប់ខ្លឹមសារលម្អិតនៅទីនេះ...)។</p>
@@ -262,7 +282,22 @@ export function renderPagesHtml(savedHtml, { documentNumber = '', footerHtml = '
   box.className = 'lc-doc lc-measure-sheet';
   box.innerHTML = savedHtml || '';
   document.body.appendChild(box);
-  box.querySelectorAll('[data-sys="doc-number"]').forEach((el) => { el.textContent = documentNumber || '.......................'; });
+  box.querySelectorAll('[data-sys="doc-number"]').forEach((el) => { el.textContent = extractDocNumberPrefix(documentNumber) || '.......................'; });
+  // Restore saved drag coordinates & strip transient editor attributes before paginating
+  box.querySelectorAll('.draggable-opinion-box').forEach((ob) => {
+    const ox = ob.getAttribute('data-offset-x');
+    const oy = ob.getAttribute('data-offset-y');
+    if (ox !== null || oy !== null) {
+      ob.style.position = 'relative';
+      ob.style.left = `${parseFloat(ox) || 0}px`;
+      ob.style.top = `${parseFloat(oy) || 0}px`;
+    }
+    ob.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box', 'is-blocked');
+    ob.style.border = '1px dashed transparent';
+    ob.style.background = 'transparent';
+    ob.removeAttribute('title');
+    ob.querySelectorAll('[contenteditable]').forEach((ed) => { ed.removeAttribute('contenteditable'); ed.removeAttribute('title'); });
+  });
 
   let footerH = 0;
   if (footerHtml) {
@@ -304,4 +339,72 @@ export function renderPagesHtml(savedHtml, { documentNumber = '', footerHtml = '
       '</div></div>';
   }).join('');
   return { html, count: r.pages.length };
+}
+
+/** Compute page-break Y offsets (in unscaled px) inside a mounted .lc-doc sheet element. */
+export function computePageBreakTops(rootEl, { footerHtml = '' } = {}) {
+  if (!rootEl) return [];
+  const outerH = (el) => { const cs = getComputedStyle(el); return el.offsetHeight + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0); };
+  let footerH = 0;
+  if (footerHtml) {
+    const f = document.createElement('div');
+    f.className = 'lc-doc lc-measure';
+    f.style.width = (PAGE_W - 68) + 'px';
+    f.innerHTML = footerHtml;
+    document.body.appendChild(f);
+    footerH = Math.ceil(f.getBoundingClientRect().height);
+    f.remove();
+  }
+  const { header, flow, keep } = collectBlocks(rootEl);
+  const headerH = header ? outerH(header) : 0;
+  const measureItem = (b) => {
+    if (b.kind === 'li') {
+      const extra = b.index === b.list.children.length - 1 ? parseFloat(getComputedStyle(b.list).marginBottom || 0) : 0;
+      return { el: b.el, h: b.el.offsetHeight + extra };
+    }
+    return { el: b.el, h: outerH(b.el) };
+  };
+  const r = paginate(flow.map(measureItem), keep.map(measureItem), headerH, footerH);
+  const top0 = rootEl.getBoundingClientRect().top;
+  return r.pages.slice(1).map((items, i) => ({
+    page: i + 2,
+    top: items[0] ? Math.round(items[0].el.getBoundingClientRect().top - top0 - 6) : 0,
+  }));
+}
+
+/** Open a print/PDF window rendering paginated .lc-page-wrap markup identically to View mode. */
+export function openPrintPagesWindow(pagesHtml, title = 'បោះពុម្ពឯកសារ') {
+  const w = window.open('', '_blank');
+  if (!w) return false;
+  const safeTitle = esc(title || 'បោះពុម្ពឯកសារ');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${safeTitle}</title>
+    <base href="${origin}/">
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Siemreap&display=swap" rel="stylesheet">
+    <style>${DOC_CSS}
+      html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .lc-page-wrap{box-shadow:none!important;margin:0 auto!important;}
+      .box-handle,.opinion-box-actions{display:none!important;}
+      .draggable-opinion-box{outline:none!important;box-shadow:none!important;}
+    </style>
+    </head><body class="lc-print">${pagesHtml}
+    <script>
+      (function(){
+        var printed = false;
+        function go(){
+          if(printed) return; printed = true;
+          setTimeout(function(){ window.print(); }, 250);
+        }
+        var imgs = Array.prototype.slice.call(document.images || []);
+        var imgReady = Promise.all(imgs.map(function(img){
+          if(img.complete) return Promise.resolve();
+          return new Promise(function(res){ img.onload = res; img.onerror = res; });
+        }));
+        var fontReady = document.fonts ? document.fonts.ready : Promise.resolve();
+        Promise.race([Promise.all([fontReady, imgReady]), new Promise(function(res){ setTimeout(res, 2500); })]).then(go);
+      })();
+    <\/script>
+    </body></html>`);
+  w.document.close();
+  return true;
 }

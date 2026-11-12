@@ -510,4 +510,115 @@ class DocumentNumberingTest extends TestCase
         $this->assertNotNull($approval);
         $this->assertStringContainsString('លុបចោលដោយសារខុសកម្មវត្ថុរដ្ឋបាល', $approval->comment);
     }
+
+    /**
+     * Test 9: Drafter can set, edit, and clear response_number directly on outbound document
+     */
+    public function test_drafter_can_set_and_update_response_number_on_outbound_document(): void
+    {
+        Sanctum::actingAs($this->officer1);
+
+        $createRes = $this->postJson('/api/outbound-documents', [
+            'is_draft' => true,
+            'response_type' => 'REPORT',
+            'title' => 'របាយការណ៍មានលេខឯកសារកែបាន',
+            'response_number' => '០១២/២៦ ន.ប.ធ./ន.ក.ទ.',
+            'content' => '<div class="lc-root" data-doc-v="2" data-type="REPORT"><span data-sys="doc-number">០១២/២៦</span></div>',
+        ]);
+
+        $createRes->assertStatus(200);
+        $docId = $createRes->json('data.id');
+        $this->assertEquals('០១២/២៦ ន.ប.ធ./ន.ក.ទ.', $createRes->json('data.response_number'));
+
+        $showRes = $this->getJson("/api/outbound-documents/{$docId}");
+        $showRes->assertStatus(200);
+        $this->assertEquals('ន.ក.ទ.', $showRes->json('data.department.abbreviation_kh'));
+
+        $updateRes = $this->putJson("/api/outbound-documents/{$docId}", [
+            'response_type' => 'REPORT',
+            'title' => 'របាយការណ៍មានលេខឯកសារកែបាន',
+            'response_number' => '០៩៩/២៦ ន.ប.ធ./ន.ក.ទ.',
+        ]);
+
+        $updateRes->assertStatus(200);
+        $this->assertEquals('០៩៩/២៦ ន.ប.ធ./ន.ក.ទ.', $updateRes->json('data.response_number'));
+
+        $clearRes = $this->putJson("/api/outbound-documents/{$docId}", [
+            'response_type' => 'REPORT',
+            'title' => 'របាយការណ៍មានលេខឯកសារកែបាន',
+            'response_number' => '',
+        ]);
+
+        $clearRes->assertStatus(200);
+        $this->assertNull($clearRes->json('data.response_number'));
+    }
+
+    /**
+     * Test 10: Department Director can delete numbered document in own dept before DG approval, but not after DG approves
+     */
+    public function test_department_director_can_delete_numbered_document_before_dg_approval_only(): void
+    {
+        // 1. Numbered document in dept1 still UNDER_REVIEW -> dept1 Director CAN delete it
+        $docBeforeApprove = InboundDocumentResponse::create([
+            'response_type' => 'REPORT',
+            'title' => 'Numbered Doc Before DG Approve',
+            'drafted_by' => $this->officer1->id,
+            'department_id' => $this->dept1->id,
+            'issuing_unit_type' => 'DEPARTMENT',
+            'issuing_unit_id' => $this->dept1->id,
+            'number_seq' => 11,
+            'number_year' => 2026,
+            'number_suffix' => 'ន.ក.ទ.',
+            'response_number' => '០១១/២៦ ន.ប.ធ./ន.ក.ទ.',
+            'current_approver_id' => $this->dg->id,
+            'current_stage' => 'DG',
+            'status' => 'UNDER_REVIEW',
+        ]);
+
+        // Another department's director CANNOT delete dept1's numbered doc
+        Sanctum::actingAs($this->director2);
+        $this->deleteJson("/api/outbound-documents/{$docBeforeApprove->id}")->assertStatus(409);
+
+        // Officer (drafter) CANNOT delete numbered doc
+        Sanctum::actingAs($this->officer1);
+        $this->deleteJson("/api/outbound-documents/{$docBeforeApprove->id}")->assertStatus(409);
+
+        // Deputy Director (level 4) CANNOT delete numbered doc
+        Sanctum::actingAs($this->deputyDirector1);
+        $this->deleteJson("/api/outbound-documents/{$docBeforeApprove->id}")->assertStatus(409);
+
+        // Dept1 Director CAN delete numbered doc before DG approves
+        Sanctum::actingAs($this->director1);
+        $resDeleteAllowed = $this->deleteJson("/api/outbound-documents/{$docBeforeApprove->id}");
+        $resDeleteAllowed->assertStatus(200);
+        $this->assertSoftDeleted('inbound_document_responses', ['id' => $docBeforeApprove->id]);
+
+        // 2. Numbered document ALREADY approved by DG -> Dept1 Director CANNOT delete it
+        $docApprovedByDg = InboundDocumentResponse::create([
+            'response_type' => 'REPORT',
+            'title' => 'Numbered Doc Approved By DG',
+            'drafted_by' => $this->officer1->id,
+            'department_id' => $this->dept1->id,
+            'issuing_unit_type' => 'DEPARTMENT',
+            'issuing_unit_id' => $this->dept1->id,
+            'number_seq' => 12,
+            'number_year' => 2026,
+            'number_suffix' => 'ន.ក.ទ.',
+            'response_number' => '០១២/២៦ ន.ប.ធ./ន.ក.ទ.',
+            'current_approver_id' => null,
+            'current_stage' => 'COMPLETED',
+            'status' => 'APPROVED_BY_DG',
+            'approved_by' => $this->dg->id,
+            'approved_at' => now(),
+        ]);
+
+        Sanctum::actingAs($this->director1);
+        $resDeleteBlocked = $this->deleteJson("/api/outbound-documents/{$docApprovedByDg->id}");
+        $resDeleteBlocked->assertStatus(409);
+        $this->assertStringContainsString('អគ្គនាយក', $resDeleteBlocked->json('message'));
+        $this->assertDatabaseHas('inbound_document_responses', [
+            'id' => $docApprovedByDg->id,
+            'deleted_at' => null,
+        ]);
+    }
 }

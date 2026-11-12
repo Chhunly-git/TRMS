@@ -175,12 +175,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, nextTick } from 'vue';
 import { useUserStore } from '@/stores/user';
 import { apiUpdateSignatureImage, apiDeleteSignatureImage } from '@/functions/api/auth';
 import Swal from 'sweetalert2';
 
-const props = defineProps({
+defineProps({
   show: {
     type: Boolean,
     default: false

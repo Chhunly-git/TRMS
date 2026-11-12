@@ -327,12 +327,12 @@
                         <i class="fas fa-undo"></i>
                       </button>
 
-                      <!-- Delete Button (If DRAFT or RETURNED) -->
+                      <!-- Delete Button -->
                       <button
                         v-if="canDelete(doc)"
                         type="button"
                         class="btn btn-outline-danger"
-                        :title="doc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                        :title="deleteButtonLabel(doc)"
                         @click="deleteAction(doc)"
                       >
                         <i class="fas fa-trash"></i>
@@ -450,13 +450,22 @@
                     />
                   </div>
 
-                  <div class="col-12 mt-2">
+                  <div class="col-md-8 mt-2">
                     <label class="form-label font-weight-bold small text-muted">យោង (Reference Note)</label>
                     <input
                       type="text"
                       class="form-control form-control-sm"
                       placeholder="យោងតាម..."
                       v-model="form.reference_note"
+                    />
+                  </div>
+                  <div class="col-md-4 mt-2">
+                    <label class="form-label font-weight-bold small text-muted">លេខឯកសារ (Document No.)</label>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      placeholder="ឧ. ០០១ ឬ ០០១ ន.ប.ធ."
+                      v-model="form.response_number"
                     />
                   </div>
 
@@ -488,8 +497,9 @@
                   :officer-signature="userStore.signature_image || ''"
                   :approvals="currentEditingApprovals"
                   :is-approver="isApproverEditing"
-                  :document-number="currentEditingDoc?.response_number || ''"
-                  :department-abbr="currentEditingDoc?.department?.code || userStore.department?.code || ''"
+                  :document-number="form.response_number"
+                  @update:document-number="(val) => (form.response_number = val)"
+                  :department-abbr="currentEditingDoc?.number_suffix || currentEditingDoc?.department?.abbreviation_kh || userStore.department?.abbreviation_kh || ''"
                   :logo-url="'/logo.png'"
                   :footer-html="''"
                 />
@@ -553,9 +563,9 @@
                   type="button"
                   class="btn btn-outline-danger btn-sm ml-2 font-weight-bold"
                   @click="deleteAction(currentEditingDoc)"
-                  :title="currentEditingDoc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                  :title="deleteButtonLabel(currentEditingDoc)"
                 >
-                  <i class="fas fa-trash mr-1"></i> {{ currentEditingDoc.status === 'RETURNED' ? 'លុបឯកសារនេះ' : 'លុបសេចក្តីព្រាង' }}
+                  <i class="fas fa-trash mr-1"></i> {{ deleteButtonLabel(currentEditingDoc) }}
                 </button>
               </div>
 
@@ -769,23 +779,17 @@
                 </div>
 
                 <div v-if="reviewForm.embed_into_document" class="pl-3 border-left ml-2">
-                  <div class="row">
-                    <div class="col-md-6 mb-2">
-                      <label class="small font-weight-bold text-dark mb-1">
-                        <i class="fas fa-map-marker-alt text-danger mr-1"></i> ជ្រើសរើសទីតាំងចាប់ផ្តើមលើរបាយការណ៍៖
-                      </label>
-                      <select class="form-control form-control-sm font-weight-bold" v-model="reviewForm.placement">
-                        <option value="SIDE_BY_SIDE_LEFT">ទន្ទឹមហត្ថលេខាអ្នករៀបចំ (ខាងឆ្វេង) - ស្តង់ដារ</option>
-                        <option value="ABOVE_DRAFTER">ខាងលើហត្ថលេខាអ្នករៀបចំ</option>
-                        <option value="BELOW_DRAFTER">ខាងក្រោមហត្ថលេខាអ្នករៀបចំ</option>
-                        <option value="BOTTOM">ខាងក្រោមបង្អស់នៃរបាយការណ៍ (ចុងបញ្ចប់)</option>
-                      </select>
-                    </div>
+                  <div class="row align-items-end">
                     <div class="col-md-6 mb-2">
                       <label class="small font-weight-bold text-dark mb-1">
                         <i class="fas fa-calendar-alt text-primary mr-1"></i> កាលបរិច្ឆេទចុះហត្ថលេខា៖
                       </label>
                       <input type="text" class="form-control form-control-sm" v-model="reviewForm.sign_date" placeholder="ឧ. ៤/១១/២៦" />
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <div class="small text-primary bg-light border rounded px-2 py-1">
+                        <i class="fas fa-magic mr-1"></i> ទីតាំងប្រអប់៖ <strong>Auto</strong> (រៀបចំកន្លែងទូលាយ និងមិនត្រួតគ្នា)
+                      </div>
                     </div>
                   </div>
 
@@ -831,8 +835,8 @@
               <div class="review-paper-scroll" style="max-height: 62vh; overflow-y: auto; background-color: #525659; padding: 20px; border-radius: 6px; display: flex; justify-content: center;">
                 <div
                   ref="reviewPositionPaperRef"
-                  class="review-position-paper bg-white shadow-lg"
-                  style="width: 210mm; min-height: 297mm; padding: 25mm 20mm 20mm 25mm; box-sizing: border-box; position: relative;"
+                  :class="['review-position-paper bg-white shadow-lg', { 'lc-doc': isReviewWorkingV2 }]"
+                  :style="reviewPositionPaperStyle"
                   v-html="reviewWorkingHtml"
                 ></div>
               </div>
@@ -959,8 +963,18 @@
                   </li>
                 </ul>
 
-                <!-- Action button on tab 1: Print -->
-                <div v-if="viewTab === 'doc'">
+                <!-- Action button on tab 1: Print & View mode toggle -->
+                <div v-if="viewTab === 'doc'" class="d-flex align-items-center gap-2">
+                  <button
+                    v-if="isViewDocV2 && canEditPositionInDetail"
+                    type="button"
+                    class="btn btn-sm font-weight-bold mr-2"
+                    :class="previewAsPages ? 'btn-success' : 'btn-outline-secondary'"
+                    @click="togglePreviewAsPages"
+                  >
+                    <i class="fas mr-1" :class="previewAsPages ? 'fa-edit' : 'fa-file-alt'"></i>
+                    {{ previewAsPages ? 'រៀបចំទីតាំងយោបល់' : 'មើលជាទំព័រ (ដូច Print)' }}
+                  </button>
                   <button type="button" class="btn btn-sm btn-outline-dark font-weight-bold" @click="printCurrentViewDoc">
                     <i class="fas fa-print mr-1"></i> បោះពុម្ព / ទាញយក PDF
                   </button>
@@ -987,7 +1001,19 @@
                 </div>
 
                 <div class="d-flex justify-content-center">
-                  <div ref="previewPaperRef" class="document-paper-preview bg-white shadow-lg rounded-sm" :style="previewPaperStyle" v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
+                  <div
+                    v-if="isViewDocV2 && (!canEditPositionInDetail || previewAsPages)"
+                    class="lc-pages-detail"
+                    v-html="viewDocPagesHtml"
+                  ></div>
+                  <div v-else class="lc-preview-sheet-wrap" style="position: relative; width: fit-content;">
+                    <div ref="previewPaperRef" :class="['document-paper-preview bg-white shadow-lg rounded-sm', { 'lc-doc': isViewDocV2 }]" :style="previewPaperStyle" v-html="currentViewDoc.content || '<em class=\'text-muted\'>ពុំមានខ្លឹមសារ</em>'"></div>
+                    <div v-if="isViewDocV2 && viewDocGuides.length" class="lc-guides-overlay">
+                      <div v-for="g in viewDocGuides" :key="g.page" class="lc-guide-line" :style="{ top: g.top + 'px' }">
+                        <span>ចុងទំព័រ {{ toKhmerNum(g.page - 1) }} · ទំព័រ {{ toKhmerNum(g.page) }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- References & Attachments Card (ឯកសារយោង ឬឧបសម្ព័ន្ធ) -->
@@ -1384,9 +1410,9 @@
                   type="button"
                   class="btn btn-outline-danger btn-sm font-weight-bold"
                   @click="deleteAction(currentViewDoc)"
-                  :title="currentViewDoc.status === 'RETURNED' ? 'លុបឯកសារដែលថ្នាក់ដឹកនាំបញ្ជូនត្រឡប់' : 'លុបសេចក្តីព្រាង'"
+                  :title="deleteButtonLabel(currentViewDoc)"
                 >
-                  <i class="fas fa-trash mr-1"></i> {{ currentViewDoc.status === 'RETURNED' ? 'លុបឯកសារនេះ' : 'លុបសេចក្តីព្រាង' }}
+                  <i class="fas fa-trash mr-1"></i> {{ deleteButtonLabel(currentViewDoc) }}
                 </button>
                 <button
                   v-if="currentViewDoc && canEdit(currentViewDoc)"
@@ -1419,6 +1445,7 @@ import { useUserStore } from '@/stores/user';
 import SignatureModal from '@/components/common/SignatureModal.vue';
 import WordEditor from '@/components/common/WordEditor.vue';
 import { renderDiffHtml } from '@/utils/diffHelper';
+import { DOC_CSS, extractDocNumberPrefix, renderPagesHtml, openPrintPagesWindow, computePageBreakTops } from '@/utils/letterComposer';
 import {
   apiGetOutboundOptions,
   apiGetOutboundDocuments,
@@ -1443,6 +1470,7 @@ import {
   generateDraggableOpinionBoxHtml,
   embedOpinionBoxIntoHtml,
   setupDraggableOpinionBoxes,
+  serializeCleanOpinionHtml,
 } from '@/utils/opinionBoxHelper';
 
 const userStore = useUserStore();
@@ -1485,6 +1513,7 @@ const selectedFileName = ref('');
 const form = reactive({
   inbound_document_id: null,
   response_type: 'REPORT',
+  response_number: '',
   title: '',
   header_organization: '',
   reference_note: '',
@@ -1512,7 +1541,7 @@ const reviewForm = reactive({
   response_number: '',
   comment: '',
   embed_into_document: true,
-  placement: 'SIDE_BY_SIDE_LEFT',
+  placement: 'AUTO',
   sign_date: '',
 });
 
@@ -1714,10 +1743,12 @@ const loadOptions = async () => {
 const openCreateModal = () => {
   isEditing.value = false;
   editingDocId.value = null;
+  currentEditingDoc.value = null;
   currentEditingApprovals.value = [];
   isApproverEditing.value = false;
   form.inbound_document_id = route.query.link_inbound_id ? Number(route.query.link_inbound_id) : null;
   form.response_type = 'REPORT';
+  form.response_number = '';
   form.title = '';
   form.header_organization = 'និយ័តករបរធនបាលកិច្ច';
   form.reference_note = '';
@@ -1747,6 +1778,7 @@ const openEditModal = (doc) => {
 
   form.inbound_document_id = doc.inbound_document_id;
   form.response_type = doc.response_type || 'REPORT';
+  form.response_number = doc.response_number || '';
   form.title = doc.title || '';
   form.header_organization = doc.header_organization || 'និយ័តករបរធនបាលកិច្ច';
   form.reference_note = doc.reference_note || '';
@@ -1789,6 +1821,7 @@ const submitForm = async (isDraft, willForward = true) => {
     const fd = new FormData();
     if (form.inbound_document_id) fd.append('inbound_document_id', form.inbound_document_id);
     fd.append('response_type', form.response_type);
+    fd.append('response_number', form.response_number ?? '');
     fd.append('title', form.title);
     if (form.header_organization) fd.append('header_organization', form.header_organization);
     if (form.reference_note) fd.append('reference_note', form.reference_note);
@@ -1860,10 +1893,35 @@ const openReviewActionModal = (doc) => {
     ? 'បានពិនិត្យ និងសម្រេចឯកភាព'
     : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច';
   reviewForm.embed_into_document = (doc.response_type !== 'LETTER');
-  reviewForm.placement = 'SIDE_BY_SIDE_LEFT';
+  reviewForm.placement = 'AUTO';
   reviewForm.sign_date = getShortKhmerDateString(new Date());
   showReviewModal.value = true;
 };
+
+const isReviewWorkingV2 = computed(() => (reviewWorkingHtml.value || '').includes('data-doc-v="2"'));
+
+const reviewPositionPaperStyle = computed(() => {
+  if (isReviewWorkingV2.value) {
+    return {
+      width: '794px',
+      minHeight: '1123px',
+      padding: '38px 57px 56px 76px',
+      boxSizing: 'border-box',
+      position: 'relative',
+      fontFamily: "'Khmer OS Siemreap', 'Siemreap', sans-serif",
+      fontSize: '12pt',
+      lineHeight: '1.95',
+      color: '#111',
+    };
+  }
+  return {
+    width: '210mm',
+    minHeight: '297mm',
+    padding: '25mm 20mm 20mm 25mm',
+    boxSizing: 'border-box',
+    position: 'relative',
+  };
+});
 
 const setupReviewPositionDraggable = () => {
   if (cleanupReviewDraggable) {
@@ -1872,13 +1930,21 @@ const setupReviewPositionDraggable = () => {
   }
   if (!reviewPositionPaperRef.value) return;
 
+  if (isReviewWorkingV2.value) {
+    ensureLcDocCss();
+    const numText = extractDocNumberPrefix(reviewForm.response_number || currentReviewDoc.value?.response_number) || '.......................';
+    reviewPositionPaperRef.value.querySelectorAll('[data-sys="doc-number"]').forEach((el) => {
+      el.textContent = numText;
+    });
+  }
+
   cleanupReviewDraggable = setupDraggableOpinionBoxes(
     reviewPositionPaperRef.value,
     () => {},
-    { currentUserId: userStore.id, isAdmin: isDg.value, canEdit: true }
+    { currentUserId: userStore.id, canEdit: true }
   );
 
-  // Auto-select the owner's opinion box so handles are visible immediately
+  // Auto-select ONLY the current user's own opinion box
   nextTick(() => {
     if (!reviewPositionPaperRef.value) return;
     const boxes = reviewPositionPaperRef.value.querySelectorAll('.draggable-opinion-box');
@@ -1963,21 +2029,7 @@ const submitReviewAction = async () => {
     let finalContent = undefined;
     if (reviewForm.embed_into_document && currentReviewDoc.value && currentReviewDoc.value.content && reviewForm.action !== 'RETURN') {
       if (reviewPositionPaperRef.value) {
-        const clone = reviewPositionPaperRef.value.cloneNode(true);
-        clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
-          b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
-          b.removeAttribute('title');
-          b.querySelectorAll('div').forEach(d => {
-            if (d.textContent.trim() === '(ហត្ថលេខា)') {
-              d.remove();
-            }
-          });
-          b.querySelectorAll('[contenteditable]').forEach(el => {
-            el.removeAttribute('contenteditable');
-            el.removeAttribute('title');
-          });
-        });
-        finalContent = clone.innerHTML;
+        finalContent = serializeCleanOpinionHtml(reviewPositionPaperRef.value);
       } else {
         const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
         const reviewerName = userStore.name_kh || userStore.name || '';
@@ -2041,13 +2093,15 @@ const previewPaperStyle = computed(() => {
   const pages = Math.max(1, count + 1);
   const minH = pages * 1123 + (pages - 1) * 60;
   return {
-    width: '100%',
+    width: isViewDocV2.value ? '794px' : '100%',
     maxWidth: '794px',
     minHeight: `${minH}px`,
     height: 'auto',
-    padding: '45px 55px',
+    padding: isViewDocV2.value ? '38px 57px 56px 76px' : '45px 55px',
     color: '#111',
-    lineHeight: '2.1',
+    fontFamily: "'Khmer OS Siemreap', 'Siemreap', sans-serif",
+    fontSize: '12pt',
+    lineHeight: isViewDocV2.value ? '1.95' : '2.1',
     boxSizing: 'border-box',
     textRendering: 'optimizeLegibility',
     WebkitFontSmoothing: 'antialiased',
@@ -2076,21 +2130,7 @@ const saveAndHoldReview = async () => {
   try {
     let finalContent = undefined;
     if (reviewPositionPaperRef.value) {
-      const clone = reviewPositionPaperRef.value.cloneNode(true);
-      clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
-        b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
-        b.removeAttribute('title');
-        b.querySelectorAll('*').forEach(d => {
-          if (d.textContent.trim() === '(ហត្ថលេខា)') {
-            d.remove();
-          }
-        });
-        b.querySelectorAll('[contenteditable]').forEach(el => {
-          el.removeAttribute('contenteditable');
-          el.removeAttribute('title');
-        });
-      });
-      finalContent = clone.innerHTML;
+      finalContent = serializeCleanOpinionHtml(reviewPositionPaperRef.value);
     } else if (reviewForm.embed_into_document && currentReviewDoc.value?.content) {
       const isDgLeader = isDg.value || reviewForm.action === 'DG_APPROVE';
       const reviewerName = userStore.name_kh || userStore.name || '';
@@ -2138,27 +2178,84 @@ const saveAndHoldReview = async () => {
   }
 };
 
+const isViewDocV2 = computed(() => (currentViewDoc.value?.content || '').includes('data-doc-v="2"'));
+const previewAsPages = ref(false);
+const viewDocGuides = ref([]);
+
+const viewDocPagesHtml = computed(() => {
+  if (!isViewDocV2.value || !currentViewDoc.value?.content) return '';
+  ensureLcDocCss();
+  return renderPagesHtml(currentViewDoc.value.content, {
+    documentNumber: currentViewDoc.value.response_number || '',
+    scale: 1,
+  }).html;
+});
+
+const togglePreviewAsPages = () => {
+  if (!previewAsPages.value && previewPaperRef.value && hasMovedOpinionBox.value && currentViewDoc.value) {
+    currentViewDoc.value.content = serializeCleanOpinionHtml(previewPaperRef.value);
+  }
+  previewAsPages.value = !previewAsPages.value;
+  if (!previewAsPages.value) {
+    nextTick(() => {
+      initPreviewDraggable();
+    });
+  }
+};
+
+const ensureLcDocCss = () => {
+  let s = document.getElementById('lc-doc-css');
+  if (!s) {
+    s = document.createElement('style');
+    s.id = 'lc-doc-css';
+    document.head.appendChild(s);
+  }
+  s.textContent = DOC_CSS;
+};
+
+const refreshViewGuides = () => {
+  if (isViewDocV2.value && previewPaperRef.value) {
+    viewDocGuides.value = computePageBreakTops(previewPaperRef.value);
+  } else {
+    viewDocGuides.value = [];
+  }
+};
+
 const initPreviewDraggable = () => {
   if (cleanupPreviewDraggable) {
     cleanupPreviewDraggable();
     cleanupPreviewDraggable = null;
   }
+  if (isViewDocV2.value) {
+    ensureLcDocCss();
+  }
   if (previewPaperRef.value) {
+    if (isViewDocV2.value) {
+      const numText = extractDocNumberPrefix(currentViewDoc.value?.response_number) || '.......................';
+      previewPaperRef.value.querySelectorAll('[data-sys="doc-number"]').forEach((el) => {
+        if (!el.textContent.trim() || el.textContent.includes('...')) {
+          el.textContent = numText;
+        } else if (currentViewDoc.value?.response_number) {
+          el.textContent = numText;
+        }
+      });
+    }
     const canMove = canEditPositionInDetail.value;
     cleanupPreviewDraggable = setupDraggableOpinionBoxes(
       previewPaperRef.value,
       () => {
         if (canMove) {
           hasMovedOpinionBox.value = true;
+          nextTick(refreshViewGuides);
         }
       },
       {
         currentUserId: userStore.id,
-        isAdmin: isDg.value,
         canMove,
         canEdit: canMove,
       }
     );
+    nextTick(refreshViewGuides);
   }
 };
 
@@ -2176,21 +2273,7 @@ const saveNewOpinionBoxPosition = async () => {
   if (!currentViewDoc.value || !previewPaperRef.value) return;
   savingMovedPosition.value = true;
   try {
-    const clone = previewPaperRef.value.cloneNode(true);
-    clone.querySelectorAll('.draggable-opinion-box').forEach(b => {
-      b.classList.remove('is-selected', 'is-dragging', 'is-resizing', 'is-locked-box', 'is-editable-box');
-      b.removeAttribute('title');
-      b.querySelectorAll('div').forEach(d => {
-        if (d.textContent.trim() === '(ហត្ថលេខា)') {
-          d.remove();
-        }
-      });
-      b.querySelectorAll('[contenteditable]').forEach(el => {
-        el.removeAttribute('contenteditable');
-        el.removeAttribute('title');
-      });
-    });
-    const updatedHtml = clone.innerHTML;
+    const updatedHtml = serializeCleanOpinionHtml(previewPaperRef.value);
     await apiUpdateOutboundContent(currentViewDoc.value.id, updatedHtml);
     currentViewDoc.value.content = updatedHtml;
     originalContentBackup.value = updatedHtml;
@@ -2218,6 +2301,8 @@ const openViewModal = async (doc) => {
   currentViewDoc.value = doc;
   originalContentBackup.value = doc.content || '';
   hasMovedOpinionBox.value = false;
+  previewAsPages.value = false;
+  viewDocGuides.value = [];
   viewTab.value = 'doc';
   showViewModal.value = true;
 
@@ -2246,8 +2331,24 @@ const openViewModal = async (doc) => {
 
 const printCurrentViewDoc = () => {
   if (!currentViewDoc.value) return;
+  const rawContent = currentViewDoc.value.content || '';
+  const isV2 = rawContent.includes('data-doc-v="2"');
+
+  if (isV2) {
+    ensureLcDocCss();
+    const liveHtml = previewPaperRef.value ? serializeCleanOpinionHtml(previewPaperRef.value) : rawContent;
+    const { html } = renderPagesHtml(liveHtml, {
+      documentNumber: currentViewDoc.value.response_number || '',
+      scale: 1,
+    });
+    openPrintPagesWindow(html, currentViewDoc.value.title || 'ឯកសាររដ្ឋបាល');
+    return;
+  }
+
+  let rawHtml = rawContent;
+
   const printWindow = window.open('', '_blank');
-  let rawHtml = currentViewDoc.value.content || '';
+  if (!printWindow) return;
 
   // Clean up using DOM parser so NOTHING prints as visual lines or badges on paper
   const tempDoc = new DOMParser().parseFromString(rawHtml, 'text/html');
@@ -2266,7 +2367,7 @@ const printCurrentViewDoc = () => {
       <head>
         <title>${currentViewDoc.value.title || 'ឯកសាររដ្ឋបាល'}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Siemreap&family=Battambang:wght@400;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Moul&family=Siemreap&family=Battambang:wght@400;700&display=swap');
           @page {
             size: A4 portrait;
             margin: 20mm 20mm 20mm 25mm;
@@ -2284,6 +2385,7 @@ const printCurrentViewDoc = () => {
           p, div { line-height: 2.1 !important; }
           table { width: 100%; border-collapse: collapse; line-height: 2.1 !important; }
           tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+          ${isV2 ? DOC_CSS : ''}
           .page-break {
             page-break-before: always !important;
             break-before: page !important;
@@ -2310,14 +2412,31 @@ const printCurrentViewDoc = () => {
           }
           .closing-and-signature-block,
           .drafter-signature-table,
-          .review-signatures-wrapper {
+          .review-signatures-wrapper,
+          .opinion-boxes-row {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+          }
+          .draggable-opinion-box {
+            display: inline-block !important;
+            vertical-align: top !important;
+            box-sizing: border-box !important;
+          }
+          .opinion-boxes-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+            gap: 8px 14px !important;
+            width: 100% !important;
+            margin-top: 8px !important;
+            clear: both !important;
+            box-sizing: border-box !important;
           }
         </style>
       </head>
       <body>
-        ${content}
+        ${isV2 ? `<div class="lc-doc">${content}</div>` : content}
         <script>
           window.onload = function() {
             window.print();
@@ -2350,10 +2469,20 @@ const recallAction = async (doc) => {
   }
 };
 
+const deleteButtonLabel = (doc) => {
+  if (!doc) return 'លុប';
+  if (doc.number_seq !== null && doc.number_seq !== undefined) return 'លុបឯកសារនេះ';
+  if (doc.status === 'RETURNED') return 'លុបឯកសារនេះ';
+  return 'លុបសេចក្តីព្រាង';
+};
+
 const deleteAction = async (doc) => {
   if (!doc) return;
   const isReturned = (doc.status === 'RETURNED');
-  const docTypeLabel = isReturned ? 'ឯកសារដែលថ្នាក់ដឹកនាំបានបញ្ជូនត្រឡប់មកវិញនេះ' : 'សេចក្តីព្រាងនេះ';
+  const isNumbered = (doc.number_seq !== null && doc.number_seq !== undefined);
+  const docTypeLabel = isNumbered
+    ? 'ឯកសារដែលបានចុះលេខផ្លូវការនេះ'
+    : (isReturned ? 'ឯកសារដែលថ្នាក់ដឹកនាំបានបញ្ជូនត្រឡប់មកវិញនេះ' : 'សេចក្តីព្រាងនេះ');
   const result = await Swal.fire({
     title: 'តើលោកអ្នកពិតជាចង់លុបមែនទេ?',
     text: `${docTypeLabel} នឹងត្រូវលុបចេញពីប្រព័ន្ធទាំងស្រុង!`,
@@ -2407,10 +2536,38 @@ const canRecall = (doc) => {
   return doc.drafted_by === userStore.id;
 };
 
+const isDeptDirectorUser = computed(() => {
+  const posLevel = userStore.position ? Number(userStore.position.level) : 99;
+  return posLevel === 3 || (userStore.level && userStore.level.toUpperCase() === 'DIRECTOR');
+});
+
+const isApprovedByDg = (doc) => {
+  if (!doc) return false;
+  return doc.status === 'APPROVED_BY_DG' || Boolean(doc.approved_at) || doc.current_stage === 'COMPLETED';
+};
+
 const canDelete = (doc) => {
   if (!doc) return false;
   const isDrafter = (doc.drafted_by === userStore.id);
   const isAdmin = (userStore.level && userStore.level.toUpperCase() === 'ADMIN');
+  const approvedByDg = isApprovedByDg(doc);
+  const myDeptId = userStore.department_id || userStore.department?.id;
+  const isSameDeptDirector = isDeptDirectorUser.value
+    && Boolean(myDeptId)
+    && (
+      Number(doc.department_id) === Number(myDeptId)
+      || Number(doc.drafted_by_user?.department_id) === Number(myDeptId)
+    );
+
+  // ប្រធាននាយកដ្ឋានអាចលុបឯកសារដែលបានចុះលេខផ្លូវការរួចហើយបាន លុះត្រាតែអគ្គនាយកបាន Approve រួចទើបមិនអាចលុបបាន
+  if (doc.number_seq !== null && doc.number_seq !== undefined) {
+    return isDeptDirectorUser.value && (isDrafter || isSameDeptDirector) && !approvedByDg && doc.status !== 'CANCELLED';
+  }
+
+  if (approvedByDg) return false;
+  if (isDeptDirectorUser.value && (isDrafter || isSameDeptDirector)) {
+    return doc.status !== 'CANCELLED';
+  }
   if (!isDrafter && !isAdmin) return false;
   return ['DRAFT', 'RETURNED'].includes(doc.status) || isAdmin;
 };
@@ -2524,10 +2681,24 @@ onUnmounted(() => {
 /* Draggable Leadership Opinion Box & Handles */
 :deep(.draggable-opinion-box) {
   position: relative;
+  display: inline-block !important;
+  box-sizing: border-box !important;
   border: 1px dashed transparent !important;
   background: transparent !important;
   vertical-align: top !important;
   transition: box-shadow 0.15s ease;
+}
+
+:deep(.opinion-boxes-row) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 8px 14px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  clear: both !important;
+  box-sizing: border-box !important;
 }
 
 :deep(.draggable-opinion-box:hover),
@@ -2567,6 +2738,11 @@ onUnmounted(() => {
   display: none !important;
 }
 
+:deep(.draggable-opinion-box.is-blocked) {
+  outline: 2px dashed #dc2626 !important;
+  background-color: rgba(254, 226, 226, 0.35) !important;
+}
+
 /* Ensure report signature table always aligns cells to the top row */
 :deep(.drafter-signature-table) {
   width: 100% !important;
@@ -2578,10 +2754,46 @@ onUnmounted(() => {
 :deep(.drafter-signature-table td) {
   vertical-align: top !important;
 }
-:deep(.drafter-signature-table .opinion-left-col) {
+:deep(.document-paper-preview:not(.lc-doc) .drafter-signature-table .opinion-left-col),
+:deep(.review-position-paper:not(.lc-doc) .drafter-signature-table .opinion-left-col) {
   width: 50% !important;
   vertical-align: top !important;
   text-align: center !important;
+}
+:deep(.lc-doc .drafter-signature-table .opinion-left-col) {
+  vertical-align: top !important;
+  text-align: center !important;
+}
+.lc-pages-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.lc-guides-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 794px;
+  height: 0;
+  pointer-events: none;
+}
+.lc-guide-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed #2457c5;
+  opacity: 0.75;
+}
+.lc-guide-line span {
+  position: absolute;
+  right: 10px;
+  top: -13px;
+  background: #2457c5;
+  color: #fff;
+  font: 12px/1.6 'Battambang', system-ui, sans-serif;
+  padding: 1px 8px;
+  border-radius: 999px;
 }
 
 :deep(.box-handle) {

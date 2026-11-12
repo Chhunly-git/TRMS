@@ -1,92 +1,130 @@
 <template>
-  <div class="lc-wrapper word-editor-wrapper" :class="{ 'fullscreen-mode': isFullscreen }">
+  <div class="word-editor-wrapper" :class="{ 'fullscreen-mode': isFullscreen }">
     <!-- 1. Ribbon -->
     <div class="word-ribbon shadow-xs">
-      <div class="ribbon-row d-flex flex-wrap align-items-center justify-content-between p-2 border-bottom bg-light">
-        <div class="d-flex align-items-center flex-wrap mr-2" v-if="!readonly">
-          <span class="small font-weight-bold text-muted mr-2">គំរូឯកសាររដ្ឋបាល៖</span>
-          <button type="button" class="btn btn-xs btn-outline-primary mr-1 mb-1 font-weight-bold" @click="insertTemplate('REPORT')">
-            <i class="fas fa-file-alt mr-1"></i> គំរូ របាយការណ៍
-          </button>
-          <button type="button" class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold" @click="insertTemplate('SUBMISSION_NOTE')">
-            <i class="fas fa-file-signature mr-1"></i> គំរូ កំណត់បង្ហាញ
-          </button>
-          <button type="button" class="btn btn-xs btn-outline-success mr-2 mb-1 font-weight-bold" @click="insertTemplate('LETTER')">
-            <i class="fas fa-envelope-open-text mr-1"></i> គំរូ លិខិត
-          </button>
-
-          <!-- Reviewer & Drafter blocks (unchanged behaviour from the current system) -->
-          <div class="border-left pl-2 ml-1 d-inline-flex align-items-center flex-wrap">
-            <template v-if="isApprover">
-              <button type="button" class="btn btn-xs btn-outline-warning mr-1 mb-1 font-weight-bold text-dark shadow-xs" @click="openSuperiorReviewModal" title="បញ្ចូលកំណត់ត្រាមតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំ">
-                <i class="fas fa-clipboard-check mr-1 text-warning"></i> + យោបល់ថ្នាក់ដឹកនាំ
-              </button>
-              <button type="button" class="btn btn-xs btn-outline-info mr-1 mb-1 font-weight-bold shadow-xs" @click="syncWorkflowApprovals" v-if="approvals && approvals.length > 0">
-                <i class="fas fa-sync-alt mr-1"></i> 🔄 Sync យោបល់ Workflow
-              </button>
-            </template>
-            <button type="button" class="btn btn-xs btn-outline-dark mr-1 mb-1 font-weight-bold shadow-xs" @click="insertDrafterSignature" title="បញ្ចូល ឬធ្វើបច្ចុប្បន្នភាពប្លុកហត្ថលេខាអ្នករៀបចំ">
-              <i class="fas fa-signature mr-1"></i> + ហត្ថលេខាអ្នករៀបចំ
+      <div class="lc-ribbon-row lc-ribbon-top">
+        <div class="lc-ribbon-group" v-if="!readonly">
+          <span class="lc-ribbon-label">គំរូ៖</span>
+          <div class="btn-group btn-group-sm" role="group" aria-label="Document templates">
+            <button
+              type="button"
+              class="btn lc-btn"
+              :class="docType === 'REPORT' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="insertTemplate('REPORT')"
+              title="បញ្ចូលទម្រង់របាយការណ៍"
+            >
+              <i class="fas fa-file-alt mr-1"></i>របាយការណ៍
             </button>
-            <button type="button" class="btn btn-xs mr-1 mb-1 font-weight-bold shadow-xs" :class="officerSignature ? 'btn-outline-success' : 'btn-outline-primary'" @click="showSignatureModal = true">
-              <i class="fas fa-file-signature mr-1"></i>
-              <span>{{ officerSignature ? 'ហត្ថលេខារបស់ខ្ញុំ ✓' : '+ គូស/ដាក់ហត្ថលេខា' }}</span>
+            <button
+              type="button"
+              class="btn lc-btn"
+              :class="docType === 'SUBMISSION_NOTE' ? 'btn-info' : 'btn-outline-info'"
+              @click="insertTemplate('SUBMISSION_NOTE')"
+              title="បញ្ចូលទម្រង់កំណត់បង្ហាញ"
+            >
+              <i class="fas fa-file-signature mr-1"></i>កំណត់បង្ហាញ
+            </button>
+            <button
+              type="button"
+              class="btn lc-btn"
+              :class="docType === 'LETTER' ? 'btn-success' : 'btn-outline-success'"
+              @click="insertTemplate('LETTER')"
+              title="បញ្ចូលទម្រង់លិខិតរដ្ឋបាល"
+            >
+              <i class="fas fa-envelope-open-text mr-1"></i>លិខិត
             </button>
           </div>
+
+          <span class="lc-divider"></span>
+
+          <template v-if="isApprover">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-warning text-dark font-weight-bold lc-btn"
+              @click="openSuperiorReviewModal"
+              title="បញ្ចូលកំណត់ត្រាមតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំ"
+            >
+              <i class="fas fa-clipboard-check mr-1 text-warning"></i>+ យោបល់ថ្នាក់ដឹកនាំ
+            </button>
+            <button
+              v-if="approvals && approvals.length > 0"
+              type="button"
+              class="btn btn-sm btn-outline-info font-weight-bold lc-btn"
+              @click="syncWorkflowApprovals"
+              title="ធ្វើបច្ចុប្បន្នភាពមតិយោបល់ថ្នាក់ដឹកនាំពី Workflow"
+            >
+              <i class="fas fa-sync-alt mr-1"></i>Sync Workflow
+            </button>
+          </template>
+
+          <button
+            type="button"
+            class="btn btn-sm font-weight-bold lc-btn"
+            :class="officerSignature ? 'btn-outline-success' : 'btn-outline-primary'"
+            @click="showSignatureModal = true"
+            title="គូស ឬកែប្រែហត្ថលេខារបស់ខ្ញុំ"
+          >
+            <i class="fas fa-file-signature mr-1"></i>
+            <span>{{ officerSignature ? 'ហត្ថលេខារបស់ខ្ញុំ ✓' : '+ គូស/ដាក់ហត្ថលេខា' }}</span>
+          </button>
         </div>
 
-        <div class="d-flex align-items-center flex-wrap ml-auto">
-          <div class="btn-group btn-group-sm mr-2 mb-1" role="tablist">
-            <button type="button" class="btn" :class="mode === 'write' ? 'btn-success' : 'btn-outline-secondary'" @click="setMode('write')">
-              <i class="fas fa-pen mr-1"></i> សរសេរ
+        <div class="lc-ribbon-group ml-auto">
+          <div class="btn-group btn-group-sm" role="tablist">
+            <button type="button" class="btn lc-btn" :class="mode === 'write' ? 'btn-success' : 'btn-outline-secondary'" @click="setMode('write')">
+              <i class="fas fa-pen mr-1"></i>សរសេរ
             </button>
-            <button type="button" class="btn" :class="mode === 'view' ? 'btn-success' : 'btn-outline-secondary'" @click="setMode('view')">
-              <i class="fas fa-file mr-1"></i> មើលជាទំព័រ
+            <button type="button" class="btn lc-btn" :class="mode === 'view' ? 'btn-success' : 'btn-outline-secondary'" @click="setMode('view')">
+              <i class="fas fa-file mr-1"></i>មើលជាទំព័រ
             </button>
           </div>
-          <button type="button" class="btn btn-xs btn-outline-dark mr-1 mb-1" @click="printDocument" title="បោះពុម្ព ឬរក្សាទុកជា PDF">
-            <i class="fas fa-print mr-1"></i> បោះពុម្ព / PDF
-          </button>
-          <button type="button" class="btn btn-xs btn-outline-success mr-1 mb-1" @click="exportToWord">
-            <i class="fas fa-file-word mr-1"></i> Export Word
-          </button>
-          <button type="button" class="btn btn-xs btn-outline-secondary mb-1" @click="toggleFullscreen">
-            <i class="fas" :class="isFullscreen ? 'fa-compress' : 'fa-expand'"></i>
-          </button>
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-dark lc-btn" @click="printDocument" title="បោះពុម្ព ឬរក្សាទុកជា PDF">
+              <i class="fas fa-print mr-1"></i>បោះពុម្ព / PDF
+            </button>
+            <button type="button" class="btn btn-outline-success lc-btn" @click="exportToWord" title="ទាញយកជាឯកសារ Word">
+              <i class="fas fa-file-word mr-1"></i>Word
+            </button>
+            <button type="button" class="btn btn-outline-secondary lc-btn" @click="toggleFullscreen" :title="isFullscreen ? 'បិទពេញអេក្រង់' : 'បើកពេញអេក្រង់'">
+              <i class="fas" :class="isFullscreen ? 'fa-compress' : 'fa-expand'"></i>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- 2. Formatting toolbar: only for «ខ្លឹមសារ» and «ឃ្លាបញ្ចប់» -->
-      <div class="ribbon-row d-flex flex-wrap align-items-center p-2 bg-white" v-if="!readonly && mode === 'write'" @mousedown.prevent>
-        <div class="btn-group btn-group-sm mr-2 mb-1">
+      <div class="lc-ribbon-row lc-ribbon-format" v-if="!readonly && mode === 'write'" @mousedown.prevent>
+        <div class="btn-group btn-group-sm">
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('undo')" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('redo')" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
         </div>
-        <div class="btn-group btn-group-sm mr-2 mb-1">
+        <div class="btn-group btn-group-sm">
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('bold')" title="ដិត"><strong>B</strong></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('italic')" title="ទ្រេត"><em>I</em></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('underline')" title="បន្ទាត់ក្រោម"><u>U</u></button>
-          <button type="button" class="btn btn-light border btn-tool" @click="fmt('moul')" title="អក្សរមូល (ឧ. ឯកឧត្តមអគ្គនាយក)">មូល</button>
+          <button type="button" class="btn btn-light border btn-tool lc-moul-btn" @click="fmt('moul')" title="អក្សរមូល (ឧ. ឯកឧត្តមអគ្គនាយក)">មូល</button>
         </div>
-        <div class="btn-group btn-group-sm mr-2 mb-1">
+        <div class="btn-group btn-group-sm">
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('insertUnorderedList')" title="ចំណុច"><i class="fas fa-list-ul"></i></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('insertOrderedList')" title="លេខរៀង"><i class="fas fa-list-ol"></i></button>
         </div>
-        <div class="btn-group btn-group-sm mr-2 mb-1">
+        <div class="btn-group btn-group-sm">
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('justifyLeft')" title="តម្រឹមឆ្វេង"><i class="fas fa-align-left"></i></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('justifyCenter')" title="តម្រឹមកណ្តាល"><i class="fas fa-align-center"></i></button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('justifyFull')" title="តម្រឹមស្មើសងខាង"><i class="fas fa-align-justify"></i></button>
         </div>
-        <div class="btn-group btn-group-sm mr-2 mb-1">
-          <button type="button" class="btn btn-light border btn-tool" @click="fmt('table')" title="បញ្ចូលតារាង"><i class="fas fa-table mr-1 text-primary"></i> តារាង</button>
+        <div class="btn-group btn-group-sm">
+          <button type="button" class="btn btn-light border btn-tool" @click="fmt('table')" title="បញ្ចូលតារាង"><i class="fas fa-table mr-1 text-primary"></i>តារាង</button>
           <button type="button" class="btn btn-light border btn-tool" @click="fmt('removeFormat')" title="លុបទម្រង់"><i class="fas fa-eraser"></i></button>
         </div>
-        <span class="small text-muted mb-1">ប៊ូតុងទាំងនេះប្រើបានក្នុង «ខ្លឹមសារ» និង «ឃ្លាបញ្ចប់»។ ទំព័រផ្ដាច់ដោយស្វ័យប្រវត្តិ។</span>
+        <span class="lc-format-hint d-none d-lg-inline-flex align-items-center ml-auto">
+          <i class="fas fa-info-circle mr-1 text-primary"></i>កែទម្រង់បានក្នុង «ខ្លឹមសារ» «ឃ្លាបញ្ចប់» និងប្រើ «មូល» ក្នុង «កម្មវត្ថុ» · ផ្ដាច់ទំព័រស្វ័យប្រវត្តិ
+        </span>
       </div>
     </div>
 
     <!-- 3. Canvas -->
-    <div class="document-canvas-container lc-canvas" ref="canvasContainer">
+    <div class="lc-canvas" ref="canvasContainer">
       <div v-show="mode === 'write'" class="lc-sheet-wrap" :style="{ width: (794 * scale) + 'px', height: sheetHeight + 'px' }">
         <div
           class="lc-sheet lc-doc"
@@ -97,6 +135,7 @@
           @input="onEditorInput"
           @paste="onEditorPaste"
           @keydown="onEditorKeydown"
+          @focusin="onEditorFocusIn"
           @focusout="onEditorFocusOut"
           @click="onEditorClick"
         ></div>
@@ -197,9 +236,9 @@
                 ></textarea>
               </div>
 
-              <!-- 3. Date & Placement Row -->
-              <div class="row mb-3">
-                <div class="col-md-6 mb-2 mb-md-0">
+              <!-- 3. Date & Auto Placement Row -->
+              <div class="row mb-3 align-items-end">
+                <div class="col-md-7 mb-2 mb-md-0">
                   <label class="font-weight-bold text-dark small mb-1">
                     <i class="fas fa-calendar-alt text-primary mr-1"></i> កាលបរិច្ឆេទចុះហត្ថលេខា
                   </label>
@@ -210,17 +249,10 @@
                     placeholder="ឧ. ៤/១១/២៦ ឬ រាជធានីភ្នំពេញ ថ្ងៃទី... ខែ... ឆ្នាំ..."
                   />
                 </div>
-                <div class="col-md-6">
-                  <label class="font-weight-bold text-dark small mb-1">
-                    <i class="fas fa-map-marker-alt text-danger mr-1"></i> ជ្រើសរើសទីតាំងដាក់លើរបាយការណ៍ <span class="text-danger">*</span>
-                  </label>
-                  <select class="form-control font-weight-bold" v-model="superiorForm.placement">
-                    <option value="SIDE_BY_SIDE_LEFT">ទន្ទឹមហត្ថលេខាអ្នករៀបចំ (ខាងឆ្វេង) - ស្តង់ដារ</option>
-                    <option value="ABOVE_DRAFTER">ខាងលើហត្ថលេខាអ្នករៀបចំ</option>
-                    <option value="BELOW_DRAFTER">ខាងក្រោមហត្ថលេខាអ្នករៀបចំ</option>
-                    <option value="BOTTOM">ខាងក្រោមបង្អស់នៃរបាយការណ៍ (ចុងបញ្ចប់)</option>
-                    <option value="CURSOR">ត្រង់ទីតាំង Cursor ក្នុងអត្ថបទ</option>
-                  </select>
+                <div class="col-md-5">
+                  <div class="small text-primary bg-light border rounded px-2 py-2">
+                    <i class="fas fa-magic mr-1"></i> ទីតាំងប្រអប់៖ <strong>Auto</strong> (រៀបចំទីតាំងទូលាយ និងមិនត្រួតគ្នា)
+                  </div>
                 </div>
               </div>
 
@@ -290,6 +322,7 @@ import SignatureModal from '@/components/common/SignatureModal.vue';
 import {
   getShortKhmerDateString,
   generateDraggableOpinionBoxHtml,
+  embedOpinionBoxIntoDom,
   setupDraggableOpinionBoxes,
   escapeHtml,
   sanitizeUrl,
@@ -297,7 +330,7 @@ import {
 } from '@/utils/opinionBoxHelper';
 import {
   DOC_CSS, DOC_VERSION_MARK, PAGE_W, PAGE_H,
-  buildTemplate, cleanBodyHtml, collectBlocks, paginate, renderPagesHtml, toKhmerNum,
+  buildTemplate, cleanBodyHtml, collectBlocks, paginate, renderPagesHtml, openPrintPagesWindow, toKhmerNum, extractDocNumberPrefix,
 } from '@/utils/letterComposer';
 
 const userStore = useUserStore();
@@ -321,7 +354,8 @@ const props = defineProps({
   footerHtml: { type: String, default: '' }, // page-1 footer (address, QR...) — trusted, from settings
 });
 
-const emit = defineEmits(['update:modelValue', 'save-draft', 'change', 'signature-updated']);
+const emit = defineEmits(['update:modelValue', 'update:documentNumber', 'change', 'signature-updated']);
+const currentDocNumber = ref(props.documentNumber || '');
 
 const paperEditor = ref(null);
 const canvasContainer = ref(null);
@@ -335,28 +369,18 @@ const guides = ref([]);
 const pageCount = ref(1);
 const wordCount = ref(0);
 
-const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
 const khmerMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
-
-const getCurrentKhmerDateString = () => {
-  const d = new Date();
-  const day = toKhmerNum(d.getDate());
-  const month = khmerMonths[d.getMonth()];
-  const year = toKhmerNum(d.getFullYear());
-  return `រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}`;
-};
-
 
 // Dual calendar block inside the drafter signature. Editable islands are marked with
 // data-field (contenteditable is added at runtime, so the HTML purifier may strip it safely).
-const getOfficialKhmerDateHtml = (input = new Date()) => {
-  const d = input instanceof Date ? input : new Date(input);
+const getOfficialKhmerDateHtml = () => {
+  const d = new Date();
   const day = toKhmerNum(d.getDate());
   const month = khmerMonths[d.getMonth()] || 'វិច្ឆិកា';
   const year = toKhmerNum(d.getFullYear());
   return `
-    <div data-field="date-lunar" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 10pt; color: #222; margin-bottom: 2px;" title="កាលបរិច្ឆេទពុទ្ធសករាជ (ចុចដើម្បីកែ)">ថ្ងៃ................... ខែ............. ឆ្នាំ........ ព.ស.២៥......</div>
-    <div data-field="date-solar" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 10.5pt; color: #111; margin-bottom: 4px;" title="កាលបរិច្ឆេទគ្រឹះសករាជ (ចុចដើម្បីកែ)">រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}</div>
+    <div data-field="date-lunar" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; color: #222; margin-bottom: 2px;" title="កាលបរិច្ឆេទពុទ្ធសករាជ (ចុចដើម្បីកែ)">ថ្ងៃ................... ខែ............. ឆ្នាំ........ ព.ស.២៥......</div>
+    <div data-field="date-solar" style="font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif; font-size: 12pt; color: #111; margin-bottom: 4px;" title="កាលបរិច្ឆេទគ្រឹះសករាជ (ចុចដើម្បីកែ)">រាជធានីភ្នំពេញ ថ្ងៃទី${day} ខែ${month} ឆ្នាំ${year}</div>
   `;
 };
 
@@ -386,7 +410,6 @@ const getDrafterSignatureHtml = () => {
   const signatureUrl = sanitizeUrl(props.officerSignature || '');
   const drafterFilePath = extractFilePathFromUrl(props.officerSignature || '');
   const drafterDataAttr = drafterFilePath ? ` data-file-path="${drafterFilePath}"` : '';
-  const dateStr = getCurrentKhmerDateString();
 
   const signatureImgHtml = signatureUrl
     ? `<div style="text-align: center; margin: 4px 0 2px 0;">
@@ -402,17 +425,17 @@ const getDrafterSignatureHtml = () => {
     <table class="drafter-signature-table" data-region="signature" style="width: 100%; max-width: 100%; border: none; border-collapse: collapse; margin-top: 30px; margin-bottom: 25px; page-break-inside: avoid; break-inside: avoid; line-height: 2.1; table-layout: fixed; box-sizing: border-box;">
       <tr>
         <td class="opinion-left-col" style="width: 46%; border: none; vertical-align: top; text-align: center; padding-right: 10px; box-sizing: border-box;"></td>
-        <td style="width: 54%; border: none; vertical-align: top; text-align: center; font-size: 11pt; line-height: 2.1; padding-left: 10px; box-sizing: border-box; overflow-wrap: break-word; word-break: break-word;">
+        <td style="width: 54%; border: none; vertical-align: top; text-align: center; font-size: 12pt; line-height: 2.1; padding-left: 10px; box-sizing: border-box; overflow-wrap: break-word; word-break: break-word;">
           ${getOfficialKhmerDateHtml()}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 2px;">
+          <div class="lc-moul" style="font-family: 'Khmer OS Muol Light', 'Moul', serif; font-size: 12pt; color: #000; margin-top: 2px;">
             ${dept}
           </div>
-          ${office ? `<div style="font-family: 'Khmer OS Muol Light', serif; font-size: 10.5pt; color: #000;">${office}</div>` : ''}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 11pt; color: #000; margin-top: 4px;">
+          ${office ? `<div class="lc-moul" style="font-family: 'Khmer OS Muol Light', 'Moul', serif; font-size: 12pt; color: #000;">${office}</div>` : ''}
+          <div class="lc-moul" style="font-family: 'Khmer OS Muol Light', 'Moul', serif; font-size: 12pt; color: #000; margin-top: 4px;">
             ${pos}
           </div>
           ${signatureImgHtml}
-          <div style="font-family: 'Khmer OS Muol Light', serif; font-size: 12pt; color: #000; font-weight: bold;">
+          <div class="lc-moul" style="font-family: 'Khmer OS Muol Light', 'Moul', serif; font-size: 12pt; color: #000;">
             ${officer}
           </div>
         </td>
@@ -430,7 +453,7 @@ const superiorForm = reactive({
   title: '',
   comment: '',
   dateStr: '',
-  placement: 'SIDE_BY_SIDE_LEFT', // 'SIDE_BY_SIDE_LEFT', 'ABOVE_DRAFTER', 'BELOW_DRAFTER', 'BOTTOM', 'CURSOR'
+  placement: 'AUTO',
   name: '',
   position: '',
   signatureUrl: '',
@@ -459,7 +482,7 @@ const openSuperiorReviewModal = () => {
     ? 'បានពិនិត្យ និងសម្រេចឯកភាព'
     : 'សូមគោរពជូនឯកឧត្តមអគ្គនាយក\nមេត្តាពិនិត្យ និងសម្រេច';
   superiorForm.dateStr = getShortKhmerDateString(new Date());
-  superiorForm.placement = 'SIDE_BY_SIDE_LEFT';
+  superiorForm.placement = 'AUTO';
   superiorForm.name = userStore.name_kh || userStore.name || '';
   superiorForm.position = isDgUser.value ? 'អគ្គនាយក' : posTitle;
   superiorForm.signatureUrl = userStore.signature_image || '';
@@ -478,6 +501,16 @@ const openSuperiorReviewModal = () => {
   showSuperiorReviewModal.value = true;
 };
 
+const refreshDraggableBoxes = () => {
+  if (!paperEditor.value) return;
+  if (cleanupDraggable) cleanupDraggable();
+  cleanupDraggable = setupDraggableOpinionBoxes(
+    paperEditor.value,
+    () => { emitUpdate(); scheduleLayout(); },
+    { currentUserId: userStore.id }
+  );
+};
+
 const applySuperiorReview = () => {
   if (!paperEditor.value) return;
 
@@ -490,65 +523,20 @@ const applySuperiorReview = () => {
     ownerId: userStore.id,
   });
 
-  // Rule: 1 Person can ONLY have ONE opinion box in the report!
-  // If user already has one, update it in-place instead of creating a duplicate
-  const existingBox = paperEditor.value.querySelector(`.draggable-opinion-box[data-owner-id="${userStore.id}"]`);
-  if (existingBox) {
-    existingBox.outerHTML = boxHtml;
-    emitUpdate();
-    showSuperiorReviewModal.value = false;
-    Swal.fire({
-      icon: 'success',
-      title: 'បានធ្វើបច្ចុប្បន្នភាព!',
-      text: 'លោកអ្នកមានប្រអប់មតិយោបល់រួចហើយ ប្រព័ន្ធបានធ្វើបច្ចុប្បន្នភាពលើប្រអប់របស់លោកអ្នកដោយមិនបង្កើតប្រអប់ស្ទួនឡើយ។',
-      timer: 2000,
-      showConfirmButton: false,
-    });
-    return;
-  }
+  const hadExistingBox = Boolean(paperEditor.value.querySelector(`.draggable-opinion-box[data-owner-id="${userStore.id}"]`));
+  embedOpinionBoxIntoDom(paperEditor.value, boxHtml, 'AUTO');
 
-  const drafterTable = paperEditor.value.querySelector('.drafter-signature-table');
-
-  if (superiorForm.placement === 'SIDE_BY_SIDE_LEFT' && drafterTable) {
-    let leftCol = drafterTable.querySelector('.opinion-left-col') || drafterTable.querySelector('td:first-child');
-    if (leftCol) {
-      if (!leftCol.innerHTML.trim()) {
-        leftCol.innerHTML = boxHtml;
-      } else {
-        leftCol.insertAdjacentHTML('beforeend', boxHtml);
-      }
-    } else {
-      drafterTable.insertAdjacentHTML('beforebegin', boxHtml);
-    }
-  } else if (superiorForm.placement === 'CURSOR' && savedRange.value) {
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(savedRange.value);
-    document.execCommand('insertHTML', false, boxHtml);
-  } else if (superiorForm.placement === 'ABOVE_DRAFTER') {
-    if (drafterTable) {
-      drafterTable.insertAdjacentHTML('beforebegin', boxHtml);
-    } else {
-      paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
-    }
-  } else if (superiorForm.placement === 'BELOW_DRAFTER') {
-    if (drafterTable) {
-      drafterTable.insertAdjacentHTML('afterend', boxHtml);
-    } else {
-      paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
-    }
-  } else {
-    // Default 'BOTTOM'
-    paperEditor.value.insertAdjacentHTML('beforeend', boxHtml);
-  }
-
+  refreshDraggableBoxes();
   emitUpdate();
+  scheduleLayout();
   showSuperiorReviewModal.value = false;
 
   Swal.fire({
     icon: 'success',
-    title: 'បានបញ្ចូលយោបល់ និងហត្ថលេខា!',
-    text: 'មតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំត្រូវបានបញ្ចូលទៅក្នុងរបាយការណ៍ដោយជោគជ័យ។ លោកអ្នកអាចចុចអូសរំកិលទីតាំងបានតាមតម្រូវការ!',
+    title: hadExistingBox ? 'បានធ្វើបច្ចុប្បន្នភាព!' : 'បានបញ្ចូលយោបល់ និងហត្ថលេខា!',
+    text: hadExistingBox
+      ? 'លោកអ្នកមានប្រអប់មតិយោបល់រួចហើយ ប្រព័ន្ធបានធ្វើបច្ចុប្បន្នភាពលើប្រអប់របស់លោកអ្នកដោយមិនបង្កើតប្រអប់ស្ទួនឡើយ។'
+      : 'មតិយោបល់ និងហត្ថលេខារបស់ថ្នាក់ដឹកនាំត្រូវបានរៀបចំទីតាំងដោយស្វ័យប្រវត្តិ។ លោកអ្នកអាចចុចអូសរំកិលទីតាំងបានតាមតម្រូវការ!',
     timer: 2000,
     showConfirmButton: false
   });
@@ -654,29 +642,6 @@ const onSignatureSaved = (newSigUrl) => {
   }
 };
 
-const insertReviewerBlocks = () => {
-  if (props.readonly || !paperEditor.value) return;
-  const html = getReviewBlockHtml(props.approvals);
-  if (!html) {
-    Swal.fire({
-      icon: 'info',
-      title: 'ពុំទាន់មានមតិយោបល់',
-      text: 'របាយការណ៍នេះមិនទាន់មានមតិយោបល់របស់ថ្នាក់ដឹកនាំនៅឡើយទេ។ មតិយោបល់ និងហត្ថលេខានឹងបង្ហាញដោយស្វ័យប្រវត្តិតាមការចារឆ្លងជាក់ស្តែង!',
-      confirmButtonText: 'យល់ព្រម'
-    });
-    return;
-  }
-  paperEditor.value.focus();
-  document.execCommand('insertHTML', false, html);
-  emitUpdate();
-  Swal.fire({
-    icon: 'success',
-    title: 'បានបញ្ចូលកំណត់ត្រាមតិយោបល់ថ្នាក់ដឹកនាំ!',
-    timer: 1500,
-    showConfirmButton: false,
-  });
-};
-
 const syncWorkflowApprovals = () => {
   if (props.readonly || !paperEditor.value) return;
   const newHtml = getReviewBlockHtml(props.approvals);
@@ -719,19 +684,6 @@ const replaceDrafterTable = (existing) => {
   emitUpdate();
   scheduleLayout();
 };
-
-const insertDrafterSignature = () => {
-  if (props.readonly || !paperEditor.value) return;
-  replaceDrafterTable(paperEditor.value.querySelector('.drafter-signature-table'));
-  Swal.fire({
-    icon: 'success',
-    title: 'បានធ្វើបច្ចុប្បន្នភាពប្លុកហត្ថលេខាអ្នករៀបចំ!',
-    timer: 1500,
-    showConfirmButton: false,
-  });
-};
-
-
 
 // ---------------------------------------------------------------------------
 // Templates (structured regions)
@@ -781,7 +733,16 @@ const hydrate = () => {
     if (ph) el.setAttribute('data-ph', ph);
   });
   const num = root.querySelector('[data-sys="doc-number"]');
-  if (num) num.textContent = props.documentNumber || '.......................';
+  if (num) {
+    if (!props.readonly) {
+      num.setAttribute('contenteditable', 'true');
+      num.setAttribute('data-ph', '.......................');
+      num.setAttribute('title', 'ចុចដើម្បីកែលេខឯកសារ');
+    }
+    if (document.activeElement !== num) {
+      num.textContent = extractDocNumberPrefix(currentDocNumber.value) || '.......................';
+    }
+  }
   const refs = root.querySelector('[data-field="refs"]');
   if (refs) normalizeRefs(refs);
   updateWordCount();
@@ -812,15 +773,47 @@ const fieldOf = (node) => {
   const el = node && (node.nodeType === 1 ? node : node.parentElement);
   return el ? el.closest(EDITABLE_SELECTOR) : null;
 };
+const docNumOf = (node) => {
+  const el = node && (node.nodeType === 1 ? node : node.parentElement);
+  return el ? el.closest('[data-sys="doc-number"]') : null;
+};
 const isRich = (el) => !!el && el.matches(RICH_SELECTOR);
 
-const onEditorInput = () => {
+const onEditorFocusIn = (e) => {
+  const numEl = docNumOf(e.target);
+  if (numEl && /^\.+$/.test(numEl.textContent.trim())) {
+    numEl.textContent = '';
+  }
+};
+
+const onEditorInput = (e) => {
+  const numEl = docNumOf(e?.target);
+  if (numEl) {
+    const raw = (numEl.textContent || '').replace(/[\r\n]+/g, ' ').trim();
+    const clean = /^\.+$/.test(raw) ? '' : raw;
+    currentDocNumber.value = clean;
+    emit('update:documentNumber', clean);
+    scheduleLayout();
+    return;
+  }
   emitUpdate();
   updateWordCount();
   scheduleLayout();
 };
 
 const onEditorKeydown = (e) => {
+  const numEl = docNumOf(e.target);
+  if (numEl) {
+    if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      numEl.blur();
+    }
+    return;
+  }
   const el = fieldOf(e.target);
   if (!el) return;
   const field = el.getAttribute('data-field');
@@ -844,18 +837,26 @@ const onEditorKeydown = (e) => {
     sel.removeAllRanges();
     sel.addRange(r);
     onEditorInput();
-  } else if (field && !isRich(el) && !e.shiftKey) {
-    // subject / recipient / dates: Enter finishes the field (Shift+Enter = new line)
+  } else if (field && field !== 'recipient' && !isRich(el) && !e.shiftKey) {
+    // single-line fields (subject / dates): Enter finishes the field (Shift+Enter = new line)
     e.preventDefault();
     el.blur();
   }
 };
 
 const onEditorPaste = (e) => {
+  const cd = e.clipboardData || window.clipboardData;
+  const numEl = docNumOf(e.target);
+  if (numEl) {
+    e.preventDefault();
+    const text = (cd.getData('text/plain') || '').replace(/\s*\r?\n\s*/g, ' ').trim();
+    document.execCommand('insertText', false, text);
+    onEditorInput({ target: numEl });
+    return;
+  }
   const el = fieldOf(e.target);
   if (!el) return;
   e.preventDefault();
-  const cd = e.clipboardData || window.clipboardData;
   if (isRich(el)) {
     let html = cd.getData('text/html');
     if (!html) {
@@ -863,13 +864,23 @@ const onEditorPaste = (e) => {
     }
     document.execCommand('insertHTML', false, cleanBodyHtml(html));
   } else {
-    const text = (cd.getData('text/plain') || '').replace(/\s*\r?\n\s*/g, el.getAttribute('data-field') === 'refs' ? '\n' : ' ');
+    const field = el.getAttribute('data-field');
+    const text = (cd.getData('text/plain') || '').replace(/\s*\r?\n\s*/g, (field === 'refs' || field === 'recipient') ? '\n' : ' ');
     document.execCommand('insertText', false, text);
   }
   onEditorInput();
 };
 
 const onEditorFocusOut = (e) => {
+  const numEl = docNumOf(e.target);
+  if (numEl) {
+    const raw = (numEl.textContent || '').replace(/[\r\n]+/g, ' ').trim();
+    const clean = /^\.+$/.test(raw) ? '' : raw;
+    currentDocNumber.value = clean;
+    emit('update:documentNumber', clean);
+    if (!clean) numEl.textContent = '.......................';
+    return;
+  }
   const el = fieldOf(e.target);
   if (!el) return;
   if (el.getAttribute('data-field') === 'refs') normalizeRefs(el);
@@ -877,7 +888,7 @@ const onEditorFocusOut = (e) => {
 };
 
 const onEditorClick = (e) => {
-  if (props.readonly || fieldOf(e.target)) return;
+  if (props.readonly || fieldOf(e.target) || docNumOf(e.target)) return;
   if (e.target.closest('.draggable-opinion-box')) return;
   if (e.target.closest('[data-region="header"], [data-region="signature"]')) {
     lockedHint();
@@ -910,13 +921,16 @@ const normalizeRefs = (el) => {
   if (!el.querySelector('.lc-ref')) el.innerHTML = '<div class="lc-ref"><br></div>';
 };
 
-// Formatting toolbar (rich regions only)
+// Formatting toolbar (rich regions, plus Moul/undo/redo/removeFormat in subject & refs)
 const fmt = (cmd) => {
   if (props.readonly) return;
   const sel = window.getSelection();
   const el = sel && sel.rangeCount ? fieldOf(sel.anchorNode) : null;
-  if (!el || !paperEditor.value.contains(el) || !isRich(el)) {
-    Swal.fire({ toast: true, position: 'bottom', icon: 'info', timer: 2000, showConfirmButton: false, title: 'សូមចុចក្នុង «ខ្លឹមសារ» ជាមុនសិន' });
+  const field = el ? el.getAttribute('data-field') : null;
+  const isInlineTextField = field === 'subject' || field === 'refs';
+  const allowInSimpleField = isInlineTextField && (cmd === 'moul' || cmd === 'undo' || cmd === 'redo' || cmd === 'removeFormat');
+  if (!el || !paperEditor.value.contains(el) || (!isRich(el) && !allowInSimpleField)) {
+    Swal.fire({ toast: true, position: 'bottom', icon: 'info', timer: 2000, showConfirmButton: false, title: 'សូមចុចក្នុង «ខ្លឹមសារ» ឬ «កម្មវត្ថុ» ជាមុនសិន' });
     return;
   }
   if (cmd === 'moul') toggleMoul(el);
@@ -1006,7 +1020,7 @@ const updateGuides = () => {
 
 const renderPages = (forPrint = false) => {
   const html = renderPagesHtml(serialize(), {
-    documentNumber: props.documentNumber,
+    documentNumber: currentDocNumber.value,
     footerHtml: props.footerHtml,
     scale: forPrint ? 1 : scale.value,
   });
@@ -1045,17 +1059,7 @@ const setMode = (m) => {
 const printDocument = () => {
   if (mode.value === 'write') emitUpdate();
   const { html } = renderPages(true);
-  const w = window.open('', '_blank');
-  if (!w) return;
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>បោះពុម្ពឯកសារ</title>
-    <base href="${window.location.origin}/">
-    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Siemreap&display=swap" rel="stylesheet">
-    <style>${DOC_CSS} body{margin:0;background:#fff} .lc-page-wrap{box-shadow:none!important;margin:0!important}
-    .box-handle,.opinion-box-actions{display:none!important} .draggable-opinion-box{outline:none!important;box-shadow:none!important}</style>
-    </head><body class="lc-print">${html}
-    <script>(document.fonts?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(function(){window.print();},300);});<\/script>
-    </body></html>`);
-  w.document.close();
+  openPrintPagesWindow(html, 'បោះពុម្ពឯកសារ');
 };
 
 const exportToWord = () => {
@@ -1094,7 +1098,15 @@ watch(
     }
   }
 );
-watch(() => [props.documentNumber, props.readonly], () => { hydrate(); scheduleLayout(); });
+watch(() => props.documentNumber, (newNum) => {
+  const clean = newNum || '';
+  if (clean !== currentDocNumber.value) {
+    currentDocNumber.value = clean;
+  }
+  hydrate();
+  scheduleLayout();
+});
+watch(() => props.readonly, () => { hydrate(); scheduleLayout(); });
 watch(() => props.footerHtml, scheduleLayout);
 
 let cleanupDraggable = null;
@@ -1103,12 +1115,13 @@ let mutationObserver = null;
 const onWindowResize = () => scheduleLayout();
 
 onMounted(() => {
-  if (!document.getElementById('lc-doc-css')) {
-    const st = document.createElement('style');
+  let st = document.getElementById('lc-doc-css');
+  if (!st) {
+    st = document.createElement('style');
     st.id = 'lc-doc-css';
-    st.textContent = DOC_CSS;
     document.head.appendChild(st);
   }
+  st.textContent = DOC_CSS;
   nextTick(() => {
     if (!paperEditor.value) return;
     if (props.modelValue && props.modelValue.includes(DOC_VERSION_MARK)) {
@@ -1118,11 +1131,7 @@ onMounted(() => {
     } else {
       insertTemplate(props.docType || 'REPORT', { confirm: false });
     }
-    cleanupDraggable = setupDraggableOpinionBoxes(
-      paperEditor.value,
-      () => { emitUpdate(); scheduleLayout(); },
-      { currentUserId: userStore.id, isAdmin: isDgUser.value }
-    );
+    refreshDraggableBoxes();
     mutationObserver = new MutationObserver(scheduleLayout);
     mutationObserver.observe(paperEditor.value, { childList: true, subtree: true, characterData: true });
     if (typeof ResizeObserver !== 'undefined') {
@@ -1151,7 +1160,22 @@ onUnmounted(() => {
 /* Draggable Leadership Opinion Box & Handles */
 :deep(.draggable-opinion-box) {
   position: relative;
+  display: inline-block !important;
+  vertical-align: top !important;
+  box-sizing: border-box !important;
   transition: box-shadow 0.15s ease;
+}
+
+:deep(.opinion-boxes-row) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 8px 14px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+  clear: both !important;
+  box-sizing: border-box !important;
 }
 
 :deep(.draggable-opinion-box.is-locked-box) {
@@ -1190,6 +1214,11 @@ onUnmounted(() => {
   outline: 1.5px dashed #2563eb !important;
   user-select: none !important;
   z-index: 100 !important;
+}
+
+:deep(.draggable-opinion-box.is-blocked) {
+  outline: 2px dashed #dc2626 !important;
+  background-color: rgba(254, 226, 226, 0.35) !important;
 }
 
 :deep(.box-handle) {
@@ -1261,252 +1290,87 @@ onUnmounted(() => {
 
 .word-ribbon {
   background-color: #f8f9fa;
-  border-bottom: 2px solid #0056b3;
+  border-bottom: 1px solid #d0d7de;
   z-index: 10;
 }
 
+.lc-ribbon-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+}
+
+.lc-ribbon-top {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.lc-ribbon-format {
+  background: #f8fafc;
+  gap: 6px;
+  padding: 5px 12px;
+}
+
+.lc-ribbon-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lc-ribbon-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.lc-divider {
+  width: 1px;
+  height: 22px;
+  background: #cbd5e1;
+  margin: 0 2px;
+}
+
+.lc-btn {
+  font-size: 12.5px !important;
+  padding: 4px 10px !important;
+  line-height: 1.35 !important;
+  white-space: nowrap;
+}
+
 .btn-tool {
-  padding: 3px 8px;
-  font-size: 13px;
-  color: #333;
+  padding: 3px 9px;
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.35;
 }
 .btn-tool:hover {
-  background-color: #e2e6ea;
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
-.font-select {
-  height: 28px;
-  font-size: 12px;
-  width: 175px;
-  padding: 2px 6px;
+.lc-moul-btn {
+  font-family: 'Khmer OS Muol Light', 'Moul', serif !important;
+  font-size: 11.5px !important;
 }
 
-.size-select {
-  height: 28px;
-  font-size: 12px;
-  width: 105px;
-  padding: 2px 6px;
-}
-
-.color-picker-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  background-color: #fff;
-  cursor: pointer;
-  margin-bottom: 0;
-}
-.color-picker-label:hover {
-  background-color: #e9ecef;
-}
-
-.document-canvas-container {
-  flex: 1;
-  background-color: #525659;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 25px 15px 60px 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 520px;
-  max-height: 720px;
-}
-
-.fullscreen-mode .document-canvas-container {
-  max-height: calc(100vh - 120px);
-}
-
-.document-paper {
-  background-color: #ffffff !important;
-  width: 100%;
-  max-width: 794px; /* Exact standard A4 width at 96 DPI (210mm) */
-  min-height: 1123px; /* Exact standard A4 height at 96 DPI (297mm) */
-  height: auto !important;
-  padding: 45px 55px; /* Clean standard Cambodian margins */
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  border-radius: 2px;
-  color: #111;
-  outline: none;
-  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif;
-  font-size: 12pt;
-  line-height: 2.1;
-  cursor: text;
-  box-sizing: border-box;
-  overflow-x: hidden !important;
-  overflow-y: visible;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  flex-shrink: 0;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
-
-.document-paper:focus {
-  outline: none;
-}
-
-:deep(.subject-ref-table) {
-  table-layout: fixed !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-:deep(.subject-ref-table td:first-child) {
-  width: 95px !important;
-  min-width: 95px !important;
-  max-width: 95px !important;
-  white-space: nowrap !important;
-  box-sizing: border-box !important;
-}
-
-:deep(.subject-ref-table td:last-child) {
-  width: calc(100% - 95px) !important;
-  word-break: break-word !important;
-  overflow-wrap: break-word !important;
-  box-sizing: border-box !important;
-}
-
-:deep(table) {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-:deep(td),
-:deep(th) {
-  box-sizing: border-box !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  max-width: 100% !important;
-}
-
-:deep(p),
-:deep(div) {
-  max-width: 100% !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  box-sizing: border-box !important;
+.lc-format-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 :deep(.drafter-signature-table) {
-  table-layout: fixed !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
+  table-layout: fixed;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 :deep(.drafter-signature-table td) {
-  box-sizing: border-box !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-}
-
-:deep(img) {
-  max-width: 100% !important;
-  height: auto;
-}
-
-:deep(.page-break) {
-  page-break-before: always !important;
-  break-before: page !important;
-  display: block !important;
-  margin: 45px -55px 30px -55px !important;
-  height: 26px !important;
-  padding: 0 !important;
-  background-color: #525659 !important;
-  border-top: 1px solid #3a3d40 !important;
-  border-bottom: 1px solid #3a3d40 !important;
-  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35) !important;
-  position: relative !important;
-  user-select: none !important;
-  clear: both !important;
-}
-
-:deep(.page-break-badge) {
-  user-select: none !important;
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  background: #1e40af !important;
-  color: #ffffff !important;
-  padding: 2px 18px !important;
-  border-radius: 12px !important;
-  font-size: 9pt !important;
-  font-family: sans-serif !important;
-  font-weight: bold !important;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
-  z-index: 10 !important;
-}
-
-:deep(.page-number-header) {
-  display: none !important;
-}
-
-:deep(.page-number-footer) {
-  text-align: center !important;
-  font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
-  font-size: 11pt !important;
-  color: #444 !important;
-  margin-top: 35px !important;
-  margin-bottom: 15px !important;
-  user-select: none !important;
-  clear: both !important;
-}
-
-:deep(.doc-number-input) {
-  outline: none;
-  min-width: 45px;
-  display: inline-block;
-  border-bottom: 1px dotted #888;
-  padding: 0 4px;
-}
-
-:deep(.doc-number-input:hover),
-:deep(.doc-number-input:focus) {
-  background-color: #f1f5f9;
-  border-bottom: 1.5px solid #2563eb;
-}
-
-@media print {
-  :deep(.page-break) {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    border-top: none !important;
-    border-bottom: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    page-break-before: always !important;
-    break-before: page !important;
-    padding-top: 10mm !important;
-  }
-  :deep(.page-break-badge),
-  :deep(.page-number-header) {
-    display: none !important;
-  }
-  :deep(.page-number-footer) {
-    text-align: center !important;
-    font-family: 'Khmer OS Siemreap', 'Siemreap', sans-serif !important;
-    font-size: 10.5pt !important;
-    color: #333 !important;
-    margin-top: 35px !important;
-    margin-bottom: 15px !important;
-    page-break-after: avoid !important;
-  }
-  :deep(.closing-and-signature-block),
-  :deep(.drafter-signature-table),
-  :deep(.review-signatures-wrapper) {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
+  box-sizing: border-box;
 }
 
 .word-statusbar {
@@ -1516,7 +1380,20 @@ onUnmounted(() => {
 
 <style>
 /* Composer chrome (not part of the saved document) */
-.lc-canvas { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 18px 16px 48px; overflow: auto; background: #525659; }
+.lc-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 16px 48px;
+  overflow: auto;
+  background: #525659;
+  min-height: 520px;
+  max-height: 720px;
+}
+.fullscreen-mode .lc-canvas {
+  max-height: calc(100vh - 125px);
+}
 .lc-sheet-wrap { position: relative; flex: none; background: #fff; box-shadow: 0 2px 12px rgba(0, 0, 0, .35); }
 .lc-guides { position: absolute; left: 0; top: 0; width: 794px; height: 0; transform-origin: top left; pointer-events: none; }
 .lc-guide { position: absolute; left: 0; right: 0; border-top: 2px dashed #2457c5; opacity: .8; }

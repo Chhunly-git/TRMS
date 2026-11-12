@@ -122,7 +122,7 @@ class OutboundDocumentController extends Controller
             'currentApprover:id,name,name_kh,email,position_id,department_id,office_id,profile_image',
             'currentApprover.position:id,title_kh,level',
             'approvedByUser:id,name,name_kh,profile_image',
-            'department:id,name_kh',
+            'department:id,name_kh,abbreviation_kh',
             'office:id,name_kh',
             'approvals.user:id,name,name_kh,position_id,profile_image,signature_image',
             'approvals.user.position:id,title_kh,level',
@@ -247,6 +247,7 @@ class OutboundDocumentController extends Controller
         $rules = [
             'inbound_document_id' => 'nullable|exists:inbound_documents,id',
             'response_type' => 'required|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'response_number' => 'nullable|string|max:100',
             'format_version' => 'nullable|integer|in:1,2',
             'recipient_type' => 'nullable|string|in:INTERNAL,EXTERNAL',
             'recipient_text' => 'nullable|string|max:500',
@@ -324,10 +325,13 @@ class OutboundDocumentController extends Controller
                 $bodyHtml = \App\Services\FileUrlService::normalizeContentForStorage($bodyHtml);
             }
 
+            $responseNumber = $request->filled('response_number') ? trim((string) $request->input('response_number')) : null;
+
             $createData = [
                 'format_version' => $formatVersion,
                 'inbound_document_id' => $inboundDocId,
                 'response_type' => $responseType,
+                'response_number' => $responseNumber,
                 'issuing_unit_type' => $issuingUnitType,
                 'issuing_unit_id' => $issuingUnitId,
                 'recipient_type' => $request->input('recipient_type', 'INTERNAL'),
@@ -508,7 +512,7 @@ class OutboundDocumentController extends Controller
             'currentApprover.position:id,title_kh,level',
             'approvedByUser:id,name,name_kh,position_id,profile_image',
             'approvedByUser.position:id,title_kh,level',
-            'department:id,name_kh',
+            'department:id,name_kh,abbreviation_kh',
             'office:id,name_kh',
             'approvals.user:id,name,name_kh,position_id,profile_image,signature_image',
             'approvals.user.position:id,title_kh,level',
@@ -571,6 +575,7 @@ class OutboundDocumentController extends Controller
         $rules = [
             'inbound_document_id' => 'nullable|exists:inbound_documents,id',
             'response_type' => 'required|in:REPORT,SUBMISSION_NOTE,LETTER',
+            'response_number' => 'nullable|string|max:100',
             'format_version' => 'nullable|integer|in:1,2',
             'recipient_type' => 'nullable|string|in:INTERNAL,EXTERNAL',
             'recipient_text' => 'nullable|string|max:500',
@@ -638,6 +643,11 @@ class OutboundDocumentController extends Controller
                 'file_name' => $fileName,
             ];
 
+            if ($request->has('response_number')) {
+                $updateData['response_number'] = $request->filled('response_number')
+                    ? trim((string) $request->input('response_number'))
+                    : null;
+            }
             if ($request->has('format_version')) {
                 $updateData['format_version'] = (int) $request->input('format_version');
             }
@@ -1081,6 +1091,15 @@ class OutboundDocumentController extends Controller
                 return response()->json(['message' => 'លោកអ្នកពុំមែនជាថ្នាក់ដឹកនាំទទួលបន្ទុកពិនិត្យលិខិតនេះឡើយ!'], 403);
             }
 
+            // Apply manual document number override if user entered/edited it in review modal
+            if ($request->filled('response_number')) {
+                $manualNum = trim((string) $request->input('response_number'));
+                if ($manualNum !== '' && $manualNum !== (string) $response->response_number) {
+                    $response->response_number = $manualNum;
+                    $response->save();
+                }
+            }
+
             // If approver attached / updated report content with their opinion & signature
             if ($request->filled('content') && trim((string)$response->content) !== trim((string)$request->input('content'))) {
                 $newContent = $request->input('content');
@@ -1381,26 +1400,54 @@ class OutboundDocumentController extends Controller
     }
 
     /**
-     * 8. លុបសេចក្តីព្រាងលិខិត (Delete Draft)
+     * 8. លុបឯកសារចេញ (Delete Draft / Numbered Document by Department Director before DG Approval)
      */
     public function destroy($id, Request $request)
     {
         $viewer = $request->user();
-        $response = InboundDocumentResponse::findOrFail($id);
-
-        if ($response->number_seq !== null) {
-            return response()->json(['message' => 'មិនអាចលុបឯកសារដែលបានចុះលេខផ្លូវការរួចហើយបានឡើយ!'], 409);
-        }
+        $response = InboundDocumentResponse::with('draftedByUser:id,department_id')->findOrFail($id);
 
         $isAdmin = (strtoupper($viewer->level ?? '') === 'ADMIN');
-        if ((int) $response->drafted_by !== (int) $viewer->id && !$isAdmin) {
-            return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបលិខិតនេះឡើយ!'], 403);
-        }
+        $viewerPosLevel = $viewer->position ? (int) $viewer->position->level : 99;
+        $isDeptDirector = ($viewerPosLevel === 3) || (strtoupper($viewer->level ?? '') === 'DIRECTOR');
+        $isDrafter = ((int) $response->drafted_by === (int) $viewer->id);
+        $isSameDeptDirector = $isDeptDirector
+            && !empty($viewer->department_id)
+            && (
+                (int) $response->department_id === (int) $viewer->department_id
+                || (int) ($response->draftedByUser?->department_id) === (int) $viewer->department_id
+            );
 
-        // Allow deleting DRAFT or RETURNED (when leaders return it for edit) or by Admin
-        $canDeleteStatus = in_array($response->status, ['DRAFT', 'RETURNED']) || $isAdmin;
-        if (!$canDeleteStatus) {
-            return response()->json(['message' => 'អាចលុបបានតែសេចក្តីព្រាង ឬលិខិតដែលបានបញ្ជូនត្រឡប់មកវិញប៉ុណ្ណោះ!'], 400);
+        $isApprovedByDg = ($response->status === 'APPROVED_BY_DG')
+            || ($response->approved_at !== null)
+            || ($response->current_stage === 'COMPLETED');
+
+        if ($response->number_seq !== null) {
+            if (!$isDeptDirector || (!$isDrafter && !$isSameDeptDirector)) {
+                return response()->json(['message' => 'មិនអាចលុបឯកសារដែលបានចុះលេខផ្លូវការរួចហើយបានឡើយ!'], 409);
+            }
+            if ($isApprovedByDg) {
+                return response()->json(['message' => 'មិនអាចលុបឯកសារដែលឯកឧត្តមអគ្គនាយកបានឯកភាព (Approve) រួចហើយបានឡើយ!'], 409);
+            }
+            if ($response->status === 'CANCELLED') {
+                return response()->json(['message' => 'មិនអាចលុបឯកសារដែលត្រូវបានបោះបង់ (CANCELLED) រួចហើយបានឡើយ!'], 409);
+            }
+        } else {
+            if (!$isDrafter && !$isAdmin && !$isSameDeptDirector) {
+                return response()->json(['message' => 'លោកអ្នកមិនមានសិទ្ធិលុបលិខិតនេះឡើយ!'], 403);
+            }
+
+            if ($isApprovedByDg) {
+                return response()->json(['message' => 'មិនអាចលុបឯកសារដែលឯកឧត្តមអគ្គនាយកបានឯកភាព (Approve) រួចហើយបានឡើយ!'], 409);
+            }
+
+            // Allow deleting DRAFT or RETURNED, UNDER_REVIEW for same dept director, or by Admin
+            $canDeleteStatus = in_array($response->status, ['DRAFT', 'RETURNED'])
+                || $isAdmin
+                || ($isSameDeptDirector && $response->status !== 'CANCELLED');
+            if (!$canDeleteStatus) {
+                return response()->json(['message' => 'អាចលុបបានតែសេចក្តីព្រាង ឬលិខិតដែលបានបញ្ជូនត្រឡប់មកវិញប៉ុណ្ណោះ!'], 400);
+            }
         }
 
         if ($response->file_path && StorageService::exists($response->file_path)) {
